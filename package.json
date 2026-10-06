@@ -1,0 +1,30 @@
+{
+  "name": "thai-chuay-thai-please",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered local spending, personalized quest, and gamification platform",
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": ">=24.15.0",
+    "pnpm": ">=12.9.1"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "dev": "pnpm --parallel --filter @thai-please/web --filter @thai-please/api dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm --recursive --if-present lint",
+    "test": "pnpm --recursive --if-present test",
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "verify": "pnpm db:validate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm --filter @thai-please/api test:e2e && pnpm build",
+    "db:generate": "pnpm --filter @thai-please/api db:generate",
+    "db:migrate:dev": "pnpm --filter @thai-please/api db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @thai-please/api db:migrate:deploy",
+    "db:validate": "pnpm --filter @thai-please/api db:validate"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9"
+  }
+}

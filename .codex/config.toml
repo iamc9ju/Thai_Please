@@ -1,0 +1,26 @@
+# Project-local Codex orchestration policy.
+# Quality and safety requirements in AGENTS.md always outrank cost optimization.
+
+[features]
+multi_agent = true
+
+[agents]
+[agents.cheap]
+description = "Mechanical, repetitive, well-specified work such as types, DTOs, mappers, boilerplate, simple tests, formatting, and narrow fixes."
+config_file = "agents/cheap.toml"
+
+[agents.engineer]
+description = "Standard implementation requiring engineering judgment such as services, repositories, API integration, frontend features, validation, refactoring, and integration tests."
+config_file = "agents/engineer.toml"
+
+[agents.architect]
+description = "Complex or critical design involving security, authorization, transactions, concurrency, database integrity, performance architecture, or difficult cross-module debugging."
+config_file = "agents/architect.toml"
+
+[agents.reviewer]
+description = "Risk-based review for correctness, security, business invariants, data integrity, concurrency, missing tests, and architectural regressions."
+config_file = "agents/reviewer.toml"
+
+[agents.escalation]
+description = "Exceptional escalation for unresolved critical ambiguity or the hardest cross-system reasoning after proportionate Sol-level investigation. Do not use for routine work."
+config_file = "agents/escalation.toml"
