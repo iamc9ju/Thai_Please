@@ -2,7 +2,9 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiServiceUnavailableResponse } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { DatabaseHealthIndicator } from './database.health-indicator.js';
+import { Public } from '../auth/public.decorator.js';
 
+@Public()
 @Controller({ path: 'health', version: '1' })
 export class HealthController {
   constructor(

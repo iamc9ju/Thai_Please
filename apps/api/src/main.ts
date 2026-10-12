@@ -48,6 +48,7 @@ async function bootstrap() {
       .setTitle(appName)
       .setDescription(APPLICATION_METADATA.openApiDescription)
       .setVersion(APPLICATION_METADATA.apiVersion)
+      .addBearerAuth()
       .build();
     const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
     SwaggerModule.setup(

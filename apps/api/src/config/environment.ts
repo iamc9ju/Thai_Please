@@ -28,6 +28,16 @@ const environmentSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+  AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28_800),
+  QR_TTL_SECONDS: z.coerce.number().int().min(30).default(300),
+  INITIAL_SUBSIDY_BAHT: z.coerce.number().int().min(1).default(1_000),
+  DAILY_SUBSIDY_CAP_BAHT: z.coerce.number().int().min(0).default(200),
+  SUBSIDY_PERCENT: z.coerce.number().int().min(0).max(100).default(60),
+  COUPON_TTL_DAYS: z.coerce.number().int().min(1).default(30),
+  POINT_TTL_DAYS: z.coerce.number().int().min(1).default(365),
+  QUEST_TTL_DAYS: z.coerce.number().int().min(1).default(30),
+  MAX_TOPUP_BAHT: z.coerce.number().int().min(1).default(100_000),
+  BUSINESS_TIME_ZONE: z.literal('Asia/Bangkok').default('Asia/Bangkok'),
 });
 
 export type EnvironmentVariables = z.infer<typeof environmentSchema>;

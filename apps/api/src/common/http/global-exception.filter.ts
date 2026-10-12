@@ -24,6 +24,8 @@ type ErrorResponseBody = {
   timestamp: string;
 };
 
+type DomainErrorBody = { code: string; message: string };
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -36,18 +38,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const requestId = this.resolveRequestId(request);
     const isServerError = status >= HttpStatus.INTERNAL_SERVER_ERROR;
+    const exceptionResponse =
+      exception instanceof HttpException ? exception.getResponse() : undefined;
+    const domainError = this.parseDomainError(exceptionResponse);
 
     response.status(status).json({
       error: {
-        code: isServerError ? ERROR_CODES.internal : ERROR_CODES.requestFailed,
+        code: isServerError
+          ? ERROR_CODES.internal
+          : (domainError?.code ?? ERROR_CODES.requestFailed),
         message: isServerError
           ? ERROR_MESSAGES.internal
-          : ERROR_MESSAGES.requestFailed,
+          : (domainError?.message ?? ERROR_MESSAGES.requestFailed),
         requestId,
       },
       path: request.path,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  private parseDomainError(value: unknown): DomainErrorBody | undefined {
+    if (typeof value !== 'object' || value === null) return undefined;
+    if (!('code' in value) || !('message' in value)) return undefined;
+    return typeof value.code === 'string' && typeof value.message === 'string'
+      ? { code: value.code, message: value.message }
+      : undefined;
   }
 
   private resolveRequestId(request: Request): string {

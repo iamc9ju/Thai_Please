@@ -28,6 +28,7 @@
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev --create-only",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "db:validate": "prisma validate"
   },
   "dependencies": {

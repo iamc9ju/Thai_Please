@@ -1,4 +1,5 @@
 export const HTTP_HEADERS = {
+  idempotencyKey: 'idempotency-key',
   requestId: 'x-request-id',
 } as const;
 

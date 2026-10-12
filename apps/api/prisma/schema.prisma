@@ -6,3 +6,421 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  CONSUMER
+  MERCHANT
+  ADMIN
+}
+
+enum WalletBucket {
+  PERSONAL
+  SUBSIDY
+}
+
+enum WalletEntryType {
+  SUBSIDY_GRANT
+  TOPUP
+  PAYMENT
+}
+
+enum OrderStatus {
+  DRAFT
+  CHECKED_OUT
+  PAID
+  EXPIRED
+}
+
+enum CouponStatus {
+  ACTIVE
+  USED
+  EXPIRED
+}
+
+enum QuestAssignmentStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+enum PointEntryType {
+  QUEST_REWARD
+  COUPON_REDEMPTION
+  EXPIRY
+}
+
+enum IdempotencyStatus {
+  COMPLETED
+}
+
+model User {
+  id               Int                 @id @default(autoincrement())
+  citizenId        String              @unique @map("citizen_id") @db.VarChar(13)
+  displayName      String              @map("display_name") @db.VarChar(120)
+  role             UserRole            @default(CONSUMER)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  sessions         AuthSession[]
+  wallet           Wallet?
+  walletEntries    WalletLedgerEntry[]
+  merchantLinks    MerchantMember[]
+  orders           Order[]
+  receipts         Receipt[]
+  pointEntries     PointLedgerEntry[]
+  pointAllocations PointAllocation[]
+  coupons          UserCoupon[]
+  questAssignments UserQuest[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
+}
+
+model Wallet {
+  id              Int                 @id @default(autoincrement())
+  userId          Int                 @unique @map("user_id")
+  currency        String              @default("THB") @db.Char(3)
+  personalBalance Int                 @default(0) @map("personal_balance")
+  subsidyBalance  Int                 @default(0) @map("subsidy_balance")
+  version         Int                 @default(0)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  entries         WalletLedgerEntry[]
+
+  @@map("wallets")
+}
+
+model WalletLedgerEntry {
+  id            Int             @id @default(autoincrement())
+  walletId      Int             @map("wallet_id")
+  userId        Int             @map("user_id")
+  orderId       Int?            @map("order_id")
+  bucket        WalletBucket
+  type          WalletEntryType
+  amount        Int
+  currency      String          @default("THB") @db.Char(3)
+  businessRef   String          @unique @map("business_ref") @db.VarChar(160)
+  correlationId String          @map("correlation_id") @db.VarChar(80)
+  occurredAt    DateTime        @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  wallet        Wallet          @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order         Order?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([userId, occurredAt, id])
+  @@index([orderId])
+  @@map("wallet_ledger_entries")
+}
+
+model MerchantCategory {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.VarChar(120)
+  active    Boolean    @default(true)
+  merchants Merchant[]
+
+  @@map("merchant_categories")
+}
+
+model ProductCategory {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique @db.VarChar(120)
+  active   Boolean   @default(true)
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Merchant {
+  id         Int              @id @default(autoincrement())
+  categoryId Int              @map("category_id")
+  name       String           @db.VarChar(160)
+  active     Boolean          @default(true)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  category   MerchantCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  members    MerchantMember[]
+  products   Product[]
+  orders     Order[]
+  receipts   Receipt[]
+
+  @@index([categoryId])
+  @@map("merchants")
+}
+
+model MerchantMember {
+  id         Int      @id @default(autoincrement())
+  merchantId Int      @map("merchant_id")
+  userId     Int      @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, userId])
+  @@index([userId])
+  @@map("merchant_members")
+}
+
+model Product {
+  id         Int             @id @default(autoincrement())
+  merchantId Int             @map("merchant_id")
+  categoryId Int             @map("category_id")
+  name       String          @db.VarChar(160)
+  price      Int
+  currency   String          @default("THB") @db.Char(3)
+  active     Boolean         @default(true)
+  version    Int             @default(1)
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  merchant   Merchant        @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+
+  @@index([merchantId, active])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Order {
+  id             Int                 @id @default(autoincrement())
+  merchantId     Int                 @map("merchant_id")
+  userId         Int?                @map("user_id")
+  status         OrderStatus         @default(DRAFT)
+  currency       String              @default("THB") @db.Char(3)
+  subtotal       Int                 @default(0)
+  discount       Int                 @default(0)
+  finalAmount    Int                 @default(0) @map("final_amount")
+  subsidyPaid    Int                 @default(0) @map("subsidy_paid")
+  personalPaid   Int                 @default(0) @map("personal_paid")
+  userCouponId   Int?                @map("user_coupon_id")
+  qrTokenHash    String?             @unique @map("qr_token_hash") @db.Char(64)
+  qrExpiresAt    DateTime?           @map("qr_expires_at") @db.Timestamptz(3)
+  checkedOutAt   DateTime?           @map("checked_out_at") @db.Timestamptz(3)
+  paidAt         DateTime?           @map("paid_at") @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  merchant       Merchant            @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  user           User?               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userCoupon     UserCoupon?         @relation("SelectedCoupon", fields: [userCouponId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  walletEntries  WalletLedgerEntry[]
+  receipt        Receipt?
+  consumedCoupon UserCoupon?         @relation("ConsumedByOrder")
+
+  @@index([merchantId, status, createdAt])
+  @@index([userId, paidAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                   Int     @id @default(autoincrement())
+  orderId              Int     @map("order_id")
+  productId            Int     @map("product_id")
+  productNameSnapshot  String  @map("product_name_snapshot") @db.VarChar(160)
+  categoryIdSnapshot   Int     @map("category_id_snapshot")
+  categoryNameSnapshot String  @map("category_name_snapshot") @db.VarChar(120)
+  quantity             Int
+  unitPrice            Int     @map("unit_price")
+  lineTotal            Int     @map("line_total")
+  currency             String  @default("THB") @db.Char(3)
+  order                Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product              Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Receipt {
+  id                   Int           @id @default(autoincrement())
+  orderId              Int           @unique @map("order_id")
+  userId               Int           @map("user_id")
+  merchantId           Int           @map("merchant_id")
+  merchantNameSnapshot String        @map("merchant_name_snapshot") @db.VarChar(160)
+  currency             String        @db.Char(3)
+  subtotal             Int
+  discount             Int
+  finalAmount          Int           @map("final_amount")
+  subsidyPaid          Int           @map("subsidy_paid")
+  personalPaid         Int           @map("personal_paid")
+  paidAt               DateTime      @map("paid_at") @db.Timestamptz(3)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  order                Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  merchant             Merchant      @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  items                ReceiptItem[]
+  questCompletions     UserQuest[]
+
+  @@index([userId, paidAt, id])
+  @@index([merchantId, paidAt])
+  @@map("receipts")
+}
+
+model ReceiptItem {
+  id           Int     @id @default(autoincrement())
+  receiptId    Int     @map("receipt_id")
+  productId    Int     @map("product_id")
+  productName  String  @map("product_name") @db.VarChar(160)
+  categoryId   Int     @map("category_id")
+  categoryName String  @map("category_name") @db.VarChar(120)
+  quantity     Int
+  unitPrice    Int     @map("unit_price")
+  lineTotal    Int     @map("line_total")
+  currency     String  @db.Char(3)
+  receipt      Receipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+
+  @@index([receiptId])
+  @@map("receipt_items")
+}
+
+model CouponDefinition {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique @db.VarChar(60)
+  name           String       @db.VarChar(160)
+  discountAmount Int          @map("discount_amount")
+  pointsCost     Int          @map("points_cost")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  userCoupons    UserCoupon[]
+
+  @@map("coupon_definitions")
+}
+
+model UserCoupon {
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  definitionId Int              @map("definition_id")
+  status       CouponStatus     @default(ACTIVE)
+  expiresAt    DateTime         @map("expires_at") @db.Timestamptz(3)
+  redeemedAt   DateTime         @default(now()) @map("redeemed_at") @db.Timestamptz(3)
+  usedAt       DateTime?        @map("used_at") @db.Timestamptz(3)
+  usedOrderId  Int?             @unique @map("used_order_id")
+  user         User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  definition   CouponDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  selectedBy   Order[]          @relation("SelectedCoupon")
+  usedOrder    Order?           @relation("ConsumedByOrder", fields: [usedOrderId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, expiresAt])
+  @@map("user_coupons")
+}
+
+model Quest {
+  id            Int         @id @default(autoincrement())
+  title         String      @db.VarChar(160)
+  description   String      @db.VarChar(500)
+  minimumAmount Int         @map("minimum_amount")
+  categoryId    Int?        @map("category_id")
+  rewardPoints  Int         @map("reward_points")
+  ruleVersion   Int         @default(1) @map("rule_version")
+  provider      String      @db.VarChar(80)
+  modelVersion  String      @map("model_version") @db.VarChar(80)
+  policyVersion String      @map("policy_version") @db.VarChar(80)
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  assignments   UserQuest[]
+
+  @@map("quests")
+}
+
+model UserQuest {
+  id          Int                   @id @default(autoincrement())
+  userId      Int                   @map("user_id")
+  questId     Int                   @map("quest_id")
+  receiptId   Int?                  @map("receipt_id")
+  status      QuestAssignmentStatus @default(ACTIVE)
+  assignedAt  DateTime              @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  expiresAt   DateTime              @map("expires_at") @db.Timestamptz(3)
+  completedAt DateTime?             @map("completed_at") @db.Timestamptz(3)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  quest       Quest                 @relation(fields: [questId], references: [id], onDelete: Restrict)
+  receipt     Receipt?              @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, questId])
+  @@unique([id, receiptId])
+  @@index([userId, status, expiresAt])
+  @@map("user_quests")
+}
+
+model PointLedgerEntry {
+  id            Int              @id @default(autoincrement())
+  userId        Int              @map("user_id")
+  type          PointEntryType
+  amount        Int
+  businessRef   String           @unique @map("business_ref") @db.VarChar(160)
+  correlationId String           @map("correlation_id") @db.VarChar(80)
+  expiresAt     DateTime?        @map("expires_at") @db.Timestamptz(3)
+  occurredAt    DateTime         @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  allocation    PointAllocation? @relation("PointAllocationSource")
+
+  @@index([userId, occurredAt, id])
+  @@index([userId, expiresAt])
+  @@map("point_ledger_entries")
+}
+
+model PointAllocation {
+  id              Int              @id @default(autoincrement())
+  userId          Int              @map("user_id")
+  sourceEntryId   Int              @unique @map("source_entry_id")
+  originalAmount  Int              @map("original_amount")
+  remainingAmount Int              @map("remaining_amount")
+  expiresAt       DateTime         @map("expires_at") @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sourceEntry     PointLedgerEntry @relation("PointAllocationSource", fields: [sourceEntryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt, id])
+  @@map("point_allocations")
+}
+
+model IdempotencyRecord {
+  id          Int               @id @default(autoincrement())
+  scope       String            @db.VarChar(100)
+  key         String            @db.VarChar(100)
+  requestHash String            @map("request_hash") @db.Char(64)
+  status      IdempotencyStatus @default(COMPLETED)
+  statusCode  Int               @map("status_code")
+  response    Json
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([scope, key])
+  @@map("idempotency_records")
+}
+
+model OutboxEvent {
+  id            Int       @id @default(autoincrement())
+  eventId       String    @unique @map("event_id") @db.Uuid
+  type          String    @db.VarChar(100)
+  schemaVersion Int       @map("schema_version")
+  aggregateId   String    @map("aggregate_id") @db.VarChar(80)
+  correlationId String    @map("correlation_id") @db.VarChar(80)
+  payload       Json
+  occurredAt    DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, id])
+  @@map("outbox_events")
+}
+
+model AuditEvent {
+  id            Int      @id @default(autoincrement())
+  actorUserId   Int?     @map("actor_user_id")
+  action        String   @db.VarChar(100)
+  targetType    String   @map("target_type") @db.VarChar(80)
+  targetId      String   @map("target_id") @db.VarChar(80)
+  result        String   @db.VarChar(40)
+  correlationId String   @map("correlation_id") @db.VarChar(80)
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([actorUserId, createdAt])
+  @@map("audit_events")
+}
