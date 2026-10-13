@@ -12,6 +12,7 @@ import type {
 } from '../auth.types';
 
 const AUTH_API_PATH = '/api/v1/auth';
+const USERS_API_PATH = '/api/v1/users';
 
 export function login(
   role: LoginRole,
@@ -28,7 +29,7 @@ export function registerConsumer(
   payload: RegisterConsumerPayload,
 ): Promise<RegisterConsumerResponse> {
   return apiClient.post<RegisterConsumerResponse>(
-    `${AUTH_API_PATH}/register/consumer`,
+    `${AUTH_API_PATH}/register/customer`,
     payload,
   );
 }
@@ -44,7 +45,7 @@ export function registerMerchant(
 
 export async function getMe(): Promise<AuthUser | null> {
   try {
-    const res = await apiClient.get<MeResponse>(`${AUTH_API_PATH}/me`);
+    const res = await apiClient.get<MeResponse>(`${USERS_API_PATH}/me`);
     return res.user;
   } catch {
     return null;

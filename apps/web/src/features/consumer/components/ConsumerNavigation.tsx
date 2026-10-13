@@ -16,18 +16,52 @@ type ConsumerNavigationProps = Readonly<{
 }>;
 
 const items = [
-  { view: 'overview', label: th.consumerPortal.navigation.overview, icon: Home },
-  { view: 'wallet', label: th.consumerPortal.navigation.wallet, icon: WalletCards },
-  { view: 'payment', label: th.consumerPortal.navigation.payment, icon: QrCode },
-  { view: 'orders', label: th.consumerPortal.navigation.orders, icon: ClipboardList },
-  { view: 'quests', label: th.consumerPortal.navigation.quests, icon: Sparkles },
-  { view: 'rewards', label: th.consumerPortal.navigation.rewards, icon: TicketPercent },
-  { view: 'profile', label: th.consumerPortal.navigation.profile, icon: CircleUserRound },
+  {
+    view: 'overview',
+    label: th.consumerPortal.navigation.overview,
+    icon: Home,
+  },
+  {
+    view: 'wallet',
+    label: th.consumerPortal.navigation.wallet,
+    icon: WalletCards,
+  },
+  {
+    view: 'payment',
+    label: th.consumerPortal.navigation.payment,
+    icon: QrCode,
+  },
+  {
+    view: 'orders',
+    label: th.consumerPortal.navigation.orders,
+    icon: ClipboardList,
+  },
+  {
+    view: 'quests',
+    label: th.consumerPortal.navigation.quests,
+    icon: Sparkles,
+  },
+  {
+    view: 'rewards',
+    label: th.consumerPortal.navigation.rewards,
+    icon: TicketPercent,
+  },
+  {
+    view: 'profile',
+    label: th.consumerPortal.navigation.profile,
+    icon: CircleUserRound,
+  },
 ] as const;
 
-export function ConsumerNavigation({ activeView, onNavigate }: ConsumerNavigationProps) {
+export function ConsumerNavigation({
+  activeView,
+  onNavigate,
+}: ConsumerNavigationProps) {
   return (
-    <nav className="consumer-desktop-nav" aria-label={th.consumerDashboard.navigation.label}>
+    <nav
+      className="consumer-desktop-nav"
+      aria-label={th.consumerDashboard.navigation.label}
+    >
       {items.map(({ view, label, icon: Icon }) => (
         <button
           aria-current={activeView === view ? 'page' : undefined}

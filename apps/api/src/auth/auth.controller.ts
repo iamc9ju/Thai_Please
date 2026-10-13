@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -26,7 +25,7 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  @Post('register/consumer')
+  @Post('register/customer')
   @HttpCode(HttpStatus.CREATED)
   async registerConsumer(@Body() dto: RegisterConsumerDto) {
     return this.authService.registerConsumer(dto);
@@ -69,21 +68,6 @@ export class AuthController {
     const result = await this.authService.login(dto, 'ADMIN');
     this.setAuthCookie(res, result.token);
     return { user: result.user };
-  }
-
-  @Get('me')
-  @UseGuards(AuthGuard)
-  getMe(@Req() req: Request) {
-    const user = req.user!;
-    return {
-      user: {
-        userId: user.userId.toString(),
-        citizenId: user.citizenId,
-        fullName: user.fullName,
-        role: user.role,
-        activeMerchantId: user.activeMerchantId?.toString() ?? null,
-      },
-    };
   }
 
   @Post('logout')
