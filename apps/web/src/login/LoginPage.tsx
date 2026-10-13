@@ -16,8 +16,8 @@ import { ConsumerDashboard } from '../consumer/ConsumerDashboard';
 import { th } from '../i18n/th';
 import { RegistrationPage } from '../registration/RegistrationPage';
 import type { RegistrationRole } from '../registration/registration.validation';
-import { LOGIN_ROLES, type LoginRole } from './login.types';
-import { authenticateMockUser, mockAuthIsAvailable } from './mockUsers';
+import { login } from '../api/auth.api';
+import { LOGIN_ROLES, type LoginRole } from '../types/auth.types';
 import { RolePreview } from './RolePreview';
 
 const roleIcons: Record<LoginRole, LucideIcon> = {
@@ -33,6 +33,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [authenticatedRole, setAuthenticatedRole] = useState<LoginRole | null>(
     null,
   );
@@ -40,7 +41,7 @@ export function LoginPage() {
     useState<RegistrationRole | null>(null);
 
   const citizenIdIsValid = /^\d{13}$/.test(citizenId);
-  const canSubmit = citizenIdIsValid && password.length > 0;
+  const canSubmit = citizenIdIsValid && password.length > 0 && !isSubmitting;
   const citizenIdError = useMemo(() => {
     if (citizenId.length === 0 || citizenIdIsValid) {
       return '';
@@ -59,26 +60,34 @@ export function LoginPage() {
     setFeedback('');
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!canSubmit) {
       return;
     }
 
-    if (!mockAuthIsAvailable) {
-      setFeedback(th.login.mockUnavailable);
-      return;
-    }
-
-    if (!authenticateMockUser(role, citizenId, password)) {
-      setFeedback(th.login.invalidCredentials);
-      return;
-    }
-
-    setPassword('');
+    setIsSubmitting(true);
     setFeedback('');
-    setAuthenticatedRole(role);
+
+    try {
+      await login(role, {
+        citizenId,
+        password,
+      });
+
+      setPassword('');
+      setFeedback('');
+      setAuthenticatedRole(role);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setFeedback(err.message);
+      } else {
+        setFeedback('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUnavailableAction = () => {
@@ -258,9 +267,9 @@ export function LoginPage() {
             <div className="login-options">
               <label className="remember-option">
                 <input
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    type="checkbox"
                 />
                 {th.login.remember}
               </label>
@@ -278,7 +287,7 @@ export function LoginPage() {
               disabled={!canSubmit}
               type="submit"
             >
-              {th.login.submit}
+              {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}
             </button>
           </form>
 
