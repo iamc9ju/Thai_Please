@@ -3,6 +3,7 @@ import { useAuth } from '../features/auth/use-auth';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RolePreview } from '../features/auth/pages/RolePreview';
 import { ConsumerDashboard } from '../features/consumer/pages/ConsumerDashboard';
+import { MerchantPos } from '../features/merchant/pages/MerchantPos';
 import { th } from '../i18n/th';
 
 function MainContent() {
@@ -30,13 +31,17 @@ function MainContent() {
       );
     }
 
-    if (user.role === 'MERCHANT' || user.role === 'ADMIN') {
+    if (user.role === 'MERCHANT') {
       return (
-        <RolePreview
-          role={user.role === 'MERCHANT' ? 'merchant' : 'administrator'}
-          onBack={() => void logout()}
+        <MerchantPos
+          merchantName={user.fullName ?? 'ร้านค้าคนละครึ่ง'}
+          onLogout={() => void logout()}
         />
       );
+    }
+
+    if (user.role === 'ADMIN') {
+      return <RolePreview role="administrator" onBack={() => void logout()} />;
     }
   }
 
