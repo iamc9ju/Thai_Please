@@ -11,22 +11,22 @@ export class UsersService {
     return createHash('sha256').update(password).digest('hex');
   }
 
-  private sanitizeUser<T extends { password_hash?: string }>(user: T): Omit<T, 'password_hash'> {
-    const { password_hash: _password_hash, ...safeUser } = user;
+  private sanitizeUser<T extends { passwordHash?: string }>(user: T): Omit<T, 'passwordHash'> {
+    const { passwordHash: _passwordHash, ...safeUser } = user;
     return safeUser;
   }
 
   async findAll() {
-    const users = await this.prisma.users.findMany({
-      orderBy: { created_at: 'desc' },
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
       take: 50,
     });
     return users.map((u) => this.sanitizeUser(u));
   }
 
   async findById(id: bigint) {
-    const user = await this.prisma.users.findUnique({
-      where: { user_id: id },
+    const user = await this.prisma.user.findUnique({
+      where: { userId: id },
     });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -35,20 +35,20 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const existing = await this.prisma.users.findUnique({
-      where: { citizen_id: dto.citizenId },
+    const existing = await this.prisma.user.findUnique({
+      where: { citizenId: dto.citizenId },
     });
     if (existing) {
       throw new ConflictException(`User with citizen ID ${dto.citizenId} already exists`);
     }
 
-    const newUser = await this.prisma.users.create({
+    const newUser = await this.prisma.user.create({
       data: {
-        citizen_id: dto.citizenId,
-        full_name: dto.fullName,
+        citizenId: dto.citizenId,
+        fullName: dto.fullName,
         phone: dto.phone ?? null,
-        role: dto.role ?? 'CONSUMER',
-        password_hash: this.hashPassword(dto.password),
+        role: dto.role,
+        passwordHash: this.hashPassword(dto.password),
       },
     });
 
