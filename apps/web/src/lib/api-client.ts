@@ -1,18 +1,23 @@
-import type { ApiErrorResponse } from '../types/auth.types';
+import type { ApiErrorResponse } from '../features/auth/auth.types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
   let response: Response;
+  const headers = new Headers(options.headers);
+
+  if (options.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   try {
     response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       credentials: 'include',
     });
   } catch (err) {

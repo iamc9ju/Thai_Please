@@ -1,17 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service.js';
 
-@Controller()
+@Controller('health')
 export class AppController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get()
-  getHello(): { message: string } {
-    return { message: 'Thai Please API is running' };
+  @Get('live')
+  getLiveness(): { status: string } {
+    return { status: 'ok' };
   }
 
-  @Get('health')
-  async getHealth(): Promise<{ status: string; database: string }> {
+  @Get('ready')
+  async getReadiness(): Promise<{ status: string; database: string }> {
     await this.prisma.$queryRaw`SELECT 1`;
     return { status: 'ok', database: 'connected' };
   }

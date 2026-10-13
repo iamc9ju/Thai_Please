@@ -1,5 +1,7 @@
 import {
   IsBoolean,
+  Equals,
+  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -11,6 +13,7 @@ export class RegisterConsumerDto {
   @IsString()
   @IsNotEmpty()
   @Length(13, 13, { message: 'เลขประจำตัวประชาชนต้องมี 13 หลัก' })
+  @Matches(/^\d{13}$/, { message: 'เลขประจำตัวประชาชนต้องเป็นตัวเลข 13 หลัก' })
   citizenId!: string;
 
   @IsString()
@@ -25,9 +28,8 @@ export class RegisterConsumerDto {
   @IsNotEmpty()
   lastName!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  birthDate!: string; // YYYY-MM-DD
+  @IsDateString({ strict: true })
+  birthDate!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -77,6 +79,7 @@ export class RegisterConsumerDto {
   @IsString()
   @IsNotEmpty()
   @Length(5, 5, { message: 'รหัสไปรษณีย์ต้องมี 5 หลัก' })
+  @Matches(/^\d{5}$/, { message: 'รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก' })
   postalCode!: string;
 
   @IsString()
@@ -85,9 +88,11 @@ export class RegisterConsumerDto {
   password!: string;
 
   @IsBoolean()
+  @Equals(true, { message: 'กรุณายอมรับข้อกำหนดการใช้งาน' })
   acceptTerms!: boolean;
 
   @IsBoolean()
+  @Equals(true, { message: 'กรุณารับทราบนโยบายความเป็นส่วนตัว' })
   acceptPrivacy!: boolean;
 }
 
@@ -132,8 +137,12 @@ export class RegisterMerchantDto extends RegisterConsumerDto {
   @IsString()
   @IsNotEmpty()
   @Length(5, 5, { message: 'รหัสไปรษณีย์ร้านค้าต้องมี 5 หลัก' })
+  @Matches(/^\d{5}$/, {
+    message: 'รหัสไปรษณีย์ร้านค้าต้องเป็นตัวเลข 5 หลัก',
+  })
   merchantPostalCode!: string;
 
   @IsBoolean()
+  @Equals(true, { message: 'กรุณายอมรับข้อกำหนดสำหรับร้านค้า' })
   acceptMerchantTerms!: boolean;
 }

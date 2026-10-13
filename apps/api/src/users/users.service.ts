@@ -1,17 +1,22 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PasswordService } from '../auth/password/password.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwords: PasswordService,
+  ) {}
 
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
-
-  private sanitizeUser<T extends { passwordHash?: string }>(user: T): Omit<T, 'passwordHash'> {
+  private sanitizeUser<T extends { passwordHash?: string }>(
+    user: T,
+  ): Omit<T, 'passwordHash'> {
     const { passwordHash: _passwordHash, ...safeUser } = user;
     return safeUser;
   }
@@ -39,17 +44,33 @@ export class UsersService {
       where: { citizenId: dto.citizenId },
     });
     if (existing) {
-      throw new ConflictException(`User with citizen ID ${dto.citizenId} already exists`);
+      throw new ConflictException(
+        `User with citizen ID ${dto.citizenId} already exists`,
+      );
     }
 
-    const newUser = await this.prisma.user.create({
-      data: {
-        citizenId: dto.citizenId,
-        fullName: dto.fullName,
-        phone: dto.phone ?? null,
-        role: dto.role,
-        passwordHash: this.hashPassword(dto.password),
-      },
+    const passwordHash = await this.passwords.hash(dto.password);
+    const role = dto.role ?? 'CONSUMER';
+    const newUser = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          citizenId: dto.citizenId,
+          fullName: dto.fullName,
+          phone: dto.phone ?? null,
+          role,
+          passwordHash,
+        },
+      });
+
+      await tx.userRole.create({
+        data: {
+          userId: user.userId,
+          role,
+          status: 'ACTIVE',
+        },
+      });
+
+      return user;
     });
 
     return this.sanitizeUser(newUser);

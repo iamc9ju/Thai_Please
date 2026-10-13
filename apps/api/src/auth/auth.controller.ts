@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -18,11 +19,12 @@ import {
   RegisterMerchantDto,
 } from './dto/register.dto.js';
 
-const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
-
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('register/consumer')
   @HttpCode(HttpStatus.CREATED)
@@ -87,10 +89,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const sessionId = req.user!.sessionId;
     await this.authService.logout(sessionId);
     this.clearAuthCookie(res);
@@ -98,19 +97,29 @@ export class AuthController {
   }
 
   private setAuthCookie(res: Response, token: string): void {
+    const maxAge =
+      this.config.getOrThrow<number>('AUTH_SESSION_TTL_SECONDS') * 1000;
+    const isProduction =
+      this.config.getOrThrow<string>('NODE_ENV') === 'production';
+
     res.cookie('access_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE_MS,
+      maxAge,
+      path: '/',
     });
   }
 
   private clearAuthCookie(res: Response): void {
+    const isProduction =
+      this.config.getOrThrow<string>('NODE_ENV') === 'production';
+
     res.clearCookie('access_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
+      path: '/',
     });
   }
 }

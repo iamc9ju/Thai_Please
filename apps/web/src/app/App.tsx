@@ -1,7 +1,9 @@
-import { AuthProvider, useAuth } from './context/auth.context';
-import { ConsumerDashboard } from './consumer/ConsumerDashboard';
-import { LoginPage } from './login/LoginPage';
-import { RolePreview } from './login/RolePreview';
+import { AuthProvider } from '../features/auth/components/AuthProvider';
+import { useAuth } from '../features/auth/use-auth';
+import { LoginPage } from '../features/auth/pages/LoginPage';
+import { RolePreview } from '../features/auth/pages/RolePreview';
+import { ConsumerDashboard } from '../features/consumer/pages/ConsumerDashboard';
+import { th } from '../i18n/th';
 
 function MainContent() {
   const { user, isLoading, logout } = useAuth();
@@ -11,7 +13,7 @@ function MainContent() {
       <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">
         <div className="text-center">
           <div className="mb-4 inline-block size-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent" />
-          <p className="text-sm text-slate-400">กำลังตรวจสอบข้อมูลผู้ใช้งาน...</p>
+          <p className="text-sm text-slate-400">{th.app.checkingSession}</p>
         </div>
       </div>
     );

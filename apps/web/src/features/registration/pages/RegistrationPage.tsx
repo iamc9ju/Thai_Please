@@ -12,82 +12,22 @@ import {
   Store,
   UserRound,
 } from 'lucide-react';
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { registerConsumer, registerMerchant } from '../api/auth.api';
-import { th } from '../i18n/th';
-import type { RegisterMerchantPayload } from '../types/auth.types';
+import { useRef, useState, type FormEvent } from 'react';
+import { th } from '../../../i18n/th';
+import { registerConsumer, registerMerchant } from '../../auth/api/auth.api';
+import type { RegisterMerchantPayload } from '../../auth/auth.types';
+import { RegistrationField as Field } from '../components/RegistrationField';
+import { RegistrationSection } from '../components/RegistrationSection';
 import {
   validateRegistration,
-  type RegistrationErrorCode,
   type RegistrationErrors,
   type RegistrationRole,
-} from './registration.validation';
+} from '../registration.validation';
 
 type RegistrationPageProps = Readonly<{
   initialRole: RegistrationRole;
   onBack: () => void;
 }>;
-
-type FieldProps = Readonly<{
-  children: ReactNode;
-  error?: RegistrationErrorCode | undefined;
-  label: string;
-  name: string;
-  optional?: boolean;
-}>;
-
-type SectionProps = Readonly<{
-  children: ReactNode;
-  description: string;
-  icon: ReactNode;
-  step: string;
-  title: string;
-}>;
-
-function Field({ children, error, label, name, optional = false }: FieldProps) {
-  return (
-    <div className="registration-field">
-      <label htmlFor={name}>
-        {label}
-        {optional ? (
-          <small>{th.registration.optional}</small>
-        ) : (
-          <span aria-hidden="true">*</span>
-        )}
-      </label>
-      {children}
-      {error ? (
-        <p className="registration-error" id={`${name}-error`}>
-          {th.registration.validation[error]}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function RegistrationSection({
-  children,
-  description,
-  icon,
-  step,
-  title,
-}: SectionProps) {
-  return (
-    <section className="registration-section">
-      <div className="registration-section-heading">
-        <span aria-hidden="true" className="registration-section-icon">
-          {icon}
-        </span>
-        <div>
-          <small>{step}</small>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function getAccessibilityProps(name: string, errors: RegistrationErrors) {
   const hasError = Boolean(errors[name]);
@@ -100,6 +40,16 @@ function getAccessibilityProps(name: string, errors: RegistrationErrors) {
 
 function digitsOnly(value: string, maximumLength: number) {
   return value.replace(/\D/g, '').slice(0, maximumLength);
+}
+
+function getFormText(formData: FormData, name: string): string {
+  const value = formData.get(name);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getFormCheckbox(formData: FormData, name: string): boolean {
+  const value = formData.get(name);
+  return value === 'on' || value === 'true';
 }
 
 export function RegistrationPage({
@@ -176,26 +126,26 @@ export function RegistrationPage({
 
     try {
       const basePayload = {
-        citizenId: String(formData.get('citizenId') ?? '').trim(),
-        title: String(formData.get('title') ?? '').trim(),
-        firstName: String(formData.get('firstName') ?? '').trim(),
-        lastName: String(formData.get('lastName') ?? '').trim(),
-        birthDate: String(formData.get('birthDate') ?? '').trim(),
-        phone: String(formData.get('phone') ?? '').trim(),
-        homeNumber: String(formData.get('homeNumber') ?? '').trim(),
-        village: String(formData.get('village') ?? '').trim() || undefined,
-        building: String(formData.get('building') ?? '').trim() || undefined,
-        floor: String(formData.get('floor') ?? '').trim() || undefined,
-        room: String(formData.get('room') ?? '').trim() || undefined,
-        alley: String(formData.get('alley') ?? '').trim() || undefined,
-        road: String(formData.get('road') ?? '').trim() || undefined,
-        subdistrict: String(formData.get('subdistrict') ?? '').trim(),
-        district: String(formData.get('district') ?? '').trim(),
-        province: String(formData.get('province') ?? '').trim(),
-        postalCode: String(formData.get('postalCode') ?? '').trim(),
-        password: String(formData.get('password') ?? ''),
-        acceptTerms: formData.get('acceptTerms') === 'on' || formData.get('acceptTerms') === 'true',
-        acceptPrivacy: formData.get('acceptPrivacy') === 'on' || formData.get('acceptPrivacy') === 'true',
+        citizenId: getFormText(formData, 'citizenId'),
+        title: getFormText(formData, 'title'),
+        firstName: getFormText(formData, 'firstName'),
+        lastName: getFormText(formData, 'lastName'),
+        birthDate: getFormText(formData, 'birthDate'),
+        phone: getFormText(formData, 'phone'),
+        homeNumber: getFormText(formData, 'homeNumber'),
+        village: getFormText(formData, 'village') || undefined,
+        building: getFormText(formData, 'building') || undefined,
+        floor: getFormText(formData, 'floor') || undefined,
+        room: getFormText(formData, 'room') || undefined,
+        alley: getFormText(formData, 'alley') || undefined,
+        road: getFormText(formData, 'road') || undefined,
+        subdistrict: getFormText(formData, 'subdistrict'),
+        district: getFormText(formData, 'district'),
+        province: getFormText(formData, 'province'),
+        postalCode: getFormText(formData, 'postalCode'),
+        password: getFormText(formData, 'password'),
+        acceptTerms: getFormCheckbox(formData, 'acceptTerms'),
+        acceptPrivacy: getFormCheckbox(formData, 'acceptPrivacy'),
       };
 
       if (role === 'consumer') {
@@ -204,17 +154,17 @@ export function RegistrationPage({
       } else {
         const merchantPayload: RegisterMerchantPayload = {
           ...basePayload,
-          merchantName: String(formData.get('merchantName') ?? '').trim(),
-          merchantType: String(formData.get('merchantType') ?? '').trim(),
-          taxId: String(formData.get('taxId') ?? '').trim() || undefined,
-          merchantPhone: String(formData.get('merchantPhone') ?? '').trim(),
-          merchantDescription: String(formData.get('merchantDescription') ?? '').trim(),
-          merchantAddress: String(formData.get('merchantAddress') ?? '').trim(),
-          merchantSubdistrict: String(formData.get('merchantSubdistrict') ?? '').trim(),
-          merchantDistrict: String(formData.get('merchantDistrict') ?? '').trim(),
-          merchantProvince: String(formData.get('merchantProvince') ?? '').trim(),
-          merchantPostalCode: String(formData.get('merchantPostalCode') ?? '').trim(),
-          acceptMerchantTerms: formData.get('acceptMerchantTerms') === 'on' || formData.get('acceptMerchantTerms') === 'true',
+          merchantName: getFormText(formData, 'merchantName'),
+          merchantType: getFormText(formData, 'merchantType'),
+          taxId: getFormText(formData, 'taxId') || undefined,
+          merchantPhone: getFormText(formData, 'merchantPhone'),
+          merchantDescription: getFormText(formData, 'merchantDescription'),
+          merchantAddress: getFormText(formData, 'merchantAddress'),
+          merchantSubdistrict: getFormText(formData, 'merchantSubdistrict'),
+          merchantDistrict: getFormText(formData, 'merchantDistrict'),
+          merchantProvince: getFormText(formData, 'merchantProvince'),
+          merchantPostalCode: getFormText(formData, 'merchantPostalCode'),
+          acceptMerchantTerms: getFormCheckbox(formData, 'acceptMerchantTerms'),
         };
         const res = await registerMerchant(merchantPayload);
         setRegisteredInfo({ merchantName: res.merchantName });
@@ -226,7 +176,7 @@ export function RegistrationPage({
       if (err instanceof Error) {
         setSubmitError(err.message);
       } else {
-        setSubmitError('เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่อีกครั้ง');
+        setSubmitError(th.registration.submitError);
       }
     } finally {
       setIsSubmitting(false);
@@ -251,12 +201,14 @@ export function RegistrationPage({
           <strong>{th.registration.success[role]}</strong>
           {registeredInfo?.fullName ? (
             <p className="registration-success-detail">
-              ผู้ลงทะเบียน: <strong>{registeredInfo.fullName}</strong>
+              {th.registration.success.registeredPerson}:{' '}
+              <strong>{registeredInfo.fullName}</strong>
             </p>
           ) : null}
           {registeredInfo?.merchantName ? (
             <p className="registration-success-detail">
-              ชื่อร้านค้า: <strong>{registeredInfo.merchantName}</strong>
+              {th.registration.success.registeredMerchant}:{' '}
+              <strong>{registeredInfo.merchantName}</strong>
             </p>
           ) : null}
           <small>{th.registration.success.note}</small>
@@ -791,7 +743,11 @@ export function RegistrationPage({
             <div>
               <small>{th.registration.requiredHint}</small>
               {submitError ? (
-                <p aria-live="assertive" className="registration-error" style={{ color: '#dc2626', fontWeight: 600 }}>
+                <p
+                  aria-live="assertive"
+                  className="registration-error"
+                  style={{ color: '#dc2626', fontWeight: 600 }}
+                >
                   {submitError}
                 </p>
               ) : null}

@@ -1,19 +1,28 @@
 import 'dotenv/config';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
+import { parseCorsOrigins } from './config/environment.js';
 
 // Support JSON serialization of BigInt values
-(BigInt.prototype as unknown as { toJSON: (this: bigint) => string }).toJSON = function (this: bigint) {
-  return this.toString();
-};
+(BigInt.prototype as unknown as { toJSON: (this: bigint) => string }).toJSON =
+  function (this: bigint) {
+    return this.toString();
+  };
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+  const apiPrefix = config.getOrThrow<string>('API_PREFIX');
+
+  app.setGlobalPrefix(apiPrefix);
 
   // Enable CORS based on CORS_ORIGINS
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:5173'];
+  const allowedOrigins = parseCorsOrigins(
+    config.getOrThrow<string>('CORS_ORIGINS'),
+  );
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
@@ -24,13 +33,16 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
     }),
   );
 
-  const port = process.env.PORT ? Number(process.env.PORT) : 4000;
+  app.enableShutdownHooks();
+
+  const port = config.getOrThrow<number>('PORT');
   await app.listen(port);
-  console.log(`Application is running on port ${port}`);
+  Logger.log(`API listening on port ${port} with prefix /${apiPrefix}`);
 }
 
 await bootstrap();

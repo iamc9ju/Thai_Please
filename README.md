@@ -23,7 +23,9 @@ Production-oriented foundation for an AI-powered local-spending, personalized-qu
 4. Generate the Prisma client with `pnpm db:generate`.
 5. Run applications with `pnpm dev`.
 
-The web application defaults to `http://localhost:5173`. The API defaults to `http://localhost:3000/api/v1`, with liveness at `/health/live` and database readiness at `/health/ready` under that versioned prefix.
+The web application defaults to `http://localhost:5173`. The API defaults to `http://localhost:4000/api/v1`, with liveness at `/health/live` and database readiness at `/health/ready` under that versioned prefix.
+
+Authentication uses an HTTP-only cookie. Set `JWT_SECRET` to a random value of at least 32 characters; the API intentionally has no fallback secret. Existing development accounts created with the former unversioned SHA-256 password format must be reset before they can sign in.
 
 ## Quality gates
 

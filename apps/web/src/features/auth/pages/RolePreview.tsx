@@ -1,6 +1,6 @@
 import { ShieldCheck, Store } from 'lucide-react';
-import { th } from '../i18n/th';
-import type { LoginRole } from '../types/auth.types';
+import { th } from '../../../i18n/th';
+import type { LoginRole } from '../auth.types';
 
 type RolePreviewProps = Readonly<{
   role: Exclude<LoginRole, 'consumer'>;

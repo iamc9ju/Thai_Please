@@ -1,4 +1,6 @@
-export type RegistrationRole = 'consumer' | 'merchant';
+export const REGISTRATION_ROLES = ['consumer', 'merchant'] as const;
+
+export type RegistrationRole = (typeof REGISTRATION_ROLES)[number];
 
 export type RegistrationErrorCode =
   | 'required'

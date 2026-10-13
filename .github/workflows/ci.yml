@@ -27,13 +27,15 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      API_PREFIX: api
+      API_PREFIX: api/v1
       APP_NAME: thai-please-api
+      AUTH_SESSION_TTL_SECONDS: 28800
       CORS_ORIGINS: http://localhost:5173
       DATABASE_URL: postgresql://test:test-only-password@127.0.0.1:5432/thai_please_test?schema=public
       ENABLE_SWAGGER: 'false'
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-characters
       NODE_ENV: test
-      PORT: 3000
+      PORT: 4000
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4

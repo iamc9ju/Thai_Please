@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isActiveRole, type ActiveRole } from './auth.types.js';
 
 export type JwtPayload = {
   sub: string; // userId
@@ -20,7 +21,7 @@ export type AuthenticatedUser = {
   userId: bigint;
   citizenId: string;
   fullName: string;
-  role: string;
+  role: ActiveRole;
   activeMerchantId: bigint | null;
   sessionId: bigint;
 };
@@ -83,6 +84,10 @@ export class AuthGuard implements CanActivate {
 
     if (session.user.status !== 'ACTIVE') {
       throw new UnauthorizedException('บัญชีผู้ใช้ถูกระงับการใช้งาน');
+    }
+
+    if (!isActiveRole(session.activeRole)) {
+      throw new UnauthorizedException('เซสชันมีบทบาทที่ไม่ถูกต้อง');
     }
 
     // อัปเดตเวลา lastUsedAt ของ session

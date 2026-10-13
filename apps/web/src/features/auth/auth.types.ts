@@ -1,6 +1,10 @@
 export const LOGIN_ROLES = ['consumer', 'merchant', 'administrator'] as const;
 
+export const API_AUTH_ROLES = ['CONSUMER', 'MERCHANT', 'ADMIN'] as const;
+
 export type LoginRole = (typeof LOGIN_ROLES)[number];
+
+export type ApiAuthRole = (typeof API_AUTH_ROLES)[number];
 
 export type LoginCredentials = {
   citizenId: string;
@@ -11,14 +15,14 @@ export type AuthUser = {
   userId: string;
   citizenId: string;
   fullName: string;
-  role: string;
+  role: ApiAuthRole;
   activeMerchantId: string | null;
 };
 
 export type LoginResponse = {
   user: {
     fullName: string;
-    role: string;
+    role: ApiAuthRole;
   };
 };
 
@@ -80,4 +84,3 @@ export type RegisterMerchantResponse = {
   merchantId: string;
   merchantName: string;
 };
-

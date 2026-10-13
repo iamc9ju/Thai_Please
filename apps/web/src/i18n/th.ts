@@ -1,4 +1,7 @@
 export const th = {
+  app: {
+    checkingSession: 'กำลังตรวจสอบข้อมูลผู้ใช้งาน...',
+  },
   brand: 'ไทยช่วยไทยพลีส',
   login: {
     brandEnglish: 'THAI CHUAY THAI PLEASE',
@@ -129,6 +132,7 @@ export const th = {
       ],
     },
     navigation: {
+      label: 'เมนูหลัก',
       home: 'หน้าหลัก',
       orders: 'รายการซื้อ',
       quests: 'ภารกิจ',
@@ -144,6 +148,7 @@ export const th = {
     back: 'กลับหน้าเข้าสู่ระบบ',
   },
   registration: {
+    submitError: 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่อีกครั้ง',
     brandEnglish: 'THAI CHUAY THAI PLEASE',
     backToLogin: 'กลับหน้าเข้าสู่ระบบ',
     eyebrow: 'สมัครเข้าร่วมโครงการ',
@@ -261,12 +266,12 @@ export const th = {
       summary: 'กรุณาตรวจสอบข้อมูลที่ระบุไว้ก่อนดำเนินการต่อ',
     },
     success: {
-      title: 'ข้อมูลผ่านการตรวจสอบแล้ว',
-      consumer:
-        'แบบฟอร์มประชาชนพร้อมส่งไปยัง Registration API เพื่อสร้างบทบาทและ Consumer Wallet',
-      merchant:
-        'คำขอร้านค้าพร้อมส่งไปยัง Registration API โดยร้านค้าจะเริ่มต้นด้วยสถานะ PENDING',
-      note: 'Prototype นี้ยังไม่ส่งข้อมูลและยังไม่บันทึกลงฐานข้อมูล',
+      title: 'ลงทะเบียนสำเร็จ',
+      consumer: 'ระบบสร้างบัญชีประชาชนและกระเป๋าเงินสำหรับโครงการเรียบร้อยแล้ว',
+      merchant: 'ระบบรับคำขอร้านค้าแล้ว โดยร้านค้าจะเริ่มต้นด้วยสถานะรอตรวจสอบ',
+      registeredPerson: 'ผู้ลงทะเบียน',
+      registeredMerchant: 'ชื่อร้านค้า',
+      note: 'คุณสามารถกลับไปหน้าเข้าสู่ระบบเพื่อใช้งานบัญชีได้',
       edit: 'กลับไปแก้ไขข้อมูล',
       login: 'กลับหน้าเข้าสู่ระบบ',
     },

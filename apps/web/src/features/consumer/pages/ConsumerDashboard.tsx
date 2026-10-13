@@ -1,13 +1,8 @@
 import {
-  Bell,
   ChevronRight,
-  CircleUserRound,
   Clock3,
   Coins,
-  HandHeart,
   History,
-  Home,
-  LogOut,
   Plus,
   QrCode,
   ReceiptText,
@@ -17,7 +12,9 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { useState } from 'react';
-import { th } from '../i18n/th';
+import { th } from '../../../i18n/th';
+import { ConsumerBottomNavigation } from '../components/ConsumerBottomNavigation';
+import { ConsumerHeader } from '../components/ConsumerHeader';
 
 type ConsumerDashboardProps = Readonly<{
   citizenId: string;
@@ -54,41 +51,12 @@ export function ConsumerDashboard({
 
   return (
     <main className="consumer-shell">
-      <header className="consumer-header">
-        <a className="consumer-brand" href="#dashboard-top">
-          <span aria-hidden="true" className="consumer-brand-mark">
-            <HandHeart />
-          </span>
-          <span>
-            <strong>{th.consumerDashboard.brand}</strong>
-            <small>{th.consumerDashboard.prototype}</small>
-          </span>
-        </a>
-        <div className="consumer-header-actions">
-          <button
-            aria-label={th.consumerDashboard.notification}
-            className="consumer-icon-button"
-            onClick={announcePrototypeAction}
-            type="button"
-          >
-            <Bell aria-hidden="true" />
-            <span aria-hidden="true" className="notification-dot" />
-          </button>
-          <div className="consumer-profile-summary">
-            <span aria-hidden="true" className="profile-avatar">
-              <CircleUserRound />
-            </span>
-            <span>
-              <strong>{displayName}</strong>
-              <small>{maskedCitizenId}</small>
-            </span>
-          </div>
-          <button className="logout-button" onClick={onLogout} type="button">
-            <LogOut aria-hidden="true" />
-            {th.consumerDashboard.logout}
-          </button>
-        </div>
-      </header>
+      <ConsumerHeader
+        displayName={displayName}
+        maskedCitizenId={maskedCitizenId}
+        onLogout={onLogout}
+        onPrototypeAction={announcePrototypeAction}
+      />
 
       <div className="consumer-content" id="dashboard-top">
         <section className="consumer-welcome">
@@ -287,28 +255,7 @@ export function ConsumerDashboard({
         </section>
       </div>
 
-      <nav className="consumer-bottom-nav" aria-label="เมนูหลัก">
-        <button className="is-active" type="button">
-          <Home aria-hidden="true" />
-          {th.consumerDashboard.navigation.home}
-        </button>
-        <button onClick={announcePrototypeAction} type="button">
-          <ReceiptText aria-hidden="true" />
-          {th.consumerDashboard.navigation.orders}
-        </button>
-        <button onClick={announcePrototypeAction} type="button">
-          <Sparkles aria-hidden="true" />
-          {th.consumerDashboard.navigation.quests}
-        </button>
-        <button onClick={announcePrototypeAction} type="button">
-          <TicketPercent aria-hidden="true" />
-          {th.consumerDashboard.navigation.coupons}
-        </button>
-        <button onClick={announcePrototypeAction} type="button">
-          <CircleUserRound aria-hidden="true" />
-          {th.consumerDashboard.navigation.profile}
-        </button>
-      </nav>
+      <ConsumerBottomNavigation onPrototypeAction={announcePrototypeAction} />
     </main>
   );
 }

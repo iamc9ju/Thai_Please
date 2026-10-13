@@ -6,23 +6,15 @@ import {
   HandHeart,
   Headphones,
   LockKeyhole,
-  ShieldCheck,
-  Store,
-  UserRound,
-  type LucideIcon,
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { th } from '../i18n/th';
-import { RegistrationPage } from '../registration/RegistrationPage';
-import type { RegistrationRole } from '../registration/registration.validation';
-import { useAuth } from '../context/auth.context';
-import { LOGIN_ROLES, type LoginRole } from '../types/auth.types';
-
-const roleIcons: Record<LoginRole, LucideIcon> = {
-  consumer: UserRound,
-  merchant: Store,
-  administrator: ShieldCheck,
-};
+import { th } from '../../../i18n/th';
+import { RegistrationPage } from '../../registration/pages/RegistrationPage';
+import type { RegistrationRole } from '../../registration/registration.validation';
+import { useAuth } from '../use-auth';
+import type { LoginRole } from '../auth.types';
+import { CommunityBackdrop } from '../components/CommunityBackdrop';
+import { RoleSelector } from '../components/RoleSelector';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -100,27 +92,7 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
-      <div aria-hidden="true" className="community-backdrop">
-        <div className="sun-glow" />
-        <div className="cloud cloud-one" />
-        <div className="cloud cloud-two" />
-        <div className="mountain mountain-one" />
-        <div className="mountain mountain-two" />
-        <div className="community-ground" />
-        <div className="market market-one">
-          <span className="market-roof" />
-          <span className="market-awning" />
-          <span className="market-window" />
-          <span className="market-door" />
-        </div>
-        <div className="market market-two">
-          <span className="market-roof" />
-          <span className="market-awning" />
-          <span className="market-window" />
-          <span className="market-door" />
-        </div>
-        <div className="scene-overlay" />
-      </div>
+      <CommunityBackdrop />
 
       <header className="brand-lockup">
         <span aria-hidden="true" className="brand-symbol">
@@ -167,24 +139,7 @@ export function LoginPage() {
             <span>{th.login.subtitle}</span>
           </div>
 
-          <div className="role-selector" aria-label={th.login.role.label}>
-            {LOGIN_ROLES.map((loginRole) => {
-              const RoleIcon = roleIcons[loginRole];
-
-              return (
-                <button
-                  aria-pressed={role === loginRole}
-                  className={role === loginRole ? 'is-active' : ''}
-                  key={loginRole}
-                  onClick={() => handleRoleChange(loginRole)}
-                  type="button"
-                >
-                  <RoleIcon aria-hidden="true" className="role-icon" />
-                  {th.login.role.options[loginRole]}
-                </button>
-              );
-            })}
-          </div>
+          <RoleSelector onChange={handleRoleChange} role={role} />
 
           <form onSubmit={handleSubmit}>
             <label htmlFor="citizen-id">
@@ -246,9 +201,9 @@ export function LoginPage() {
             <div className="login-options">
               <label className="remember-option">
                 <input
-                    checked={remember}
-                    onChange={(event) => setRemember(event.target.checked)}
-                    type="checkbox"
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                  type="checkbox"
                 />
                 {th.login.remember}
               </label>

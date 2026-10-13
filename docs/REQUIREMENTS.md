@@ -2,20 +2,20 @@
 
 ## 1. Document Control
 
-| รายการ | ค่า |
-| --- | --- |
-| ชื่อระบบ | ThaiChuayThaiPlease — ไทยช่วยไทยพลีส |
-| ประเภท | Functional Prototype |
-| สถานะ | Draft for Review |
-| วันที่ปรับปรุง | 13 ตุลาคม 2026 |
-| Repository เป้าหมาย | `D:\work\Thai_Please` |
-| Database | PostgreSQL บน Neon |
-| Business timezone | `Asia/Bangkok` |
-| สกุลเงิน | THB |
-| หน่วยเงิน Prototype | Integer Baht |
-| Frontend | React, TypeScript และ Vite |
-| Backend | NestJS, TypeScript และ Prisma |
-| API | Versioned REST API ภายใต้ `/api/v1` |
+| รายการ              | ค่า                                  |
+| ------------------- | ------------------------------------ |
+| ชื่อระบบ            | ThaiChuayThaiPlease — ไทยช่วยไทยพลีส |
+| ประเภท              | Functional Prototype                 |
+| สถานะ               | Draft for Review                     |
+| วันที่ปรับปรุง      | 13 ตุลาคม 2026                       |
+| Repository เป้าหมาย | `D:\work\Thai_Please`                |
+| Database            | PostgreSQL บน Neon                   |
+| Business timezone   | `Asia/Bangkok`                       |
+| สกุลเงิน            | THB                                  |
+| หน่วยเงิน Prototype | Integer Baht                         |
+| Frontend            | React, TypeScript และ Vite           |
+| Backend             | NestJS, TypeScript และ Prisma        |
+| API                 | Versioned REST API ภายใต้ `/api/v1`  |
 
 เอกสารนี้เป็นข้อกำหนดหลักสำหรับพัฒนา Prototype โดยต้องใช้ Schema, Migration, Source Code และเอกสารเดิมใน Repository เป็นฐาน ห้ามสร้าง Schema ใหม่โดยไม่ตรวจสอบโครงสร้างเดิมและจัดทำ Migration Plan ก่อน
 
@@ -992,72 +992,72 @@ updated_at
 
 ### Authentication
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
+| Method | Endpoint                  | สิทธิ์                          |
+| ------ | ------------------------- | ------------------------------- |
 | `POST` | `/auth/register/customer` | Public/New or existing identity |
 | `POST` | `/auth/register/merchant` | Public/New or existing identity |
-| `POST` | `/auth/customer/login` | Consumer Role |
-| `POST` | `/auth/merchant/login` | Merchant Role |
-| `POST` | `/auth/admin/login` | Admin Role |
-| `POST` | `/auth/logout` | Authenticated |
-| `GET` | `/users/me` | Authenticated |
-| `GET` | `/users/me/roles` | Authenticated |
+| `POST` | `/auth/customer/login`    | Consumer Role                   |
+| `POST` | `/auth/merchant/login`    | Merchant Role                   |
+| `POST` | `/auth/admin/login`       | Admin Role                      |
+| `POST` | `/auth/logout`            | Authenticated                   |
+| `GET`  | `/users/me`               | Authenticated                   |
+| `GET`  | `/users/me/roles`         | Authenticated                   |
 
 ### Consumer Wallet
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
-| `GET` | `/wallet` | Consumer |
-| `GET` | `/wallet/transactions` | Consumer |
-| `GET` | `/wallet/subsidy` | Consumer |
-| `POST` | `/wallet/topup` | Consumer |
+| Method | Endpoint               | สิทธิ์   |
+| ------ | ---------------------- | -------- |
+| `GET`  | `/wallet`              | Consumer |
+| `GET`  | `/wallet/transactions` | Consumer |
+| `GET`  | `/wallet/subsidy`      | Consumer |
+| `POST` | `/wallet/topup`        | Consumer |
 
 ### Merchant Wallet
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
-| `GET` | `/merchants/:id/wallet` | Merchant Member |
-| `GET` | `/merchants/:id/wallet/transactions` | Merchant Member |
-| `POST` | `/merchants/:id/wallet/withdrawals` | Merchant Owner with Consumer Role |
+| Method | Endpoint                             | สิทธิ์                            |
+| ------ | ------------------------------------ | --------------------------------- |
+| `GET`  | `/merchants/:id/wallet`              | Merchant Member                   |
+| `GET`  | `/merchants/:id/wallet/transactions` | Merchant Member                   |
+| `POST` | `/merchants/:id/wallet/withdrawals`  | Merchant Owner with Consumer Role |
 
 ### Product, Order and Payment
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
-| `GET` | `/product-categories` | Authenticated |
-| `POST` | `/products` | Active Merchant |
-| `PATCH` | `/products/:id` | Product Owner Merchant |
-| `DELETE` | `/products/:id` | Product Owner Merchant |
-| `POST` | `/orders` | Active Merchant |
-| `POST` | `/orders/:id/items` | Related Merchant |
-| `DELETE` | `/orders/:id/items/:itemId` | Related Merchant |
-| `POST` | `/orders/:id/checkout` | Related Merchant |
-| `GET` | `/payments/qr/:token` | Consumer |
-| `POST` | `/orders/:id/coupon` | Consumer |
-| `POST` | `/orders/:id/pay` | Consumer |
-| `GET` | `/orders/:id/receipt` | Related Consumer/Merchant |
+| Method   | Endpoint                    | สิทธิ์                    |
+| -------- | --------------------------- | ------------------------- |
+| `GET`    | `/product-categories`       | Authenticated             |
+| `POST`   | `/products`                 | Active Merchant           |
+| `PATCH`  | `/products/:id`             | Product Owner Merchant    |
+| `DELETE` | `/products/:id`             | Product Owner Merchant    |
+| `POST`   | `/orders`                   | Active Merchant           |
+| `POST`   | `/orders/:id/items`         | Related Merchant          |
+| `DELETE` | `/orders/:id/items/:itemId` | Related Merchant          |
+| `POST`   | `/orders/:id/checkout`      | Related Merchant          |
+| `GET`    | `/payments/qr/:token`       | Consumer                  |
+| `POST`   | `/orders/:id/coupon`        | Consumer                  |
+| `POST`   | `/orders/:id/pay`           | Consumer                  |
+| `GET`    | `/orders/:id/receipt`       | Related Consumer/Merchant |
 
 ### Quest, Point and Coupon
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
-| `GET` | `/quests` | Consumer |
-| `GET` | `/points` | Consumer |
-| `GET` | `/coupons` | Consumer |
+| Method | Endpoint              | สิทธิ์   |
+| ------ | --------------------- | -------- |
+| `GET`  | `/quests`             | Consumer |
+| `GET`  | `/points`             | Consumer |
+| `GET`  | `/coupons`            | Consumer |
 | `POST` | `/coupons/:id/redeem` | Consumer |
 
 ### Administrator
 
-| Method | Endpoint | สิทธิ์ |
-| --- | --- | --- |
-| `POST` | `/admin/users/:userId/roles/admin` | Admin Manage |
-| `GET` | `/admin/users/admins` | Admin Manage |
-| `POST` | `/admin/merchants/:id/approve` | Admin |
-| `POST` | `/admin/merchants/:id/reject` | Admin |
-| `GET/POST/PATCH` | `/admin/subsidy-programs` | Admin |
-| `POST` | `/admin/quests/generate` | Admin |
-| `GET` | `/admin/quest-generation-logs` | Admin |
-| `GET` | `/admin/dashboard/social-impact` | Admin |
+| Method           | Endpoint                           | สิทธิ์       |
+| ---------------- | ---------------------------------- | ------------ |
+| `POST`           | `/admin/users/:userId/roles/admin` | Admin Manage |
+| `GET`            | `/admin/users/admins`              | Admin Manage |
+| `POST`           | `/admin/merchants/:id/approve`     | Admin        |
+| `POST`           | `/admin/merchants/:id/reject`      | Admin        |
+| `GET/POST/PATCH` | `/admin/subsidy-programs`          | Admin        |
+| `POST`           | `/admin/quests/generate`           | Admin        |
+| `GET`            | `/admin/quest-generation-logs`     | Admin        |
+| `GET`            | `/admin/dashboard/social-impact`   | Admin        |
 
 ---
 
@@ -1142,23 +1142,23 @@ Wallet, Payment, Merchant Credit, Coupon และ Point ต้องถูก�
 
 สิ่งที่ต้องปรับ:
 
-| ของเดิม | เป้าหมายใหม่ |
-| --- | --- |
-| `users.role` ค่าเดียว | เพิ่ม `user_roles` เพื่อรองรับ 3 Roles ต่อบุคคล |
-| Login Endpoint เดียว | แยก Customer/Merchant/Admin Portal Login |
-| ไม่มี Password | เพิ่ม Password Hash และ Password Policy |
-| ไม่มี Registration | เพิ่ม Customer และ Merchant Registration |
-| Wallet ผูก User อย่างเดียว | รองรับ Consumer Wallet และ Merchant Wallet แยกกัน |
-| Payment Debit Consumer อย่างเดียว | Credit Merchant Wallet ใน Transaction เดียวกัน |
-| ไม่มี Merchant Withdrawal | เพิ่ม Internal Transfer จาก Merchant Wallet ไป Consumer Personal Balance |
-| Merchant Active ทันที | เพิ่ม Approval Workflow |
-| Admin จาก Seed ทั่วไป | Secure Bootstrap และ Admin-only Role Grant |
-| Prisma `Int` | เปลี่ยนเป็น `BigInt` |
-| ไม่มี `subsidy_programs` | เพิ่ม Program Table และ Admin Management |
-| ไม่มี `quest_generation_logs` | เพิ่ม AI Generation Audit |
-| Point Derived อย่างเดียว | เพิ่ม `users.point_balance` และ Reconciliation |
-| มี Receipt Tables | Backfill แล้วสร้าง Receipt จาก Order |
-| Frontend เป็น Landing Page | พัฒนา 3 Portals |
+| ของเดิม                           | เป้าหมายใหม่                                                             |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `users.role` ค่าเดียว             | เพิ่ม `user_roles` เพื่อรองรับ 3 Roles ต่อบุคคล                          |
+| Login Endpoint เดียว              | แยก Customer/Merchant/Admin Portal Login                                 |
+| ไม่มี Password                    | เพิ่ม Password Hash และ Password Policy                                  |
+| ไม่มี Registration                | เพิ่ม Customer และ Merchant Registration                                 |
+| Wallet ผูก User อย่างเดียว        | รองรับ Consumer Wallet และ Merchant Wallet แยกกัน                        |
+| Payment Debit Consumer อย่างเดียว | Credit Merchant Wallet ใน Transaction เดียวกัน                           |
+| ไม่มี Merchant Withdrawal         | เพิ่ม Internal Transfer จาก Merchant Wallet ไป Consumer Personal Balance |
+| Merchant Active ทันที             | เพิ่ม Approval Workflow                                                  |
+| Admin จาก Seed ทั่วไป             | Secure Bootstrap และ Admin-only Role Grant                               |
+| Prisma `Int`                      | เปลี่ยนเป็น `BigInt`                                                     |
+| ไม่มี `subsidy_programs`          | เพิ่ม Program Table และ Admin Management                                 |
+| ไม่มี `quest_generation_logs`     | เพิ่ม AI Generation Audit                                                |
+| Point Derived อย่างเดียว          | เพิ่ม `users.point_balance` และ Reconciliation                           |
+| มี Receipt Tables                 | Backfill แล้วสร้าง Receipt จาก Order                                     |
+| Frontend เป็น Landing Page        | พัฒนา 3 Portals                                                          |
 
 ---
 
@@ -1297,4 +1297,3 @@ Requirement ถือว่าเสร็จเมื่อ:
 - Audit และ Reconciliation พร้อมใช้งาน
 - ไม่มี Password, Token หรือข้อมูลอ่อนไหวรั่วใน Log
 - Demo Flow ทำงานครบตั้งแต่ Registration ถึง Coupon Reuse
-

@@ -4,28 +4,25 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { ActiveRole } from './auth.types.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type {
   RegisterConsumerDto,
   RegisterMerchantDto,
 } from './dto/register.dto.js';
-
-type ActiveRole = 'CONSUMER' | 'MERCHANT' | 'ADMIN';
-
-const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
+import { PasswordService } from './password/password.service.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly config: ConfigService,
+    private readonly passwords: PasswordService,
   ) {}
-
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
 
   private hashJti(jti: string): string {
     return createHash('sha256').update(jti).digest('hex');
@@ -47,7 +44,7 @@ export class AuthService {
     if (!user) throw invalidCredentialsError;
 
     // 2. ตรวจ password hash
-    if (user.passwordHash !== this.hashPassword(dto.password)) {
+    if (!(await this.passwords.verify(dto.password, user.passwordHash))) {
       throw invalidCredentialsError;
     }
 
@@ -74,7 +71,9 @@ export class AuthService {
 
     // 6. Sign JWT
     const jti = randomUUID();
-    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+    const sessionDurationMs =
+      this.config.getOrThrow<number>('AUTH_SESSION_TTL_SECONDS') * 1000;
+    const expiresAt = new Date(Date.now() + sessionDurationMs);
 
     const token = this.jwtService.sign({
       sub: user.userId.toString(),
@@ -131,6 +130,15 @@ export class AuthService {
           'เลขประจำตัวประชาชนนี้ได้ลงทะเบียนเป็นประชาชนแล้ว',
         );
       }
+
+      if (
+        existingUser.status !== 'ACTIVE' ||
+        !(await this.passwords.verify(dto.password, existingUser.passwordHash))
+      ) {
+        throw new UnauthorizedException(
+          'ไม่สามารถเพิ่มบทบาทให้บัญชีเดิมได้ กรุณาตรวจสอบข้อมูลเข้าสู่ระบบ',
+        );
+      }
     }
 
     const addressParts = [
@@ -143,6 +151,7 @@ export class AuthService {
       dto.road ? `ถนน ${dto.road}` : null,
     ].filter(Boolean);
     const addressLine = addressParts.join(' ');
+    const passwordHash = await this.passwords.hash(dto.password);
 
     return this.prisma.$transaction(async (tx) => {
       let user = existingUser;
@@ -154,7 +163,7 @@ export class AuthService {
             fullName: `${dto.firstName} ${dto.lastName}`.trim(),
             phone: dto.phone,
             role: 'CONSUMER',
-            passwordHash: this.hashPassword(dto.password),
+            passwordHash,
             title: dto.title,
             firstName: dto.firstName,
             lastName: dto.lastName,
@@ -249,6 +258,15 @@ export class AuthService {
           'เลขประจำตัวประชาชนนี้ได้ลงทะเบียนร้านค้าแล้ว',
         );
       }
+
+      if (
+        existingUser.status !== 'ACTIVE' ||
+        !(await this.passwords.verify(dto.password, existingUser.passwordHash))
+      ) {
+        throw new UnauthorizedException(
+          'ไม่สามารถเพิ่มบทบาทให้บัญชีเดิมได้ กรุณาตรวจสอบข้อมูลเข้าสู่ระบบ',
+        );
+      }
     }
 
     const existingMerchant = await this.prisma.merchant.findFirst({
@@ -268,6 +286,7 @@ export class AuthService {
       dto.road ? `ถนน ${dto.road}` : null,
     ].filter(Boolean);
     const addressLine = addressParts.join(' ');
+    const passwordHash = await this.passwords.hash(dto.password);
 
     const merchantFullAddress = [
       dto.merchantAddress,
@@ -289,7 +308,7 @@ export class AuthService {
             fullName: `${dto.firstName} ${dto.lastName}`.trim(),
             phone: dto.phone,
             role: 'MERCHANT',
-            passwordHash: this.hashPassword(dto.password),
+            passwordHash,
             title: dto.title,
             firstName: dto.firstName,
             lastName: dto.lastName,
@@ -345,5 +364,3 @@ export class AuthService {
     });
   }
 }
-
-

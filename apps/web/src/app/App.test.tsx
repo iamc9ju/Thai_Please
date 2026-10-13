@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { th } from './i18n/th';
+import { th } from '../i18n/th';
 
-vi.mock('./api/auth.api', () => ({
+vi.mock('../features/auth/api/auth.api', () => ({
   login: vi.fn(),
   getMe: vi.fn().mockResolvedValue(null),
   logout: vi.fn().mockResolvedValue({ success: true }),
