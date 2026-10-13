@@ -109,4 +109,55 @@ describe('App', () => {
       screen.queryByText(th.login.registration.prompt),
     ).not.toBeInTheDocument();
   });
+
+  it('opens the consumer registration form from the login page', () => {
+    render(<App />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.login.registration.actions.consumer,
+      }),
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.registration.title.consumer,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', {
+        name: new RegExp(th.registration.fields.citizenId),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(th.registration.sections.merchant.title),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the merchant registration form with merchant details', () => {
+    render(<App />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: th.login.role.options.merchant }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.login.registration.actions.merchant,
+      }),
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.registration.title.merchant,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: th.registration.sections.merchant.title,
+      }),
+    ).toBeInTheDocument();
+  });
 });

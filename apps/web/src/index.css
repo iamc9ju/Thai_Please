@@ -38,7 +38,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -1459,7 +1461,564 @@ button:disabled {
   font-weight: 700;
 }
 
+.registration-page {
+  min-height: 100svh;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(105 194 242 / 22%), transparent 27rem),
+    linear-gradient(180deg, #edf7fd 0, #f7fafc 28rem, #f3f7fa 100%);
+  color: #173047;
+}
+
+.registration-header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  min-height: 4.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem max(1.25rem, calc((100% - 72rem) / 2));
+  border-bottom: 1px solid rgb(197 218 232 / 78%);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(16px);
+}
+
+.registration-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #173047;
+  text-decoration: none;
+}
+
+.registration-brand > span:first-child {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.82rem;
+  background: linear-gradient(145deg, #1b8bd2, #0860ab);
+  box-shadow: 0 0.4rem 1rem rgb(20 121 201 / 20%);
+  color: white;
+}
+
+.registration-brand svg {
+  width: 1.45rem;
+}
+
+.registration-brand strong,
+.registration-brand small {
+  display: block;
+}
+
+.registration-brand strong {
+  font-size: 0.95rem;
+}
+
+.registration-brand small {
+  margin-top: 0.05rem;
+  color: #788895;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.registration-header > button {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #cddce7;
+  border-radius: 0.75rem;
+  padding: 0 0.9rem;
+  background: white;
+  color: #32516a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.registration-header > button:hover {
+  border-color: #1479c9;
+  color: #1479c9;
+}
+
+.registration-header > button svg {
+  width: 1rem;
+}
+
+.registration-content {
+  width: min(100% - 2rem, 68rem);
+  margin: 0 auto;
+  padding: 3rem 0 5rem;
+}
+
+.registration-intro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.registration-intro > div:first-child > p,
+.registration-section-heading small,
+.registration-success > p {
+  margin: 0;
+  color: #1479c9;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.registration-intro h1 {
+  margin: 0.35rem 0 0.5rem;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1.15;
+}
+
+.registration-intro > div:first-child > span {
+  display: block;
+  max-width: 41rem;
+  color: #627789;
+  font-size: 0.85rem;
+  line-height: 1.75;
+}
+
+.registration-role-switch {
+  display: grid;
+  width: min(21rem, 100%);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid #d4e2ec;
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 80%);
+  box-shadow: 0 0.5rem 1.5rem rgb(34 84 119 / 8%);
+}
+
+.registration-role-switch button {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: #718391;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.registration-role-switch button.is-active {
+  background: #1479c9;
+  box-shadow: 0 0.4rem 1rem rgb(20 121 201 / 22%);
+  color: white;
+}
+
+.registration-role-switch svg {
+  width: 1.05rem;
+}
+
+.existing-identity-note {
+  display: flex;
+  align-items: start;
+  gap: 0.8rem;
+  margin: 1.75rem 0 1rem;
+  border: 1px solid #b9dcef;
+  border-radius: 0.85rem;
+  padding: 0.9rem 1rem;
+  background: #eaf7fd;
+  color: #245773;
+}
+
+.existing-identity-note svg {
+  width: 1.1rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: #1479c9;
+}
+
+.existing-identity-note p {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
+.registration-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.registration-section {
+  border: 1px solid #d9e5ed;
+  border-radius: 1.1rem;
+  padding: 1.5rem;
+  background: white;
+  box-shadow: 0 0.65rem 2rem rgb(29 77 111 / 6%);
+}
+
+.registration-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.3rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e7eef3;
+}
+
+.registration-section-icon {
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: #e7f4fb;
+  color: #1479c9;
+}
+
+.registration-section-icon svg {
+  width: 1.3rem;
+}
+
+.registration-section-heading h2 {
+  margin: 0.08rem 0 0;
+  font-size: 1.05rem;
+}
+
+.registration-section-heading p {
+  margin: 0.15rem 0 0;
+  color: #788894;
+  font-size: 0.7rem;
+}
+
+.registration-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.registration-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.registration-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.registration-grid-address {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.registration-field-wide {
+  grid-column: 1 / -1;
+}
+
+.registration-field label {
+  display: flex;
+  min-height: 1.25rem;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+  color: #344f64;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.registration-field label > span {
+  color: #d33e50;
+}
+
+.registration-field label > small {
+  margin-left: auto;
+  color: #98a5af;
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+
+.registration-field input,
+.registration-field select,
+.registration-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cddce6;
+  border-radius: 0.65rem;
+  outline: none;
+  background: #fbfdfe;
+  color: #173047;
+  font-size: 0.74rem;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.registration-field input,
+.registration-field select {
+  min-height: 2.8rem;
+  padding: 0 0.8rem;
+}
+
+.registration-field textarea {
+  resize: vertical;
+  padding: 0.75rem 0.8rem;
+  line-height: 1.6;
+}
+
+.registration-field input:focus,
+.registration-field select:focus,
+.registration-field textarea:focus {
+  border-color: #1479c9;
+  background: white;
+  box-shadow: 0 0 0 3px rgb(20 121 201 / 12%);
+}
+
+.registration-field input[aria-invalid='true'],
+.registration-field select[aria-invalid='true'],
+.registration-field textarea[aria-invalid='true'] {
+  border-color: #d33e50;
+  background: #fffafb;
+}
+
+.registration-error {
+  margin: 0.3rem 0 0;
+  color: #bd2f42;
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.password-rule-card {
+  display: flex;
+  align-items: start;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  border-radius: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  background: #f4f8fb;
+  color: #556d7f;
+}
+
+.password-rule-card svg {
+  width: 1.1rem;
+  flex: 0 0 auto;
+  color: #1479c9;
+}
+
+.password-rule-card p {
+  margin: 0;
+}
+
+.password-rule-card strong,
+.password-rule-card span {
+  display: block;
+}
+
+.password-rule-card strong {
+  color: #294b65;
+  font-size: 0.68rem;
+}
+
+.password-rule-card span {
+  margin-top: 0.15rem;
+  font-size: 0.64rem;
+  line-height: 1.6;
+}
+
+.registration-consent {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid #d9e5ed;
+  border-radius: 1rem;
+  padding: 1.2rem 1.4rem;
+  background: white;
+}
+
+.registration-consent label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #344f64;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.registration-consent input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #1479c9;
+}
+
+.registration-consent .registration-error {
+  margin: -0.1rem 0 0 1.65rem;
+}
+
+.registration-submit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #cfe0eb;
+  border-radius: 1rem;
+  padding: 1rem 1.2rem;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 0.75rem 2rem rgb(29 77 111 / 8%);
+}
+
+.registration-submit-bar small {
+  color: #7b8b97;
+  font-size: 0.62rem;
+}
+
+.registration-submit-bar p {
+  margin: 0.15rem 0 0;
+  color: #bd2f42;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.registration-submit-bar > button {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.72rem;
+  padding: 0 1.3rem;
+  background: linear-gradient(135deg, #1788d3, #0862ad);
+  box-shadow: 0 0.55rem 1.3rem rgb(20 121 201 / 24%);
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.registration-submit-bar svg {
+  width: 1rem;
+}
+
+.registration-success-page {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.registration-success {
+  align-self: center;
+  width: min(100% - 2rem, 34rem);
+  margin: 2rem auto;
+  box-sizing: border-box;
+  border: 1px solid #cfe2ed;
+  border-radius: 1.3rem;
+  padding: 2.5rem;
+  background: white;
+  box-shadow: 0 1.3rem 3.5rem rgb(29 77 111 / 12%);
+  text-align: center;
+}
+
+.registration-success > span {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin: 0 auto 1.2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f7f0;
+  color: #16845c;
+}
+
+.registration-success > span svg {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.registration-success h1 {
+  margin: 0.4rem 0 0.6rem;
+  font-size: 1.6rem;
+}
+
+.registration-success > strong,
+.registration-success > small {
+  display: block;
+  line-height: 1.7;
+}
+
+.registration-success > strong {
+  color: #506a7c;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.registration-success > small {
+  margin-top: 0.65rem;
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  background: #fff6e4;
+  color: #8a641f;
+  font-size: 0.65rem;
+}
+
+.registration-success > div {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.3rem;
+}
+
+.registration-success > div button {
+  min-height: 2.7rem;
+  border: 1px solid #cbdce7;
+  border-radius: 0.68rem;
+  padding: 0 1rem;
+  background: white;
+  color: #416177;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.registration-success > div button.is-primary {
+  border-color: #1479c9;
+  background: #1479c9;
+  color: white;
+}
+
 @media (max-width: 760px) {
+  .registration-header {
+    min-height: 4rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .registration-brand small {
+    display: none;
+  }
+
+  .registration-content {
+    width: min(100% - 1.25rem, 40rem);
+    padding: 1.75rem 0 3rem;
+  }
+
+  .registration-intro {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .registration-role-switch {
+    width: auto;
+  }
+
+  .registration-section {
+    padding: 1.15rem;
+  }
+
+  .registration-grid-three,
+  .registration-grid-two,
+  .registration-grid-address {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .registration-submit-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .consumer-header {
     min-height: 4rem;
     padding: 0.65rem 1rem;
@@ -1524,6 +2083,27 @@ button:disabled {
 }
 
 @media (max-width: 420px) {
+  .registration-header > button {
+    width: 2.65rem;
+    padding: 0;
+    font-size: 0;
+    justify-content: center;
+  }
+
+  .registration-grid-three,
+  .registration-grid-two,
+  .registration-grid-address {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-success {
+    padding: 1.7rem 1.2rem;
+  }
+
+  .registration-success > div {
+    flex-direction: column;
+  }
+
   .wallet-breakdown,
   .dashboard-side-column {
     grid-template-columns: 1fr;

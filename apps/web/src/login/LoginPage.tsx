@@ -14,6 +14,8 @@ import {
 import { useMemo, useState, type FormEvent } from 'react';
 import { ConsumerDashboard } from '../consumer/ConsumerDashboard';
 import { th } from '../i18n/th';
+import { RegistrationPage } from '../registration/RegistrationPage';
+import type { RegistrationRole } from '../registration/registration.validation';
 import { LOGIN_ROLES, type LoginRole } from './login.types';
 import { authenticateMockUser, mockAuthIsAvailable } from './mockUsers';
 import { RolePreview } from './RolePreview';
@@ -34,6 +36,8 @@ export function LoginPage() {
   const [authenticatedRole, setAuthenticatedRole] = useState<LoginRole | null>(
     null,
   );
+  const [registrationRole, setRegistrationRole] =
+    useState<RegistrationRole | null>(null);
 
   const citizenIdIsValid = /^\d{13}$/.test(citizenId);
   const canSubmit = citizenIdIsValid && password.length > 0;
@@ -88,6 +92,15 @@ export function LoginPage() {
     setRemember(false);
     setFeedback('');
   };
+
+  if (registrationRole !== null) {
+    return (
+      <RegistrationPage
+        initialRole={registrationRole}
+        onBack={() => setRegistrationRole(null)}
+      />
+    );
+  }
 
   if (authenticatedRole === 'consumer') {
     return <ConsumerDashboard citizenId={citizenId} onLogout={handleLogout} />;
@@ -272,7 +285,14 @@ export function LoginPage() {
           {role !== 'administrator' ? (
             <p className="register-prompt">
               {th.login.registration.prompt}{' '}
-              <button onClick={handleUnavailableAction} type="button">
+              <button
+                onClick={() =>
+                  setRegistrationRole(
+                    role === 'consumer' ? 'consumer' : 'merchant',
+                  )
+                }
+                type="button"
+              >
                 {th.login.registration.actions[role]}
               </button>
             </p>
