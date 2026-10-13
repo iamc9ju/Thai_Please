@@ -1,43 +1,66 @@
 import {
   CircleUserRound,
   Home,
+  QrCode,
   ReceiptText,
-  Sparkles,
   TicketPercent,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import type { ConsumerView } from '../consumer.types';
 
 type ConsumerBottomNavigationProps = Readonly<{
-  onPrototypeAction: () => void;
+  activeView: ConsumerView;
+  onNavigate: (view: ConsumerView) => void;
 }>;
 
 export function ConsumerBottomNavigation({
-  onPrototypeAction,
+  activeView,
+  onNavigate,
 }: ConsumerBottomNavigationProps) {
   return (
     <nav
       className="consumer-bottom-nav"
       aria-label={th.consumerDashboard.navigation.label}
     >
-      <button className="is-active" type="button">
+      <button
+        className={activeView === 'overview' ? 'is-active' : undefined}
+        onClick={() => onNavigate('overview')}
+        type="button"
+      >
         <Home aria-hidden="true" />
-        {th.consumerDashboard.navigation.home}
+        {th.consumerPortal.navigation.overview}
       </button>
-      <button onClick={onPrototypeAction} type="button">
+      <button
+        className={activeView === 'orders' ? 'is-active' : undefined}
+        onClick={() => onNavigate('orders')}
+        type="button"
+      >
         <ReceiptText aria-hidden="true" />
-        {th.consumerDashboard.navigation.orders}
+        {th.consumerPortal.navigation.orders}
       </button>
-      <button onClick={onPrototypeAction} type="button">
-        <Sparkles aria-hidden="true" />
-        {th.consumerDashboard.navigation.quests}
+      <button
+        className={activeView === 'payment' ? 'is-active' : undefined}
+        onClick={() => onNavigate('payment')}
+        type="button"
+      >
+        <QrCode aria-hidden="true" />
+        {th.consumerPortal.navigation.payment}
       </button>
-      <button onClick={onPrototypeAction} type="button">
+      <button
+        className={activeView === 'rewards' ? 'is-active' : undefined}
+        onClick={() => onNavigate('rewards')}
+        type="button"
+      >
         <TicketPercent aria-hidden="true" />
-        {th.consumerDashboard.navigation.coupons}
+        {th.consumerPortal.navigation.rewards}
       </button>
-      <button onClick={onPrototypeAction} type="button">
+      <button
+        className={activeView === 'profile' ? 'is-active' : undefined}
+        onClick={() => onNavigate('profile')}
+        type="button"
+      >
         <CircleUserRound aria-hidden="true" />
-        {th.consumerDashboard.navigation.profile}
+        {th.consumerPortal.navigation.profile}
       </button>
     </nav>
   );

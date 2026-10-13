@@ -44,6 +44,20 @@ function MainContent() {
 }
 
 function App() {
+  const isCustomerPreview =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get('preview') === 'customer';
+
+  if (isCustomerPreview) {
+    return (
+      <ConsumerDashboard
+        citizenId="1100000000001"
+        fullName={th.consumerDashboard.displayName}
+        onLogout={() => window.history.replaceState({}, '', '/')}
+      />
+    );
+  }
+
   return (
     <AuthProvider>
       <MainContent />

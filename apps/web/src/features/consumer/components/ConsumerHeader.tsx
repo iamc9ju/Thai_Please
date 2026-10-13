@@ -5,14 +5,16 @@ type ConsumerHeaderProps = Readonly<{
   displayName: string;
   maskedCitizenId: string;
   onLogout: () => void;
-  onPrototypeAction: () => void;
+  onNotification: () => void;
+  onOpenProfile: () => void;
 }>;
 
 export function ConsumerHeader({
   displayName,
   maskedCitizenId,
   onLogout,
-  onPrototypeAction,
+  onNotification,
+  onOpenProfile,
 }: ConsumerHeaderProps) {
   return (
     <header className="consumer-header">
@@ -29,13 +31,17 @@ export function ConsumerHeader({
         <button
           aria-label={th.consumerDashboard.notification}
           className="consumer-icon-button"
-          onClick={onPrototypeAction}
+          onClick={onNotification}
           type="button"
         >
           <Bell aria-hidden="true" />
           <span aria-hidden="true" className="notification-dot" />
         </button>
-        <div className="consumer-profile-summary">
+        <button
+          className="consumer-profile-summary"
+          onClick={onOpenProfile}
+          type="button"
+        >
           <span aria-hidden="true" className="profile-avatar">
             <CircleUserRound />
           </span>
@@ -43,7 +49,7 @@ export function ConsumerHeader({
             <strong>{displayName}</strong>
             <small>{maskedCitizenId}</small>
           </span>
-        </div>
+        </button>
         <button className="logout-button" onClick={onLogout} type="button">
           <LogOut aria-hidden="true" />
           {th.consumerDashboard.logout}
