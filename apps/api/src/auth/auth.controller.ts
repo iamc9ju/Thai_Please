@@ -1,5 +1,16 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 
@@ -42,12 +53,48 @@ export class AuthController {
     return { user: result.user };
   }
 
+  @Get('me')
+  @UseGuards(AuthGuard)
+  getMe(@Req() req: Request) {
+    const user = req.user!;
+    return {
+      user: {
+        userId: user.userId.toString(),
+        citizenId: user.citizenId,
+        fullName: user.fullName,
+        role: user.role,
+        activeMerchantId: user.activeMerchantId?.toString() ?? null,
+      },
+    };
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const sessionId = req.user!.sessionId;
+    await this.authService.logout(sessionId);
+    this.clearAuthCookie(res);
+    return { success: true };
+  }
+
   private setAuthCookie(res: Response, token: string): void {
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: COOKIE_MAX_AGE_MS,
+    });
+  }
+
+  private clearAuthCookie(res: Response): void {
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
     });
   }
 }

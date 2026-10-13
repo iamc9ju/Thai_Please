@@ -100,4 +100,12 @@ export class AuthService {
       },
     };
   }
+
+  async logout(sessionId: bigint): Promise<void> {
+    await this.prisma.authSession.update({
+      where: { authSessionId: sessionId },
+      data: { revokedAt: new Date() },
+    });
+  }
 }
+

@@ -8,11 +8,21 @@ export type LoginCredentials = {
 };
 
 export type AuthUser = {
+  userId: string;
+  citizenId: string;
   fullName: string;
   role: string;
+  activeMerchantId: string | null;
 };
 
 export type LoginResponse = {
+  user: {
+    fullName: string;
+    role: string;
+  };
+};
+
+export type MeResponse = {
   user: AuthUser;
 };
 

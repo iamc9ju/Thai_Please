@@ -21,6 +21,7 @@ import { th } from '../i18n/th';
 
 type ConsumerDashboardProps = Readonly<{
   citizenId: string;
+  fullName?: string;
   onLogout: () => void;
 }>;
 
@@ -38,9 +39,11 @@ const numberFormatter = new Intl.NumberFormat('th-TH', {
 
 export function ConsumerDashboard({
   citizenId,
+  fullName,
   onLogout,
 }: ConsumerDashboardProps) {
   const [announcement, setAnnouncement] = useState('');
+  const displayName = fullName ?? th.consumerDashboard.displayName;
   const totalBalance =
     walletSummary.personalBalance + walletSummary.subsidyBalance;
   const maskedCitizenId = `X-XXXX-${citizenId.slice(-4)}`;
@@ -76,7 +79,7 @@ export function ConsumerDashboard({
               <CircleUserRound />
             </span>
             <span>
-              <strong>{th.consumerDashboard.displayName}</strong>
+              <strong>{displayName}</strong>
               <small>{maskedCitizenId}</small>
             </span>
           </div>
@@ -91,7 +94,7 @@ export function ConsumerDashboard({
         <section className="consumer-welcome">
           <div>
             <p>{th.consumerDashboard.greeting}</p>
-            <h1>{th.consumerDashboard.displayName}</h1>
+            <h1>{displayName}</h1>
             <span>{th.consumerDashboard.identityLabel}</span>
           </div>
           <p aria-live="polite" className="consumer-announcement">
