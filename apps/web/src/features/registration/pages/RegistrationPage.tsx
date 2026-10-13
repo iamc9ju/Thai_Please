@@ -19,6 +19,8 @@ import type { RegisterMerchantPayload } from '../../auth/auth.types';
 import { RegistrationField as Field } from '../components/RegistrationField';
 import { RegistrationSection } from '../components/RegistrationSection';
 import {
+  getBangkokDateInputValue,
+  isValidBirthDate,
   validateRegistration,
   type RegistrationErrors,
   type RegistrationRole,
@@ -67,6 +69,7 @@ export function RegistrationPage({
     merchantName?: string;
   } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const maximumBirthDate = getBangkokDateInputValue();
 
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
@@ -343,7 +346,19 @@ export function RegistrationPage({
                   {...getAccessibilityProps('birthDate', errors)}
                   autoComplete="bday"
                   id="birthDate"
+                  max={maximumBirthDate}
                   name="birthDate"
+                  onBlur={(event) => {
+                    if (
+                      event.currentTarget.value &&
+                      !isValidBirthDate(event.currentTarget.value)
+                    ) {
+                      setErrors((currentErrors) => ({
+                        ...currentErrors,
+                        birthDate: 'birthDate',
+                      }));
+                    }
+                  }}
                   type="date"
                 />
               </Field>

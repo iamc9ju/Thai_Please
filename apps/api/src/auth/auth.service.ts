@@ -14,6 +14,7 @@ import type {
   RegisterMerchantDto,
 } from './dto/register.dto.js';
 import { PasswordService } from './password/password.service.js';
+import { parseValidBirthDate } from './birth-date.js';
 
 @Injectable()
 export class AuthService {
@@ -116,6 +117,7 @@ export class AuthService {
   }
 
   async registerConsumer(dto: RegisterConsumerDto) {
+    const birthDate = parseValidBirthDate(dto.birthDate);
     const existingUser = await this.prisma.user.findUnique({
       where: { citizenId: dto.citizenId },
       include: { roles: true },
@@ -167,7 +169,7 @@ export class AuthService {
             title: dto.title,
             firstName: dto.firstName,
             lastName: dto.lastName,
-            dateOfBirth: new Date(dto.birthDate),
+            dateOfBirth: birthDate,
             addressLine,
             subdistrict: dto.subdistrict,
             district: dto.district,
@@ -244,6 +246,7 @@ export class AuthService {
   }
 
   async registerMerchant(dto: RegisterMerchantDto) {
+    const birthDate = parseValidBirthDate(dto.birthDate);
     const existingUser = await this.prisma.user.findUnique({
       where: { citizenId: dto.citizenId },
       include: { roles: true },
@@ -312,7 +315,7 @@ export class AuthService {
             title: dto.title,
             firstName: dto.firstName,
             lastName: dto.lastName,
-            dateOfBirth: new Date(dto.birthDate),
+            dateOfBirth: birthDate,
             addressLine,
             subdistrict: dto.subdistrict,
             district: dto.district,

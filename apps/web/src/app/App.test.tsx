@@ -116,6 +116,7 @@ describe('App', () => {
         name: new RegExp(th.registration.fields.citizenId),
       }),
     ).toBeInTheDocument();
+    expect(document.querySelector('#birthDate')).toHaveAttribute('max');
     expect(
       screen.queryByText(th.registration.sections.merchant.title),
     ).not.toBeInTheDocument();

@@ -4,7 +4,11 @@ type PortalPageHeaderProps = Readonly<{
   description: string;
 }>;
 
-export function PortalPageHeader({ eyebrow, title, description }: PortalPageHeaderProps) {
+export function PortalPageHeader({
+  eyebrow,
+  title,
+  description,
+}: PortalPageHeaderProps) {
   return (
     <header className="portal-page-header">
       <p>{eyebrow}</p>

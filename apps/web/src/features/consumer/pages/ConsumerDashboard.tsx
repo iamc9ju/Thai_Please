@@ -18,7 +18,11 @@ type ConsumerDashboardProps = Readonly<{
   onLogout: () => void;
 }>;
 
-export function ConsumerDashboard({ citizenId, fullName, onLogout }: ConsumerDashboardProps) {
+export function ConsumerDashboard({
+  citizenId,
+  fullName,
+  onLogout,
+}: ConsumerDashboardProps) {
   const [activeView, setActiveView] = useState<ConsumerView>('overview');
   const [announcement, setAnnouncement] = useState('');
   const displayName = fullName ?? th.consumerDashboard.displayName;
@@ -29,21 +33,43 @@ export function ConsumerDashboard({ citizenId, fullName, onLogout }: ConsumerDas
     setAnnouncement('');
   };
 
-  const announcePrototypeAction = () => setAnnouncement(th.consumerPortal.common.mockNotice);
+  const announcePrototypeAction = () =>
+    setAnnouncement(th.consumerPortal.common.mockNotice);
 
   return (
     <main className="consumer-shell">
-      <ConsumerHeader displayName={displayName} maskedCitizenId={maskedCitizenId} onLogout={onLogout} onNotification={announcePrototypeAction} onOpenProfile={() => navigate('profile')} />
+      <ConsumerHeader
+        displayName={displayName}
+        maskedCitizenId={maskedCitizenId}
+        onLogout={onLogout}
+        onNotification={announcePrototypeAction}
+        onOpenProfile={() => navigate('profile')}
+      />
       <ConsumerNavigation activeView={activeView} onNavigate={navigate} />
       <div className="consumer-content" id="dashboard-top">
-        <div className="draft-banner"><span>{th.consumerPortal.draftLabel}</span><p aria-live="polite">{announcement}</p></div>
-        {activeView === 'overview' && <ConsumerOverview displayName={displayName} announcement={announcement} onNavigate={navigate} />}
+        <div className="draft-banner">
+          <span>{th.consumerPortal.draftLabel}</span>
+          <p aria-live="polite">{announcement}</p>
+        </div>
+        {activeView === 'overview' && (
+          <ConsumerOverview
+            displayName={displayName}
+            announcement={announcement}
+            onNavigate={navigate}
+          />
+        )}
         {activeView === 'wallet' && <WalletView />}
         {activeView === 'payment' && <PaymentView onNavigate={navigate} />}
         {activeView === 'orders' && <OrdersView />}
         {activeView === 'quests' && <QuestsView />}
         {activeView === 'rewards' && <RewardsView />}
-        {activeView === 'profile' && <ProfileView displayName={displayName} maskedCitizenId={maskedCitizenId} onPrototypeAction={announcePrototypeAction} />}
+        {activeView === 'profile' && (
+          <ProfileView
+            displayName={displayName}
+            maskedCitizenId={maskedCitizenId}
+            onPrototypeAction={announcePrototypeAction}
+          />
+        )}
       </div>
       <ConsumerBottomNavigation activeView={activeView} onNavigate={navigate} />
     </main>
