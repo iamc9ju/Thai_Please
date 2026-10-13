@@ -12,37 +12,114 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
-import { consumerMock, formatBaht } from '../consumer.mock';
-import type { ConsumerView } from '../consumer.types';
+import type {
+  ConsumerOverviewLoadState,
+  ConsumerOverviewResponse,
+  ConsumerView,
+} from '../consumer.types';
 
 type ConsumerOverviewProps = Readonly<{
   displayName: string;
+  maskedCitizenId: string;
   announcement: string;
+  overviewState: ConsumerOverviewLoadState;
   onNavigate: (view: ConsumerView) => void;
+  onRetry: () => void;
 }>;
 
-export function ConsumerOverview({
-  displayName,
-  announcement,
+const bahtFormatter = new Intl.NumberFormat(th.consumerDashboard.locale, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat(th.consumerDashboard.locale, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: th.consumerDashboard.timeZone,
+});
+
+const dateFormatter = new Intl.DateTimeFormat(th.consumerDashboard.locale, {
+  dateStyle: 'medium',
+  timeZone: th.consumerDashboard.timeZone,
+});
+
+function formatBaht(amount: number) {
+  return bahtFormatter.format(amount);
+}
+
+function formatDateTime(value: string) {
+  return dateTimeFormatter.format(new Date(value));
+}
+
+function formatDate(value: string) {
+  return dateFormatter.format(new Date(value));
+}
+
+function OverviewStatus({
+  state,
+  onRetry,
+}: Readonly<{
+  state: Exclude<ConsumerOverviewLoadState, { status: 'success' }>;
+  onRetry: () => void;
+}>) {
+  if (state.status === 'loading') {
+    return (
+      <section
+        aria-live="polite"
+        aria-busy="true"
+        className="portal-card order-empty-state"
+        role="status"
+      >
+        <p>{th.consumerDashboard.states.loading}</p>
+      </section>
+    );
+  }
+
+  if (state.status === 'permission-denied') {
+    return (
+      <section
+        aria-live="assertive"
+        className="portal-card order-empty-state"
+        role="alert"
+      >
+        <h2>{th.consumerDashboard.states.permissionDeniedTitle}</h2>
+        <p>{th.consumerDashboard.states.permissionDeniedDescription}</p>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-live="assertive" className="portal-card order-empty-state">
+      <h2>{th.consumerDashboard.states.errorTitle}</h2>
+      <p>{th.consumerDashboard.states.errorDescription}</p>
+      <button onClick={onRetry} type="button">
+        {th.consumerDashboard.states.retry}
+      </button>
+    </section>
+  );
+}
+
+function OverviewContent({
+  data,
   onNavigate,
-}: ConsumerOverviewProps) {
-  const wallet = consumerMock.wallet;
-  const totalBalance =
-    wallet.personalBalanceSatang + wallet.subsidyBalanceSatang;
+}: Readonly<{
+  data: ConsumerOverviewResponse;
+  onNavigate: (view: ConsumerView) => void;
+}>) {
+  const { wallet, program, quests, coupons, recentOrders } = data;
+  const activeQuest = quests[0];
+  const dailyUsagePercent =
+    wallet.dailySubsidyLimit > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (wallet.dailySubsidyUsed / wallet.dailySubsidyLimit) * 100,
+          ),
+        )
+      : 0;
 
   return (
     <>
-      <section className="consumer-welcome">
-        <div>
-          <p>{th.consumerDashboard.greeting}</p>
-          <h1>{displayName}</h1>
-          <span>{th.consumerDashboard.identityLabel}</span>
-        </div>
-        <p aria-live="polite" className="consumer-announcement">
-          {announcement}
-        </p>
-      </section>
-
       <section
         className="dashboard-grid"
         aria-label={th.consumerDashboard.wallet.title}
@@ -60,16 +137,16 @@ export function ConsumerOverview({
           </p>
           <p className="wallet-total">
             <span>฿</span>
-            {formatBaht(totalBalance)}
+            {formatBaht(wallet.totalBalance)}
           </p>
           <div className="wallet-breakdown">
             <span>
               <small>{th.consumerDashboard.wallet.personal}</small>
-              <strong>฿{formatBaht(wallet.personalBalanceSatang)}</strong>
+              <strong>฿{formatBaht(wallet.personalBalance)}</strong>
             </span>
             <span>
               <small>{th.consumerDashboard.wallet.subsidy}</small>
-              <strong>฿{formatBaht(wallet.subsidyBalanceSatang)}</strong>
+              <strong>฿{formatBaht(wallet.subsidyBalance)}</strong>
             </span>
           </div>
           <div className="wallet-actions">
@@ -91,8 +168,36 @@ export function ConsumerOverview({
             </div>
             <div>
               <p>{th.consumerDashboard.wallet.dailyRemaining}</p>
-              <strong>฿{formatBaht(wallet.dailyRemainingSatang)}</strong>
-              <small>{th.consumerDashboard.wallet.dailyLimit}</small>
+              <strong>฿{formatBaht(wallet.dailySubsidyRemaining)}</strong>
+              <small>
+                {th.consumerDashboard.wallet.dailyUsage(
+                  formatBaht(wallet.dailySubsidyUsed),
+                  formatBaht(wallet.dailySubsidyLimit),
+                )}
+              </small>
+              <small>
+                {program?.programName ??
+                  th.consumerDashboard.wallet.noActiveProgram}
+              </small>
+              {program && (
+                <small>
+                  {th.consumerDashboard.wallet.programDetail(
+                    program.subsidyPercentage,
+                    formatDate(program.startDate),
+                    formatDate(program.endDate),
+                  )}
+                </small>
+              )}
+              <div
+                aria-label={th.consumerDashboard.wallet.dailyProgressLabel}
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={dailyUsagePercent}
+                className="quest-progress"
+                role="progressbar"
+              >
+                <span style={{ width: `${dailyUsagePercent}%` }} />
+              </div>
             </div>
           </article>
           <article className="point-card">
@@ -102,7 +207,9 @@ export function ConsumerOverview({
             <div>
               <p>{th.consumerDashboard.points.title}</p>
               <strong>
-                {wallet.pointBalance.toLocaleString('th-TH')}{' '}
+                {wallet.pointBalance.toLocaleString(
+                  th.consumerDashboard.locale,
+                )}{' '}
                 <span>{th.consumerDashboard.points.unit}</span>
               </strong>
               <button onClick={() => onNavigate('rewards')} type="button">
@@ -133,32 +240,36 @@ export function ConsumerOverview({
           <div className="section-heading">
             <div>
               <p>{th.consumerDashboard.quest.eyebrow}</p>
-              <h2>{th.consumerDashboard.quest.title}</h2>
+              <h2>
+                {activeQuest?.questName ?? th.consumerDashboard.quest.title}
+              </h2>
             </div>
-            <span className="reward-badge">
-              {th.consumerDashboard.quest.reward}
-            </span>
+            {activeQuest && (
+              <span className="reward-badge">
+                {th.consumerDashboard.quest.reward(activeQuest.rewardPoint)}
+              </span>
+            )}
           </div>
-          <p className="quest-description">
-            {th.consumerDashboard.quest.description}
-          </p>
-          <div className="quest-meta">
-            <span>
-              <Clock3 aria-hidden="true" />
-              {th.consumerDashboard.quest.expiry}
-            </span>
-            <span>{th.consumerDashboard.quest.progress}</span>
-          </div>
-          <div
-            aria-label={th.consumerDashboard.quest.progressLabel}
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={0}
-            className="quest-progress"
-            role="progressbar"
-          >
-            <span />
-          </div>
+          {activeQuest ? (
+            <>
+              <p className="quest-description">
+                {activeQuest.description ?? activeQuest.questName}
+              </p>
+              <div className="quest-meta">
+                <span>
+                  <Clock3 aria-hidden="true" />
+                  {th.consumerDashboard.quest.expiry(
+                    formatDate(activeQuest.expiresAt),
+                  )}
+                </span>
+                <span>{th.consumerDashboard.quest.activeStatus}</span>
+              </div>
+            </>
+          ) : (
+            <p className="quest-description">
+              {th.consumerDashboard.states.noQuests}
+            </p>
+          )}
           <button
             className="text-action"
             onClick={() => onNavigate('quests')}
@@ -172,19 +283,21 @@ export function ConsumerOverview({
         <article className="coupon-card">
           <div className="section-heading">
             <div>
-              <p>{th.consumerDashboard.coupons.count}</p>
+              <p>{th.consumerDashboard.coupons.count(coupons.length)}</p>
               <h2>{th.consumerDashboard.coupons.title}</h2>
             </div>
             <TicketPercent aria-hidden="true" />
           </div>
-          <div className="coupon-row">
-            <Tag aria-hidden="true" />
-            <span>{th.consumerDashboard.coupons.first}</span>
-          </div>
-          <div className="coupon-row">
-            <Tag aria-hidden="true" />
-            <span>{th.consumerDashboard.coupons.second}</span>
-          </div>
+          {coupons.length > 0 ? (
+            coupons.slice(0, 2).map((coupon) => (
+              <div className="coupon-row" key={coupon.userCouponId}>
+                <Tag aria-hidden="true" />
+                <span>{coupon.description ?? coupon.couponName}</span>
+              </div>
+            ))
+          ) : (
+            <p>{th.consumerDashboard.states.noCoupons}</p>
+          )}
           <button
             className="text-action"
             onClick={() => onNavigate('rewards')}
@@ -203,23 +316,66 @@ export function ConsumerOverview({
             {th.consumerDashboard.activity.viewAll}
           </button>
         </div>
-        <div className="activity-list">
-          {th.consumerDashboard.activity.items.map((item, index) => (
-            <article key={item.merchant}>
-              <span aria-hidden="true" className="activity-icon">
-                {index === 1 ? <Plus /> : <ReceiptText />}
-              </span>
-              <span className="activity-copy">
-                <strong>{item.merchant}</strong>
-                <small>{item.detail}</small>
-              </span>
-              <strong className={index === 1 ? 'amount-positive' : ''}>
-                {item.amount}
-              </strong>
-            </article>
-          ))}
-        </div>
+        {recentOrders.length > 0 ? (
+          <div className="activity-list">
+            {recentOrders.map((order) => (
+              <article key={order.orderId}>
+                <span aria-hidden="true" className="activity-icon">
+                  <ReceiptText />
+                </span>
+                <span className="activity-copy">
+                  <strong>{order.merchantName}</strong>
+                  <small>
+                    {th.consumerDashboard.activity.paidAt}{' '}
+                    <time dateTime={order.paidAt}>
+                      {formatDateTime(order.paidAt)}
+                    </time>
+                  </small>
+                </span>
+                <strong>
+                  {th.consumerDashboard.activity.paidAmount(
+                    formatBaht(order.finalAmount),
+                  )}
+                </strong>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p aria-live="polite">{th.consumerDashboard.states.noOrders}</p>
+        )}
       </section>
+    </>
+  );
+}
+
+export function ConsumerOverview({
+  displayName,
+  maskedCitizenId,
+  announcement,
+  overviewState,
+  onNavigate,
+  onRetry,
+}: ConsumerOverviewProps) {
+  return (
+    <>
+      <section className="consumer-welcome">
+        <div>
+          <p>{th.consumerDashboard.greeting}</p>
+          <h1>{displayName}</h1>
+          <span>
+            {th.consumerDashboard.identityLabel} · {maskedCitizenId}
+          </span>
+        </div>
+        <p aria-live="polite" className="consumer-announcement">
+          {announcement}
+        </p>
+      </section>
+
+      {overviewState.status === 'success' ? (
+        <OverviewContent data={overviewState.data} onNavigate={onNavigate} />
+      ) : (
+        <OverviewStatus state={overviewState} onRetry={onRetry} />
+      )}
     </>
   );
 }

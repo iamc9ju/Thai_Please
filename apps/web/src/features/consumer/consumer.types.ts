@@ -62,7 +62,19 @@ export type ConsumerOverviewResponse = {
     balanceAfter: number;
     createdAt: string;
   }>;
+  recentOrders: Array<{
+    orderId: string;
+    merchantName: string;
+    finalAmount: number;
+    paidAt: string;
+  }>;
 };
+
+export type ConsumerOverviewLoadState =
+  | { status: 'loading' }
+  | { status: 'success'; data: ConsumerOverviewResponse }
+  | { status: 'permission-denied' }
+  | { status: 'error' };
 
 export type TopUpResponse = {
   success: boolean;

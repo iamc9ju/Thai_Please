@@ -1,7 +1,83 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
+import { ApiError } from '../../../lib/api-client';
+import { getConsumerOverview } from '../api/consumer.api';
+import type { ConsumerOverviewResponse } from '../consumer.types';
 import { ConsumerDashboard } from './ConsumerDashboard';
+
+vi.mock('../api/consumer.api', () => ({
+  getConsumerOverview: vi.fn(),
+}));
+
+const overviewFixture: ConsumerOverviewResponse = {
+  wallet: {
+    walletId: 'wallet-api',
+    personalBalance: 1234,
+    subsidyBalance: 567,
+    totalBalance: 1801,
+    dailySubsidyLimit: 300,
+    dailySubsidyUsed: 75,
+    dailySubsidyRemaining: 225,
+    pointBalance: 987,
+  },
+  program: {
+    programId: 'program-api',
+    programName: 'โครงการจากระบบจริง',
+    subsidyPercentage: 60,
+    userPercentage: 40,
+    dailySubsidyLimit: 300,
+    startDate: '2026-10-01T00:00:00.000Z',
+    endDate: '2026-12-31T23:59:59.000Z',
+  },
+  quests: [
+    {
+      userQuestId: 'user-quest-api',
+      questId: 'quest-api',
+      questName: 'ภารกิจจากระบบจริง',
+      description: 'ซื้อสินค้าชุมชนในรายการเดียว',
+      rewardPoint: 88,
+      minSpend: 150,
+      expiresAt: '2026-10-20T23:59:59.000Z',
+      status: 'ACTIVE',
+    },
+  ],
+  coupons: [
+    {
+      userCouponId: 'user-coupon-api',
+      couponId: 'coupon-api',
+      couponName: 'คูปองจากระบบจริง',
+      description: 'ลด 25 บาทจากระบบจริง',
+      discountType: 'FIXED',
+      discountValue: 25,
+      minPurchase: 100,
+      expiresAt: '2026-10-31T23:59:59.000Z',
+      status: 'AVAILABLE',
+    },
+  ],
+  recentTransactions: [],
+  recentOrders: [
+    {
+      orderId: 'order-api',
+      merchantName: 'ร้านค้าจากระบบจริง',
+      finalAmount: 321,
+      paidAt: '2026-10-14T03:42:00.000Z',
+    },
+  ],
+};
+
+const mockedGetConsumerOverview = vi.mocked(getConsumerOverview);
+
+beforeEach(() => {
+  mockedGetConsumerOverview.mockReset();
+  mockedGetConsumerOverview.mockResolvedValue(overviewFixture);
+});
 
 afterEach(cleanup);
 
@@ -20,6 +96,108 @@ function clickFirstNavigation(label: string) {
 }
 
 describe('ConsumerDashboard', () => {
+  it('shows an accessible loading state without mock overview content', () => {
+    mockedGetConsumerOverview.mockReturnValue(new Promise(() => undefined));
+
+    renderDashboard();
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      th.consumerDashboard.states.loading,
+    );
+    expect(
+      screen.queryByText(th.consumerPortal.draftLabel),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('ร้านครัวบ้านเรา')).not.toBeInTheDocument();
+  });
+
+  it('renders the authenticated identity and API overview using integer baht', async () => {
+    renderDashboard();
+
+    expect(await screen.findByText('ร้านค้าจากระบบจริง')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'ทดสอบ ระบบ' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/X-XXXX-0001/)).toHaveLength(2);
+    expect(screen.getByText('1,801.00')).toBeInTheDocument();
+    expect(screen.getByText('฿1,234.00')).toBeInTheDocument();
+    expect(screen.getByText('โครงการจากระบบจริง')).toBeInTheDocument();
+    expect(screen.getByText('ภารกิจจากระบบจริง')).toBeInTheDocument();
+    expect(screen.getByText('ลด 25 บาทจากระบบจริง')).toBeInTheDocument();
+    expect(screen.queryByText('ร้านครัวบ้านเรา')).not.toBeInTheDocument();
+    expect(mockedGetConsumerOverview).toHaveBeenCalledOnce();
+  });
+
+  it('shows explicit empty states for overview collections', async () => {
+    mockedGetConsumerOverview.mockResolvedValue({
+      ...overviewFixture,
+      program: null,
+      quests: [],
+      coupons: [],
+      recentOrders: [],
+    });
+
+    renderDashboard();
+
+    expect(
+      await screen.findByText(th.consumerDashboard.states.noQuests),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerDashboard.states.noCoupons),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerDashboard.states.noOrders),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerDashboard.wallet.noActiveProgram),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a localized error and retries the overview request', async () => {
+    mockedGetConsumerOverview
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(overviewFixture);
+
+    renderDashboard();
+
+    expect(
+      await screen.findByRole('heading', {
+        name: th.consumerDashboard.states.errorTitle,
+      }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.consumerDashboard.states.retry,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(mockedGetConsumerOverview).toHaveBeenCalledTimes(2),
+    );
+    expect(await screen.findByText('ร้านค้าจากระบบจริง')).toBeInTheDocument();
+  });
+
+  it('shows a permission-denied state for a forbidden overview request', async () => {
+    mockedGetConsumerOverview.mockRejectedValue(
+      new ApiError(403, 'Forbidden resource'),
+    );
+
+    renderDashboard();
+
+    expect(
+      await screen.findByRole('heading', {
+        name: th.consumerDashboard.states.permissionDeniedTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerDashboard.states.permissionDeniedDescription),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: th.consumerDashboard.states.retry,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it('navigates through the customer wallet and validates top-up input', () => {
     renderDashboard();
     clickFirstNavigation(th.consumerPortal.navigation.wallet);

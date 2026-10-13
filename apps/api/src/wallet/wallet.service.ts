@@ -14,6 +14,9 @@ import {
 } from './wallet.constants.js';
 import type { TopUpDto } from './dto/top-up.dto.js';
 
+const RECENT_PAID_ORDER_LIMIT = 5;
+const PAID_ORDER_STATUS = 'PAID';
+
 @Injectable()
 export class WalletService {
   private readonly logger = new Logger(WalletService.name);
@@ -21,11 +24,11 @@ export class WalletService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * คำนวณช่วงเวลาเริ่มต้นและสิ้นสุดของวันปัจจุบันใน Timezone Asia/Bangkok
+   * คำนวณช่วงวันแบบ [เริ่มวัน, เริ่มวันถัดไป) ใน Timezone Asia/Bangkok
    */
   private getBangkokDayBoundaries(now = new Date()): {
     startOfDayUtc: Date;
-    endOfDayUtc: Date;
+    nextDayUtc: Date;
   } {
     const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
     const bangkokNow = new Date(now.getTime() + offsetMs);
@@ -42,19 +45,25 @@ export class WalletService {
       ) - offsetMs,
     );
 
-    const endOfDayUtc = new Date(
+    const nextDayUtc = new Date(startOfDayUtc.getTime() + 24 * 60 * 60 * 1000);
+
+    return { startOfDayUtc, nextDayUtc };
+  }
+
+  /**
+   * แปลง instant เป็นวันที่ธุรกิจในกรุงเทพฯ สำหรับเปรียบเทียบ PostgreSQL DATE
+   */
+  private getBangkokBusinessDate(now = new Date()): Date {
+    const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
+    const bangkokNow = new Date(now.getTime() + offsetMs);
+
+    return new Date(
       Date.UTC(
         bangkokNow.getUTCFullYear(),
         bangkokNow.getUTCMonth(),
         bangkokNow.getUTCDate(),
-        23,
-        59,
-        59,
-        999,
-      ) - offsetMs,
+      ),
     );
-
-    return { startOfDayUtc, endOfDayUtc };
   }
 
   /**
@@ -70,11 +79,12 @@ export class WalletService {
     }
 
     const now = new Date();
+    const businessDate = this.getBangkokBusinessDate(now);
     const activeProgram = await this.prisma.subsidyProgram.findFirst({
       where: {
         status: 'ACTIVE',
-        startDate: { lte: now },
-        endDate: { gte: now },
+        startDate: { lte: businessDate },
+        endDate: { gte: businessDate },
       },
     });
 
@@ -136,12 +146,10 @@ export class WalletService {
    * FR-C01 & FR-C03: ดึงข้อมูลภาพรวมของกระเป๋าเงินและสิทธิประโยชน์
    */
   async getConsumerOverview(userId: bigint) {
+    const now = new Date();
     const user = await this.prisma.user.findUnique({
       where: { userId },
       select: {
-        userId: true,
-        citizenId: true,
-        fullName: true,
         pointBalance: true,
       },
     });
@@ -150,18 +158,23 @@ export class WalletService {
       throw new NotFoundException('ไม่พบข้อมูลผู้ใช้งาน');
     }
 
-    const wallet = await this.getOrCreateConsumerWallet(userId);
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    if (!wallet) {
+      throw new NotFoundException('ไม่พบข้อมูลกระเป๋าเงิน');
+    }
 
-    const now = new Date();
+    const businessDate = this.getBangkokBusinessDate(now);
     const activeProgram = await this.prisma.subsidyProgram.findFirst({
       where: {
         status: 'ACTIVE',
-        startDate: { lte: now },
-        endDate: { gte: now },
+        startDate: { lte: businessDate },
+        endDate: { gte: businessDate },
       },
     });
 
-    const { startOfDayUtc, endOfDayUtc } = this.getBangkokDayBoundaries(now);
+    const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(now);
 
     // คำนวณยอดเงินอุดหนุนที่ใช้ไปในวันนี้
     const todaySubsidyTxs = await this.prisma.walletTransaction.findMany({
@@ -169,7 +182,7 @@ export class WalletService {
         walletId: wallet.walletId,
         fundType: FundType.SUBSIDY,
         transactionType: TransactionType.PAYMENT_SUBSIDY,
-        createdAt: { gte: startOfDayUtc, lte: endOfDayUtc },
+        createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
       },
       select: { amount: true },
     });
@@ -186,8 +199,8 @@ export class WalletService {
     const dailyCapRemaining = Math.max(0, dailySubsidyLimit - dailySubsidyUsed);
     const dailySubsidyRemaining = Math.min(subsidyBalance, dailyCapRemaining);
 
-    // ดึง Quests ที่ผู้ใช้ได้รับ (หากยังไม่มี ให้ auto-assign เควสต์ที่เปิดอยู่)
-    let userQuests = await this.prisma.userQuest.findMany({
+    // FR-C01 เป็น read-only: การ assign Quest เป็นหน้าที่ของ workflow FR-C07
+    const userQuests = await this.prisma.userQuest.findMany({
       where: {
         userId,
         status: 'ACTIVE',
@@ -197,28 +210,6 @@ export class WalletService {
       orderBy: { assignedAt: 'desc' },
       take: 5,
     });
-
-    if (userQuests.length === 0) {
-      const systemQuest = await this.prisma.quest.findFirst({
-        orderBy: { createdAt: 'desc' },
-      });
-      if (systemQuest) {
-        const expiresAt = new Date(
-          now.getTime() + systemQuest.durationDays * 24 * 60 * 60 * 1000,
-        );
-        const assignedQuest = await this.prisma.userQuest.create({
-          data: {
-            userId,
-            questId: systemQuest.questId,
-            status: 'ACTIVE',
-            assignedAt: now,
-            expiresAt,
-          },
-          include: { quest: true },
-        });
-        userQuests = [assignedQuest];
-      }
-    }
 
     // ดึง Coupons ที่พร้อมใช้งาน
     const userCoupons = await this.prisma.userCoupon.findMany({
@@ -237,6 +228,25 @@ export class WalletService {
       where: { walletId: wallet.walletId },
       orderBy: { createdAt: 'desc' },
       take: 10,
+    });
+
+    // ดึงเฉพาะรายการชำระสำเร็จของ Consumer คนปัจจุบันแบบมีขอบเขต
+    const recentOrders = await this.prisma.order.findMany({
+      where: {
+        userId,
+        status: PAID_ORDER_STATUS,
+        paidAt: { not: null },
+      },
+      select: {
+        orderId: true,
+        finalAmount: true,
+        paidAt: true,
+        merchant: {
+          select: { merchantName: true },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
+      take: RECENT_PAID_ORDER_LIMIT,
     });
 
     return {
@@ -290,6 +300,12 @@ export class WalletService {
         balanceBefore: Number(tx.balanceBefore),
         balanceAfter: Number(tx.balanceAfter),
         createdAt: tx.createdAt,
+      })),
+      recentOrders: recentOrders.map((order) => ({
+        orderId: order.orderId.toString(),
+        merchantName: order.merchant.merchantName,
+        finalAmount: Number(order.finalAmount),
+        paidAt: order.paidAt,
       })),
     };
   }

@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { WalletService } from './wallet.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -20,6 +28,7 @@ interface MockPrisma {
   userQuest: { findMany: Mock; create: Mock };
   userCoupon: { findMany: Mock };
   quest: { findFirst: Mock };
+  order: { findMany: Mock };
   $queryRaw: Mock;
   $transaction: Mock;
 }
@@ -57,6 +66,9 @@ describe('WalletService', () => {
       quest: {
         findFirst: vi.fn(),
       },
+      order: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       $queryRaw: vi.fn().mockResolvedValue([{ wallet_id: 1n }]),
       $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
         cb(prismaMock),
@@ -64,6 +76,10 @@ describe('WalletService', () => {
     };
 
     service = new WalletService(prismaMock as unknown as PrismaService);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('getConsumerOverview', () => {
@@ -130,6 +146,165 @@ describe('WalletService', () => {
       expect(result.wallet.dailySubsidyUsed).toBe(50);
       expect(result.wallet.dailySubsidyRemaining).toBe(150); // 200 - 50 = 150
       expect(result.wallet.pointBalance).toBe(250);
+      expect(result.recentOrders).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain('1234567890123');
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { userId },
+        select: { pointBalance: true },
+      });
+      expect(prismaMock.quest.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.userQuest.create).not.toHaveBeenCalled();
+      expect(prismaMock.wallet.create).not.toHaveBeenCalled();
+      expect(prismaMock.walletTransaction.create).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['2026-10-13T17:00:01.000Z', '2026-10-14T00:00:00.000Z'],
+      ['2026-10-14T16:59:59.999Z', '2026-10-14T00:00:00.000Z'],
+      ['2026-10-14T17:00:00.000Z', '2026-10-15T00:00:00.000Z'],
+    ])(
+      'queries the inclusive program date for Bangkok instant %s',
+      async (instant, expectedBusinessDate) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(instant));
+        prismaMock.user.findUnique.mockResolvedValue({
+          userId: 100n,
+          pointBalance: 0,
+        });
+        prismaMock.wallet.findUnique.mockResolvedValue({
+          walletId: 1n,
+          userId: 100n,
+          personalBalance: '0.00',
+          subsidyBalance: '0.00',
+          status: 'ACTIVE',
+        });
+        prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
+        prismaMock.walletTransaction.findMany.mockResolvedValue([]);
+        prismaMock.userQuest.findMany.mockResolvedValue([]);
+        prismaMock.userCoupon.findMany.mockResolvedValue([]);
+
+        await service.getConsumerOverview(100n);
+
+        const businessDate = new Date(expectedBusinessDate);
+        expect(prismaMock.subsidyProgram.findFirst).toHaveBeenCalledWith({
+          where: {
+            status: 'ACTIVE',
+            startDate: { lte: businessDate },
+            endDate: { gte: businessDate },
+          },
+        });
+      },
+    );
+
+    it('uses a half-open Bangkok day interval for daily subsidy transactions', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-14T10:30:00.000Z'));
+      prismaMock.user.findUnique.mockResolvedValue({
+        userId: 100n,
+        pointBalance: 0,
+      });
+      prismaMock.wallet.findUnique.mockResolvedValue({
+        walletId: 1n,
+        userId: 100n,
+        personalBalance: '0.00',
+        subsidyBalance: '0.00',
+        status: 'ACTIVE',
+      });
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
+      prismaMock.walletTransaction.findMany.mockResolvedValue([]);
+      prismaMock.userQuest.findMany.mockResolvedValue([]);
+      prismaMock.userCoupon.findMany.mockResolvedValue([]);
+
+      await service.getConsumerOverview(100n);
+
+      expect(prismaMock.walletTransaction.findMany).toHaveBeenCalledWith({
+        where: {
+          walletId: 1n,
+          fundType: 'SUBSIDY',
+          transactionType: 'PAYMENT_SUBSIDY',
+          createdAt: {
+            gte: new Date('2026-10-13T17:00:00.000Z'),
+            lt: new Date('2026-10-14T17:00:00.000Z'),
+          },
+        },
+        select: { amount: true },
+      });
+    });
+
+    it('returns the latest paid orders scoped to the requesting consumer', async () => {
+      const userId = 100n;
+      const walletId = 1n;
+      const latestPaidAt = new Date('2026-10-14T03:00:00.000Z');
+      const earlierPaidAt = new Date('2026-10-13T03:00:00.000Z');
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        userId,
+        citizenId: '1234567890123',
+        fullName: 'สมชาย ใจดี',
+        pointBalance: 250,
+      });
+      prismaMock.wallet.findUnique.mockResolvedValue({
+        walletId,
+        userId,
+        walletType: 'CONSUMER',
+        personalBalance: '500.00',
+        subsidyBalance: '800.00',
+        status: 'ACTIVE',
+      });
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
+      prismaMock.walletTransaction.findMany.mockResolvedValue([]);
+      prismaMock.userQuest.findMany.mockResolvedValue([]);
+      prismaMock.userCoupon.findMany.mockResolvedValue([]);
+      prismaMock.quest.findFirst.mockResolvedValue(null);
+      prismaMock.order.findMany.mockResolvedValue([
+        {
+          orderId: 12n,
+          finalAmount: '175.00',
+          paidAt: latestPaidAt,
+          merchant: { merchantName: 'ร้านล่าสุด' },
+        },
+        {
+          orderId: 11n,
+          finalAmount: '80.00',
+          paidAt: earlierPaidAt,
+          merchant: { merchantName: 'ร้านก่อนหน้า' },
+        },
+      ]);
+
+      const result = await service.getConsumerOverview(userId);
+
+      expect(prismaMock.order.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          status: 'PAID',
+          paidAt: { not: null },
+        },
+        select: {
+          orderId: true,
+          finalAmount: true,
+          paidAt: true,
+          merchant: {
+            select: { merchantName: true },
+          },
+        },
+        orderBy: { paidAt: 'desc' },
+        take: 5,
+      });
+      expect(result.recentOrders).toEqual([
+        {
+          orderId: '12',
+          merchantName: 'ร้านล่าสุด',
+          finalAmount: 175,
+          paidAt: latestPaidAt,
+        },
+        {
+          orderId: '11',
+          merchantName: 'ร้านก่อนหน้า',
+          finalAmount: 80,
+          paidAt: earlierPaidAt,
+        },
+      ]);
     });
   });
 

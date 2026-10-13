@@ -2,6 +2,16 @@ import type { ApiErrorResponse } from '../features/auth/auth.types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -37,7 +47,7 @@ async function request<T>(
     } catch {
       // response might not be JSON
     }
-    throw new Error(errorMessage);
+    throw new ApiError(response.status, errorMessage);
   }
 
   return (await response.json()) as T;
