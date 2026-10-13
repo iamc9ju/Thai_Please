@@ -1,15 +1,36 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { th } from './i18n/th';
+
+vi.mock('./api/auth.api', () => ({
+  login: vi.fn(),
+  getMe: vi.fn().mockResolvedValue(null),
+  logout: vi.fn().mockResolvedValue({ success: true }),
+  registerConsumer: vi.fn().mockResolvedValue({
+    success: true,
+    citizenId: '1100000000001',
+    fullName: 'ทดสอบ ระบบ',
+  }),
+  registerMerchant: vi.fn().mockResolvedValue({
+    success: true,
+    merchantId: '1',
+    merchantName: 'ร้านค้าทดสอบ',
+  }),
+}));
 
 afterEach(() => {
   cleanup();
 });
 
+async function renderApp() {
+  render(<App />);
+  return screen.findByRole('heading', { level: 2, name: th.login.title });
+}
+
 describe('App', () => {
-  it('renders the login page for all supported roles', () => {
-    render(<App />);
+  it('renders the login page for all supported roles', async () => {
+    await renderApp();
 
     expect(
       screen.getByRole('heading', { level: 2, name: th.login.title }),
@@ -27,8 +48,8 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('validates citizen id input length', () => {
-    render(<App />);
+  it('validates citizen id input length', async () => {
+    await renderApp();
 
     const citizenId = screen.getByLabelText(th.login.fields.citizenId.label);
     const password = screen.getByLabelText(th.login.fields.password.label);
@@ -47,8 +68,8 @@ describe('App', () => {
     expect(submit).toBeEnabled();
   });
 
-  it('shows registration for consumers and merchants but not administrators', () => {
-    render(<App />);
+  it('shows registration for consumers and merchants but not administrators', async () => {
+    await renderApp();
 
     expect(
       screen.getByRole('button', {
@@ -75,8 +96,8 @@ describe('App', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens the consumer registration form from the login page', () => {
-    render(<App />);
+  it('opens the consumer registration form from the login page', async () => {
+    await renderApp();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -100,8 +121,8 @@ describe('App', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens the merchant registration form with merchant details', () => {
-    render(<App />);
+  it('opens the merchant registration form with merchant details', async () => {
+    await renderApp();
 
     fireEvent.click(
       screen.getByRole('button', { name: th.login.role.options.merchant }),

@@ -6,13 +6,16 @@ import {
   HandHeart,
   IdCard,
   KeyRound,
+  Loader2,
   MapPinHouse,
   ShieldCheck,
   Store,
   UserRound,
 } from 'lucide-react';
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { registerConsumer, registerMerchant } from '../api/auth.api';
 import { th } from '../i18n/th';
+import type { RegisterMerchantPayload } from '../types/auth.types';
 import {
   validateRegistration,
   type RegistrationErrorCode,
@@ -106,12 +109,21 @@ export function RegistrationPage({
   const [role, setRole] = useState<RegistrationRole>(initialRole);
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [isReadyForApi, setIsReadyForApi] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [registeredInfo, setRegisteredInfo] = useState<{
+    fullName?: string;
+    citizenId?: string;
+    merchantName?: string;
+  } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
     setErrors({});
+    setSubmitError(null);
     setIsReadyForApi(false);
+    setRegisteredInfo(null);
   };
 
   const handleFormChange = (event: FormEvent<HTMLFormElement>) => {
@@ -136,12 +148,10 @@ export function RegistrationPage({
     });
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextErrors = validateRegistration(
-      new FormData(event.currentTarget),
-      role,
-    );
+    const formData = new FormData(event.currentTarget);
+    const nextErrors = validateRegistration(formData, role);
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -161,8 +171,66 @@ export function RegistrationPage({
     }
 
     setErrors({});
-    setIsReadyForApi(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      const basePayload = {
+        citizenId: String(formData.get('citizenId') ?? '').trim(),
+        title: String(formData.get('title') ?? '').trim(),
+        firstName: String(formData.get('firstName') ?? '').trim(),
+        lastName: String(formData.get('lastName') ?? '').trim(),
+        birthDate: String(formData.get('birthDate') ?? '').trim(),
+        phone: String(formData.get('phone') ?? '').trim(),
+        homeNumber: String(formData.get('homeNumber') ?? '').trim(),
+        village: String(formData.get('village') ?? '').trim() || undefined,
+        building: String(formData.get('building') ?? '').trim() || undefined,
+        floor: String(formData.get('floor') ?? '').trim() || undefined,
+        room: String(formData.get('room') ?? '').trim() || undefined,
+        alley: String(formData.get('alley') ?? '').trim() || undefined,
+        road: String(formData.get('road') ?? '').trim() || undefined,
+        subdistrict: String(formData.get('subdistrict') ?? '').trim(),
+        district: String(formData.get('district') ?? '').trim(),
+        province: String(formData.get('province') ?? '').trim(),
+        postalCode: String(formData.get('postalCode') ?? '').trim(),
+        password: String(formData.get('password') ?? ''),
+        acceptTerms: formData.get('acceptTerms') === 'on' || formData.get('acceptTerms') === 'true',
+        acceptPrivacy: formData.get('acceptPrivacy') === 'on' || formData.get('acceptPrivacy') === 'true',
+      };
+
+      if (role === 'consumer') {
+        const res = await registerConsumer(basePayload);
+        setRegisteredInfo({ fullName: res.fullName, citizenId: res.citizenId });
+      } else {
+        const merchantPayload: RegisterMerchantPayload = {
+          ...basePayload,
+          merchantName: String(formData.get('merchantName') ?? '').trim(),
+          merchantType: String(formData.get('merchantType') ?? '').trim(),
+          taxId: String(formData.get('taxId') ?? '').trim() || undefined,
+          merchantPhone: String(formData.get('merchantPhone') ?? '').trim(),
+          merchantDescription: String(formData.get('merchantDescription') ?? '').trim(),
+          merchantAddress: String(formData.get('merchantAddress') ?? '').trim(),
+          merchantSubdistrict: String(formData.get('merchantSubdistrict') ?? '').trim(),
+          merchantDistrict: String(formData.get('merchantDistrict') ?? '').trim(),
+          merchantProvince: String(formData.get('merchantProvince') ?? '').trim(),
+          merchantPostalCode: String(formData.get('merchantPostalCode') ?? '').trim(),
+          acceptMerchantTerms: formData.get('acceptMerchantTerms') === 'on' || formData.get('acceptMerchantTerms') === 'true',
+        };
+        const res = await registerMerchant(merchantPayload);
+        setRegisteredInfo({ merchantName: res.merchantName });
+      }
+
+      setIsReadyForApi(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      if (err instanceof Error) {
+        setSubmitError(err.message);
+      } else {
+        setSubmitError('เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่อีกครั้ง');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isReadyForApi) {
@@ -181,6 +249,16 @@ export function RegistrationPage({
           <p>{th.registration.eyebrow}</p>
           <h1>{th.registration.success.title}</h1>
           <strong>{th.registration.success[role]}</strong>
+          {registeredInfo?.fullName ? (
+            <p className="registration-success-detail">
+              ผู้ลงทะเบียน: <strong>{registeredInfo.fullName}</strong>
+            </p>
+          ) : null}
+          {registeredInfo?.merchantName ? (
+            <p className="registration-success-detail">
+              ชื่อร้านค้า: <strong>{registeredInfo.merchantName}</strong>
+            </p>
+          ) : null}
           <small>{th.registration.success.note}</small>
           <div>
             <button onClick={() => setIsReadyForApi(false)} type="button">
@@ -712,15 +790,29 @@ export function RegistrationPage({
           <footer className="registration-submit-bar">
             <div>
               <small>{th.registration.requiredHint}</small>
+              {submitError ? (
+                <p aria-live="assertive" className="registration-error" style={{ color: '#dc2626', fontWeight: 600 }}>
+                  {submitError}
+                </p>
+              ) : null}
               {Object.keys(errors).length > 0 ? (
                 <p aria-live="assertive">
                   {th.registration.validation.summary}
                 </p>
               ) : null}
             </div>
-            <button type="submit">
-              <CheckCircle2 aria-hidden="true" />
-              {th.registration.submit[role]}
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  กำลังดำเนินการ...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 aria-hidden="true" />
+                  {th.registration.submit[role]}
+                </>
+              )}
             </button>
           </footer>
         </form>

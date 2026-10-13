@@ -13,12 +13,28 @@ import type { Request, Response } from 'express';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import {
+  RegisterConsumerDto,
+  RegisterMerchantDto,
+} from './dto/register.dto.js';
 
 const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 
 @Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register/consumer')
+  @HttpCode(HttpStatus.CREATED)
+  async registerConsumer(@Body() dto: RegisterConsumerDto) {
+    return this.authService.registerConsumer(dto);
+  }
+
+  @Post('register/merchant')
+  @HttpCode(HttpStatus.CREATED)
+  async registerMerchant(@Body() dto: RegisterMerchantDto) {
+    return this.authService.registerMerchant(dto);
+  }
 
   @Post('consumer/login')
   @HttpCode(HttpStatus.OK)
