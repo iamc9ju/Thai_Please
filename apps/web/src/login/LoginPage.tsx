@@ -12,13 +12,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { ConsumerDashboard } from '../consumer/ConsumerDashboard';
 import { th } from '../i18n/th';
 import { RegistrationPage } from '../registration/RegistrationPage';
 import type { RegistrationRole } from '../registration/registration.validation';
-import { login } from '../api/auth.api';
+import { useAuth } from '../context/auth.context';
 import { LOGIN_ROLES, type LoginRole } from '../types/auth.types';
-import { RolePreview } from './RolePreview';
 
 const roleIcons: Record<LoginRole, LucideIcon> = {
   consumer: UserRound,
@@ -27,6 +25,7 @@ const roleIcons: Record<LoginRole, LucideIcon> = {
 };
 
 export function LoginPage() {
+  const { login } = useAuth();
   const [role, setRole] = useState<LoginRole>('consumer');
   const [citizenId, setCitizenId] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +33,6 @@ export function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authenticatedRole, setAuthenticatedRole] = useState<LoginRole | null>(
-    null,
-  );
   const [registrationRole, setRegistrationRole] =
     useState<RegistrationRole | null>(null);
 
@@ -78,7 +74,6 @@ export function LoginPage() {
 
       setPassword('');
       setFeedback('');
-      setAuthenticatedRole(role);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setFeedback(err.message);
@@ -94,14 +89,6 @@ export function LoginPage() {
     setFeedback(th.login.unavailableFeedback);
   };
 
-  const handleLogout = () => {
-    setAuthenticatedRole(null);
-    setCitizenId('');
-    setPassword('');
-    setRemember(false);
-    setFeedback('');
-  };
-
   if (registrationRole !== null) {
     return (
       <RegistrationPage
@@ -109,14 +96,6 @@ export function LoginPage() {
         onBack={() => setRegistrationRole(null)}
       />
     );
-  }
-
-  if (authenticatedRole === 'consumer') {
-    return <ConsumerDashboard citizenId={citizenId} onLogout={handleLogout} />;
-  }
-
-  if (authenticatedRole !== null) {
-    return <RolePreview onBack={handleLogout} role={authenticatedRole} />;
   }
 
   return (
