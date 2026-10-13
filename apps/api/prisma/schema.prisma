@@ -1,8 +1,352 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model auth_sessions {
+  auth_session_id    BigInt     @id @default(autoincrement())
+  user_id            BigInt
+  token_hash         String     @unique @db.Char(64)
+  active_role        String     @db.VarChar(20)
+  active_merchant_id BigInt?
+  expires_at         DateTime   @db.Timestamptz(3)
+  revoked_at         DateTime?  @db.Timestamptz(3)
+  last_used_at       DateTime?  @db.Timestamptz(3)
+  created_at         DateTime   @default(now()) @db.Timestamptz(3)
+  merchants          merchants? @relation(fields: [active_merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  users              users      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, expires_at], map: "idx_auth_sessions_user_expiry")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model coupons {
+  coupon_id      BigInt         @id @default(autoincrement())
+  merchant_id    BigInt?
+  coupon_name    String         @db.VarChar(150)
+  description    String?
+  discount_type  String         @db.VarChar(20)
+  discount_value Decimal        @db.Decimal(12, 2)
+  point_cost     Int
+  min_purchase   Decimal        @default(0) @db.Decimal(12, 2)
+  validity_days  Int
+  status         String         @default("ACTIVE") @db.VarChar(20)
+  created_at     DateTime       @default(now()) @db.Timestamp(6)
+  merchants      merchants?     @relation(fields: [merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  user_coupons   user_coupons[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model merchants {
+  merchant_id   BigInt          @id @default(autoincrement())
+  owner_user_id BigInt
+  merchant_name String          @db.VarChar(150)
+  description   String?
+  address       String?
+  phone         String?         @db.VarChar(20)
+  status        String          @default("PENDING") @db.VarChar(20)
+  created_at    DateTime        @default(now()) @db.Timestamp(6)
+  updated_at    DateTime        @default(now()) @db.Timestamp(6)
+  auth_sessions auth_sessions[]
+  coupons       coupons[]
+  users         users           @relation(fields: [owner_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  orders        orders[]
+  products      products[]
+  quests        quests[]
+  wallets       wallets?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model order_items {
+  order_item_id         BigInt             @id @default(autoincrement())
+  order_id              BigInt
+  product_id            BigInt
+  category_id           BigInt
+  product_name_snapshot String             @db.VarChar(150)
+  unit_price            Decimal            @db.Decimal(12, 2)
+  quantity              Int
+  line_total            Decimal            @db.Decimal(12, 2)
+  product_categories    product_categories @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  orders                orders             @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  products              products           @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_order_items_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model orders {
+  order_id                                         BigInt                @id @default(autoincrement())
+  user_id                                          BigInt?
+  merchant_id                                      BigInt
+  wallet_id                                        BigInt?
+  program_id                                       BigInt?
+  user_coupon_id                                   BigInt?
+  subtotal                                         Decimal               @default(0) @db.Decimal(12, 2)
+  discount_amount                                  Decimal               @default(0) @db.Decimal(12, 2)
+  final_amount                                     Decimal               @default(0) @db.Decimal(12, 2)
+  subsidy_amount                                   Decimal               @default(0) @db.Decimal(12, 2)
+  user_paid_amount                                 Decimal               @default(0) @db.Decimal(12, 2)
+  status                                           String                @default("PENDING") @db.VarChar(20)
+  qr_token                                         String?               @unique @db.VarChar(255)
+  qr_expires_at                                    DateTime?             @db.Timestamp(6)
+  created_at                                       DateTime              @default(now()) @db.Timestamp(6)
+  paid_at                                          DateTime?             @db.Timestamp(6)
+  order_items                                      order_items[]
+  merchants                                        merchants             @relation(fields: [merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  subsidy_programs                                 subsidy_programs?     @relation(fields: [program_id], references: [program_id], onDelete: NoAction, onUpdate: NoAction)
+  user_coupons_orders_user_coupon_idTouser_coupons user_coupons?         @relation("orders_user_coupon_idTouser_coupons", fields: [user_coupon_id], references: [user_coupon_id], onDelete: NoAction, onUpdate: NoAction)
+  users                                            users?                @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  wallets                                          wallets?              @relation(fields: [wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction)
+  user_coupons_user_coupons_used_order_idToorders  user_coupons[]        @relation("user_coupons_used_order_idToorders")
+  user_quests                                      user_quests[]
+  wallet_transactions                              wallet_transactions[]
+
+  @@index([merchant_id], map: "idx_orders_merchant")
+  @@index([user_id], map: "idx_orders_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model point_transactions {
+  point_transaction_id BigInt        @id @default(autoincrement())
+  user_id              BigInt
+  user_quest_id        BigInt?
+  user_coupon_id       BigInt?
+  transaction_type     String        @db.VarChar(30)
+  points               Int
+  expires_at           DateTime?     @db.Timestamp(6)
+  created_at           DateTime      @default(now()) @db.Timestamp(6)
+  user_coupons         user_coupons? @relation(fields: [user_coupon_id], references: [user_coupon_id], onDelete: NoAction, onUpdate: NoAction)
+  users                users         @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_quests          user_quests?  @relation(fields: [user_quest_id], references: [user_quest_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_point_transactions_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_categories {
+  category_id   BigInt        @id @default(autoincrement())
+  category_name String        @unique @db.VarChar(100)
+  description   String?
+  status        String        @default("ACTIVE") @db.VarChar(20)
+  order_items   order_items[]
+  products      products[]
+  quests        quests[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model products {
+  product_id         BigInt             @id @default(autoincrement())
+  merchant_id        BigInt
+  category_id        BigInt
+  product_name       String             @db.VarChar(150)
+  description        String?
+  price              Decimal            @db.Decimal(12, 2)
+  status             String             @default("ACTIVE") @db.VarChar(20)
+  created_at         DateTime           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime           @default(now()) @db.Timestamp(6)
+  order_items        order_items[]
+  product_categories product_categories @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  merchants          merchants          @relation(fields: [merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  quests             quests[]
+}
+
+model quest_generation_logs {
+  generation_id      BigInt   @id @default(autoincrement())
+  user_id            BigInt
+  input_summary      Json
+  generated_quest_id BigInt
+  model_version      String?  @db.VarChar(100)
+  generated_at       DateTime @default(now()) @db.Timestamp(6)
+  prediction_score   Decimal? @db.Decimal(6, 5)
+  candidate_scores   Json?
+  selection_reason   String?
+  quests             quests   @relation(fields: [generated_quest_id], references: [quest_id], onDelete: NoAction, onUpdate: NoAction)
+  users              users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model quests {
+  quest_id              BigInt                  @id @default(autoincrement())
+  quest_name            String                  @db.VarChar(150)
+  description           String?
+  quest_type            String                  @db.VarChar(30)
+  target_category_id    BigInt?
+  target_product_id     BigInt?
+  target_merchant_id    BigInt?
+  min_spend             Decimal?                @db.Decimal(12, 2)
+  reward_point          Int
+  duration_days         Int
+  generated_by          String                  @default("AI") @db.VarChar(20)
+  created_at            DateTime                @default(now()) @db.Timestamp(6)
+  quest_generation_logs quest_generation_logs[]
+  product_categories    product_categories?     @relation(fields: [target_category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  merchants             merchants?              @relation(fields: [target_merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  products              products?               @relation(fields: [target_product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  user_quests           user_quests[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model subsidy_programs {
+  program_id          BigInt                @id @default(autoincrement())
+  program_name        String                @db.VarChar(150)
+  initial_grant       Decimal               @default(0) @db.Decimal(12, 2)
+  subsidy_percentage  Decimal               @db.Decimal(5, 2)
+  user_percentage     Decimal               @db.Decimal(5, 2)
+  daily_subsidy_limit Decimal               @db.Decimal(12, 2)
+  start_date          DateTime              @db.Date
+  end_date            DateTime              @db.Date
+  status              String                @default("ACTIVE") @db.VarChar(20)
+  created_at          DateTime              @default(now()) @db.Timestamp(6)
+  orders              orders[]
+  wallet_transactions wallet_transactions[]
+  wallets             wallets[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_coupons {
+  user_coupon_id                             BigInt               @id @default(autoincrement())
+  user_id                                    BigInt
+  coupon_id                                  BigInt
+  status                                     String               @default("AVAILABLE") @db.VarChar(20)
+  redeemed_at                                DateTime             @default(now()) @db.Timestamp(6)
+  expires_at                                 DateTime             @db.Timestamp(6)
+  used_at                                    DateTime?            @db.Timestamp(6)
+  used_order_id                              BigInt?
+  orders_orders_user_coupon_idTouser_coupons orders[]             @relation("orders_user_coupon_idTouser_coupons")
+  point_transactions                         point_transactions[]
+  orders_user_coupons_used_order_idToorders  orders?              @relation("user_coupons_used_order_idToorders", fields: [used_order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_coupons_used_order")
+  coupons                                    coupons              @relation(fields: [coupon_id], references: [coupon_id], onDelete: NoAction, onUpdate: NoAction)
+  users                                      users                @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_quests {
+  user_quest_id      BigInt               @id @default(autoincrement())
+  user_id            BigInt
+  quest_id           BigInt
+  status             String               @default("ACTIVE") @db.VarChar(20)
+  assigned_at        DateTime             @default(now()) @db.Timestamp(6)
+  expires_at         DateTime             @db.Timestamp(6)
+  completed_at       DateTime?            @db.Timestamp(6)
+  completed_order_id BigInt?
+  point_transactions point_transactions[]
+  orders             orders?              @relation(fields: [completed_order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  quests             quests               @relation(fields: [quest_id], references: [quest_id], onDelete: NoAction, onUpdate: NoAction)
+  users              users                @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id, status], map: "idx_user_quests_user_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_roles {
+  user_role_id                                BigInt   @id @default(autoincrement())
+  user_id                                     BigInt
+  role                                        String   @db.VarChar(20)
+  status                                      String   @default("ACTIVE") @db.VarChar(20)
+  created_by_admin_id                         BigInt?
+  created_at                                  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at                                  DateTime @default(now()) @db.Timestamptz(3)
+  users_user_roles_created_by_admin_idTousers users?   @relation("user_roles_created_by_admin_idTousers", fields: [created_by_admin_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_user_roles_user_idTousers             users    @relation("user_roles_user_idTousers", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, role])
+  @@index([role, status], map: "idx_user_roles_role_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  user_id                                                             BigInt                  @id @default(autoincrement())
+  citizen_id                                                          String                  @unique @db.Char(13)
+  full_name                                                           String                  @db.VarChar(150)
+  phone                                                               String?                 @db.VarChar(20)
+  role                                                                String                  @default("CONSUMER") @db.VarChar(20)
+  point_balance                                                       Int                     @default(0)
+  status                                                              String                  @default("ACTIVE") @db.VarChar(20)
+  created_at                                                          DateTime                @default(now()) @db.Timestamp(6)
+  updated_at                                                          DateTime                @default(now()) @db.Timestamp(6)
+  password_hash                                                       String                  @db.VarChar(255)
+  title                                                               String?                 @db.VarChar(30)
+  first_name                                                          String?                 @db.VarChar(100)
+  last_name                                                           String?                 @db.VarChar(100)
+  date_of_birth                                                       DateTime?               @db.Date
+  address_line                                                        String?                 @db.VarChar(255)
+  subdistrict                                                         String?                 @db.VarChar(120)
+  district                                                            String?                 @db.VarChar(120)
+  province                                                            String?                 @db.VarChar(120)
+  postal_code                                                         String?                 @db.VarChar(10)
+  must_change_password                                                Boolean                 @default(false)
+  terms_accepted_at                                                   DateTime?               @db.Timestamptz(3)
+  privacy_accepted_at                                                 DateTime?               @db.Timestamptz(3)
+  last_login_at                                                       DateTime?               @db.Timestamptz(3)
+  auth_sessions                                                       auth_sessions[]
+  merchants                                                           merchants[]
+  orders                                                              orders[]
+  point_transactions                                                  point_transactions[]
+  quest_generation_logs                                               quest_generation_logs[]
+  user_coupons                                                        user_coupons[]
+  user_quests                                                         user_quests[]
+  user_roles_user_roles_created_by_admin_idTousers                    user_roles[]            @relation("user_roles_created_by_admin_idTousers")
+  user_roles_user_roles_user_idTousers                                user_roles[]            @relation("user_roles_user_idTousers")
+  wallet_transactions_wallet_transactions_initiated_by_user_idTousers wallet_transactions[]   @relation("wallet_transactions_initiated_by_user_idTousers")
+  wallet_transactions_wallet_transactions_user_idTousers              wallet_transactions[]   @relation("wallet_transactions_user_idTousers")
+  wallets                                                             wallets?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model wallet_transactions {
+  wallet_transaction_id                                 BigInt            @id @default(autoincrement())
+  wallet_id                                             BigInt
+  order_id                                              BigInt?
+  program_id                                            BigInt?
+  fund_type                                             String            @db.VarChar(20)
+  transaction_type                                      String            @db.VarChar(30)
+  amount                                                Decimal           @db.Decimal(12, 2)
+  balance_before                                        Decimal           @db.Decimal(12, 2)
+  balance_after                                         Decimal           @db.Decimal(12, 2)
+  created_at                                            DateTime          @default(now()) @db.Timestamp(6)
+  user_id                                               BigInt?
+  initiated_by_user_id                                  BigInt?
+  wallet_type_snapshot                                  String            @default("CONSUMER") @db.VarChar(20)
+  business_ref                                          String            @unique @db.VarChar(160)
+  correlation_id                                        String            @db.VarChar(80)
+  transfer_reference                                    String?           @db.VarChar(160)
+  metadata                                              Json?
+  users_wallet_transactions_initiated_by_user_idTousers users?            @relation("wallet_transactions_initiated_by_user_idTousers", fields: [initiated_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  orders                                                orders?           @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  subsidy_programs                                      subsidy_programs? @relation(fields: [program_id], references: [program_id], onDelete: NoAction, onUpdate: NoAction)
+  users_wallet_transactions_user_idTousers              users?            @relation("wallet_transactions_user_idTousers", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  wallets                                               wallets           @relation(fields: [wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([transfer_reference, wallet_id, transaction_type], map: "wallet_transactions_transfer_side_key", where: raw("(transfer_reference IS NOT NULL)"))
+  @@index([wallet_id, fund_type, transaction_type, created_at], map: "idx_wallet_transactions_daily_subsidy")
+  @@index([transfer_reference], map: "idx_wallet_transactions_transfer_reference", where: raw("(transfer_reference IS NOT NULL)"))
+  @@index([user_id, created_at], map: "idx_wallet_transactions_user_date")
+  @@index([wallet_id, created_at], map: "idx_wallet_transactions_wallet_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model wallets {
+  wallet_id           BigInt                @id @default(autoincrement())
+  user_id             BigInt?               @unique
+  personal_balance    Decimal               @default(0) @db.Decimal(12, 2)
+  subsidy_balance     Decimal               @default(0) @db.Decimal(12, 2)
+  status              String                @default("ACTIVE") @db.VarChar(20)
+  created_at          DateTime              @default(now()) @db.Timestamp(6)
+  updated_at          DateTime              @default(now()) @db.Timestamp(6)
+  wallet_type         String                @default("CONSUMER") @db.VarChar(20)
+  merchant_id         BigInt?               @unique
+  subsidy_program_id  BigInt?
+  merchant_balance    Decimal               @default(0) @db.Decimal(12, 2)
+  version             Int                   @default(0)
+  orders              orders[]
+  wallet_transactions wallet_transactions[]
+  merchants           merchants?            @relation(fields: [merchant_id], references: [merchant_id], onDelete: NoAction, onUpdate: NoAction)
+  subsidy_programs    subsidy_programs?     @relation(fields: [subsidy_program_id], references: [program_id], onDelete: NoAction, onUpdate: NoAction)
+  users               users?                @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 }

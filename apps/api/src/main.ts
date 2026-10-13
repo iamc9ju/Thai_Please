@@ -1,63 +1,24 @@
-import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
 import { AppModule } from './app.module.js';
-import { GlobalExceptionFilter } from './common/http/global-exception.filter.js';
-import { APPLICATION_METADATA } from './config/application.constants.js';
-import type { EnvironmentVariables } from './config/environment.js';
+
+// Support JSON serialization of BigInt values
+(BigInt.prototype as unknown as { toJSON: (this: bigint) => string }).toJSON = function (this: bigint) {
+  return this.toString();
+};
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  const config = app.get(ConfigService<EnvironmentVariables, true>);
-  const appName = config.get('APP_NAME', { infer: true });
-  const apiPrefix = config.get('API_PREFIX', { infer: true });
-  const corsOrigins = config.get('CORS_ORIGINS', { infer: true });
-  const enableSwagger = config.get('ENABLE_SWAGGER', { infer: true });
-  const port = config.get('PORT', { infer: true });
-
-  app.useLogger(
-    new ConsoleLogger(appName, {
-      json: true,
-      colors: false,
-      timestamp: true,
-    }),
-  );
-  app.setGlobalPrefix(apiPrefix);
-  app.use(helmet());
-  app.enableVersioning({ type: VersioningType.URI });
-  app.enableCors({
-    credentials: true,
-    origin: corsOrigins,
-  });
+  const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
     new ValidationPipe({
-      forbidNonWhitelisted: true,
-      transform: true,
       whitelist: true,
+      transform: true,
     }),
   );
-  app.useGlobalFilters(new GlobalExceptionFilter());
-  app.enableShutdownHooks();
-
-  if (enableSwagger) {
-    const openApiConfig = new DocumentBuilder()
-      .setTitle(appName)
-      .setDescription(APPLICATION_METADATA.openApiDescription)
-      .setVersion(APPLICATION_METADATA.apiVersion)
-      .build();
-    const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
-    SwaggerModule.setup(
-      `${apiPrefix}/${APPLICATION_METADATA.openApiPath}`,
-      app,
-      openApiDocument,
-    );
-  }
-
+  const port = process.env.PORT ? Number(process.env.PORT) : 4000;
   await app.listen(port);
+  console.log(`Application is running on port ${port}`);
 }
 
 await bootstrap();

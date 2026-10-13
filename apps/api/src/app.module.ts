@@ -1,23 +1,10 @@
-import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { RequestIdMiddleware } from './common/http/request-id.middleware.js';
-import { validateEnvironment } from './config/environment.js';
-import { HealthModule } from './health/health.module.js';
-import { DatabaseModule } from './infrastructure/database/database.module.js';
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      cache: true,
-      isGlobal: true,
-      validate: validateEnvironment,
-    }),
-    DatabaseModule,
-    HealthModule,
-  ],
+  imports: [PrismaModule, UsersModule],
+  controllers: [AppController],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}
