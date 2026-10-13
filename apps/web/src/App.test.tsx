@@ -2,12 +2,24 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
 import { th } from './i18n/th';
+import { authenticateMockUser, mockUsers } from './login/mockUsers';
 
 afterEach(() => {
   cleanup();
 });
 
 describe('App', () => {
+  it('configures a working mock account for every supported role', () => {
+    for (const role of ['consumer', 'merchant', 'administrator'] as const) {
+      const account = mockUsers[role];
+
+      expect(account.citizenId).toMatch(/^\d{13}$/);
+      expect(
+        authenticateMockUser(role, account.citizenId, account.password),
+      ).toBe(true);
+    }
+  });
+
   it('renders the EPP-style login for all supported roles', () => {
     render(<App />);
 
@@ -27,21 +39,47 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('accepts only 13 citizen-id digits before enabling login', () => {
+  it('accepts the consumer mock account and opens the dashboard', () => {
     render(<App />);
 
     const citizenId = screen.getByLabelText(th.login.fields.citizenId.label);
     const password = screen.getByLabelText(th.login.fields.password.label);
     const submit = screen.getByRole('button', { name: th.login.submit });
 
-    fireEvent.change(citizenId, { target: { value: '1a2345678901234' } });
-    fireEvent.change(password, { target: { value: 'Prototype#1' } });
+    fireEvent.change(citizenId, {
+      target: { value: `x${mockUsers.consumer.citizenId}` },
+    });
+    fireEvent.change(password, {
+      target: { value: mockUsers.consumer.password },
+    });
 
-    expect(citizenId).toHaveValue('1234567890123');
+    expect(citizenId).toHaveValue(mockUsers.consumer.citizenId);
     expect(submit).toBeEnabled();
 
     fireEvent.click(submit);
-    expect(screen.getByText(th.login.prototypeFeedback)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.consumerDashboard.displayName,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerDashboard.wallet.title),
+    ).toBeInTheDocument();
+  });
+
+  it('rejects credentials that do not match the selected role', () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(th.login.fields.citizenId.label), {
+      target: { value: mockUsers.consumer.citizenId },
+    });
+    fireEvent.change(screen.getByLabelText(th.login.fields.password.label), {
+      target: { value: 'Wrong@123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: th.login.submit }));
+
+    expect(screen.getByText(th.login.invalidCredentials)).toBeInTheDocument();
   });
 
   it('shows registration for consumers and merchants but not administrators', () => {

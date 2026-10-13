@@ -1,11 +1,27 @@
+import {
+  ArrowLeft,
+  CreditCard,
+  Eye,
+  EyeOff,
+  HandHeart,
+  Headphones,
+  LockKeyhole,
+  ShieldCheck,
+  Store,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { ConsumerDashboard } from '../consumer/ConsumerDashboard';
 import { th } from '../i18n/th';
 import { LOGIN_ROLES, type LoginRole } from './login.types';
+import { authenticateMockUser, mockAuthIsAvailable } from './mockUsers';
+import { RolePreview } from './RolePreview';
 
-const roleIcons: Record<LoginRole, string> = {
-  consumer: '●',
-  merchant: '▰',
-  administrator: '✦',
+const roleIcons: Record<LoginRole, LucideIcon> = {
+  consumer: UserRound,
+  merchant: Store,
+  administrator: ShieldCheck,
 };
 
 export function LoginPage() {
@@ -15,6 +31,9 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [authenticatedRole, setAuthenticatedRole] = useState<LoginRole | null>(
+    null,
+  );
 
   const citizenIdIsValid = /^\d{13}$/.test(citizenId);
   const canSubmit = citizenIdIsValid && password.length > 0;
@@ -43,12 +62,40 @@ export function LoginPage() {
       return;
     }
 
-    setFeedback(th.login.prototypeFeedback);
+    if (!mockAuthIsAvailable) {
+      setFeedback(th.login.mockUnavailable);
+      return;
+    }
+
+    if (!authenticateMockUser(role, citizenId, password)) {
+      setFeedback(th.login.invalidCredentials);
+      return;
+    }
+
+    setPassword('');
+    setFeedback('');
+    setAuthenticatedRole(role);
   };
 
   const handleUnavailableAction = () => {
     setFeedback(th.login.unavailableFeedback);
   };
+
+  const handleLogout = () => {
+    setAuthenticatedRole(null);
+    setCitizenId('');
+    setPassword('');
+    setRemember(false);
+    setFeedback('');
+  };
+
+  if (authenticatedRole === 'consumer') {
+    return <ConsumerDashboard citizenId={citizenId} onLogout={handleLogout} />;
+  }
+
+  if (authenticatedRole !== null) {
+    return <RolePreview onBack={handleLogout} role={authenticatedRole} />;
+  }
 
   return (
     <main className="login-page">
@@ -76,7 +123,7 @@ export function LoginPage() {
 
       <header className="brand-lockup">
         <span aria-hidden="true" className="brand-symbol">
-          <span>♥</span>
+          <HandHeart />
         </span>
         <span>
           <strong>{th.brand}</strong>
@@ -85,7 +132,7 @@ export function LoginPage() {
       </header>
 
       <a className="back-link" href="/">
-        <span aria-hidden="true">←</span>
+        <ArrowLeft aria-hidden="true" />
         {th.login.backToWebsite}
       </a>
 
@@ -120,20 +167,22 @@ export function LoginPage() {
           </div>
 
           <div className="role-selector" aria-label={th.login.role.label}>
-            {LOGIN_ROLES.map((loginRole) => (
-              <button
-                aria-pressed={role === loginRole}
-                className={role === loginRole ? 'is-active' : ''}
-                key={loginRole}
-                onClick={() => handleRoleChange(loginRole)}
-                type="button"
-              >
-                <span aria-hidden="true" className="role-icon">
-                  {roleIcons[loginRole]}
-                </span>
-                {th.login.role.options[loginRole]}
-              </button>
-            ))}
+            {LOGIN_ROLES.map((loginRole) => {
+              const RoleIcon = roleIcons[loginRole];
+
+              return (
+                <button
+                  aria-pressed={role === loginRole}
+                  className={role === loginRole ? 'is-active' : ''}
+                  key={loginRole}
+                  onClick={() => handleRoleChange(loginRole)}
+                  type="button"
+                >
+                  <RoleIcon aria-hidden="true" className="role-icon" />
+                  {th.login.role.options[loginRole]}
+                </button>
+              );
+            })}
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -141,9 +190,7 @@ export function LoginPage() {
               {th.login.fields.citizenId.label}
             </label>
             <div className="field-shell">
-              <span aria-hidden="true" className="field-icon">
-                ▣
-              </span>
+              <CreditCard aria-hidden="true" className="field-icon" />
               <input
                 aria-describedby={
                   citizenIdError ? 'citizen-id-error' : undefined
@@ -165,9 +212,7 @@ export function LoginPage() {
 
             <label htmlFor="password">{th.login.fields.password.label}</label>
             <div className="field-shell">
-              <span aria-hidden="true" className="field-icon">
-                ◆
-              </span>
+              <LockKeyhole aria-hidden="true" className="field-icon" />
               <input
                 autoComplete="current-password"
                 id="password"
@@ -189,7 +234,11 @@ export function LoginPage() {
                 onClick={() => setShowPassword((isVisible) => !isVisible)}
                 type="button"
               >
-                <span aria-hidden="true">{showPassword ? '◉' : '◎'}</span>
+                {showPassword ? (
+                  <EyeOff aria-hidden="true" />
+                ) : (
+                  <Eye aria-hidden="true" />
+                )}
               </button>
             </div>
 
@@ -230,7 +279,7 @@ export function LoginPage() {
           ) : null}
 
           <div className="support-note">
-            <span aria-hidden="true">☎</span>
+            <Headphones aria-hidden="true" />
             <p>
               {th.login.support.description}
               <br />
