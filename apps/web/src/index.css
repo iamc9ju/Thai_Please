@@ -52,6 +52,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
 .login-page {
   --login-blue: #1479c9;
   --login-blue-dark: #07549a;
