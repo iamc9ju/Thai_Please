@@ -2,6 +2,8 @@ import { apiClient } from '../../../lib/api-client';
 import type {
   ConsumerOverviewResponse,
   TopUpResponse,
+  WalletTransactionHistoryQuery,
+  WalletTransactionHistoryResponse,
 } from '../consumer.types';
 
 const WALLET_API_PATH = '/api/v1/wallet';
@@ -18,4 +20,23 @@ export function topUpPersonalWallet(
     amount,
     idempotencyKey,
   });
+}
+
+export function getWalletTransactions(
+  query: WalletTransactionHistoryQuery,
+  signal?: AbortSignal,
+): Promise<WalletTransactionHistoryResponse> {
+  const searchParams = new URLSearchParams();
+  if (query.dateFrom) searchParams.set('dateFrom', query.dateFrom);
+  if (query.dateTo) searchParams.set('dateTo', query.dateTo);
+  if (query.cursor) searchParams.set('cursor', query.cursor);
+  if (query.limit !== undefined) {
+    searchParams.set('limit', query.limit.toString());
+  }
+  const queryString = searchParams.toString();
+  const requestOptions: RequestInit = signal ? { signal } : {};
+  return apiClient.get<WalletTransactionHistoryResponse>(
+    `${WALLET_API_PATH}/transactions${queryString ? `?${queryString}` : ''}`,
+    requestOptions,
+  );
 }

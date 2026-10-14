@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsString,
   Max,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -20,6 +21,11 @@ export class TopUpDto {
 
   @IsString({ message: 'idempotencyKey ต้องเป็นข้อความ' })
   @IsNotEmpty({ message: 'กรุณาระบุ idempotencyKey' })
-  @MinLength(8, { message: 'idempotencyKey ต้องมีความยาวอย่างน้อย 8 ตัวอักษร' })
+  @MinLength(TOPUP_LIMITS.IDEMPOTENCY_KEY_MIN_LENGTH, {
+    message: `idempotencyKey ต้องมีความยาวอย่างน้อย ${TOPUP_LIMITS.IDEMPOTENCY_KEY_MIN_LENGTH} ตัวอักษร`,
+  })
+  @MaxLength(TOPUP_LIMITS.IDEMPOTENCY_KEY_MAX_LENGTH, {
+    message: `idempotencyKey ต้องมีความยาวไม่เกิน ${TOPUP_LIMITS.IDEMPOTENCY_KEY_MAX_LENGTH} ตัวอักษร`,
+  })
   idempotencyKey!: string;
 }

@@ -1,0 +1,1000 @@
+{
+  "info": {
+    "_postman_id": "ee7fcf3e-2a4d-4eec-b5d4-6c7743451001",
+    "name": "Thai Please API",
+    "description": "Collection สำหรับ API ที่ประกาศอยู่ใน Controller ปัจจุบันเท่านั้น Authentication ใช้ HttpOnly access_token cookie ซึ่ง Postman Cookie Jar จัดเก็บอัตโนมัติ ไม่มี secret หรือข้อมูลส่วนบุคคลจริงใน Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000", "type": "string" },
+    { "key": "apiPrefix", "value": "api/v1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Health checks แบบ Public",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "health", "live"]
+            },
+            "description": "Public | ตรวจ process liveness | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status เป็น ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "health", "ready"]
+            },
+            "description": "Public | ตรวจ API และ Database readiness | Expected: 200 เมื่อฐานข้อมูลพร้อม"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('database connected', () => pm.expect(pm.response.json().database).to.eql('connected'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Register/Login เป็น Public ส่วน Logout ต้องมี session cookie",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{consumerCitizenId}}\",\n  \"title\": \"นาย\",\n  \"firstName\": \"ผู้ใช้\",\n  \"lastName\": \"ทดสอบ\",\n  \"birthDate\": \"1990-01-15\",\n  \"phone\": \"0800000000\",\n  \"homeNumber\": \"99/9\",\n  \"village\": \"หมู่บ้านทดสอบ\",\n  \"building\": \"อาคารทดสอบ\",\n  \"floor\": \"1\",\n  \"room\": \"101\",\n  \"alley\": \"ซอยทดสอบ\",\n  \"road\": \"ถนนทดสอบ\",\n  \"subdistrict\": \"แขวงทดสอบ\",\n  \"district\": \"เขตทดสอบ\",\n  \"province\": \"กรุงเทพมหานคร\",\n  \"postalCode\": \"10000\",\n  \"password\": \"{{consumerPassword}}\",\n  \"acceptTerms\": true,\n  \"acceptPrivacy\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/register/customer",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "register", "customer"]
+            },
+            "description": "Public | ลงทะเบียน Customer ตาม RegisterConsumerDto | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Register Merchant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{merchantCitizenId}}\",\n  \"title\": \"นางสาว\",\n  \"firstName\": \"ร้านค้า\",\n  \"lastName\": \"ทดสอบ\",\n  \"birthDate\": \"1990-01-15\",\n  \"phone\": \"0800000000\",\n  \"homeNumber\": \"88/8\",\n  \"subdistrict\": \"แขวงทดสอบ\",\n  \"district\": \"เขตทดสอบ\",\n  \"province\": \"กรุงเทพมหานคร\",\n  \"postalCode\": \"10000\",\n  \"password\": \"{{merchantPassword}}\",\n  \"acceptTerms\": true,\n  \"acceptPrivacy\": true,\n  \"merchantName\": \"ร้านทดสอบ Postman\",\n  \"merchantType\": \"อาหารและเครื่องดื่ม\",\n  \"taxId\": \"\",\n  \"merchantPhone\": \"0800000000\",\n  \"merchantDescription\": \"ร้านสำหรับทดสอบระบบเท่านั้น\",\n  \"merchantAddress\": \"88/8\",\n  \"merchantSubdistrict\": \"แขวงทดสอบ\",\n  \"merchantDistrict\": \"เขตทดสอบ\",\n  \"merchantProvince\": \"กรุงเทพมหานคร\",\n  \"merchantPostalCode\": \"10000\",\n  \"acceptMerchantTerms\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/register/merchant",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "register", "merchant"]
+            },
+            "description": "Public | ลงทะเบียน Merchant ตาม RegisterMerchantDto | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); if (json.merchantId) pm.environment.set('merchantId', json.merchantId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login Consumer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{consumerCitizenId}}\",\n  \"password\": \"{{consumerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/consumer/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "consumer", "login"]
+            },
+            "description": "Public | Login role CONSUMER และรับ HttpOnly cookie ใน Cookie Jar | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มี user role CONSUMER', () => pm.expect(pm.response.json().user.role).to.eql('CONSUMER'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login Merchant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{merchantCitizenId}}\",\n  \"password\": \"{{merchantPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/merchant/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "merchant", "login"]
+            },
+            "description": "Public | Login role MERCHANT และรับ HttpOnly cookie ใน Cookie Jar | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มี user role MERCHANT', () => pm.expect(pm.response.json().user.role).to.eql('MERCHANT'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{adminCitizenId}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "admin", "login"]
+            },
+            "description": "Public | Login role ADMIN และรับ HttpOnly cookie ใน Cookie Jar | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มี user role ADMIN', () => pm.expect(pm.response.json().user.role).to.eql('ADMIN'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "logout"]
+            },
+            "description": "Authenticated ทุก role | revoke session และลบ access_token cookie | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('logout สำเร็จ', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "ข้อมูลผู้ใช้ปัจจุบันและงาน Admin",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me"]
+            },
+            "description": "Authenticated ทุก role | อ่าน session ปัจจุบัน | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); if (json.user && json.user.userId) pm.environment.set('userId', json.user.userId); if (json.user && json.user.activeMerchantId) pm.environment.set('merchantId', json.user.activeMerchantId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users"]
+            },
+            "description": "ADMIN เท่านั้น | รายชื่อผู้ใช้ | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "{{userId}}"]
+            },
+            "description": "ADMIN เท่านั้น | อ่านผู้ใช้ด้วย userId | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"{{newUserCitizenId}}\",\n  \"fullName\": \"ผู้ใช้ทดสอบ Postman\",\n  \"phone\": \"0800000000\",\n  \"role\": \"CONSUMER\",\n  \"password\": \"{{newUserPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users"]
+            },
+            "description": "ADMIN เท่านั้น | สร้างผู้ใช้ตาม CreateUserDto | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); if (json.userId) pm.environment.set('userId', json.userId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Consumer Wallet",
+      "description": "Consumer session เท่านั้น จำนวนเงินเป็น integer baht ตาม contract ปัจจุบัน",
+      "item": [
+        {
+          "name": "Get Wallet Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "overview"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C01/FR-C03 Overview | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มี wallet', () => pm.expect(pm.response.json()).to.have.property('wallet'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/transactions?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "transactions"],
+              "query": [
+                { "key": "limit", "value": "20" },
+                {
+                  "key": "dateFrom",
+                  "value": "{{walletDateFrom}}",
+                  "disabled": true
+                },
+                {
+                  "key": "dateTo",
+                  "value": "{{walletDateTo}}",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "{{walletTransactionCursor}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "CONSUMER เท่านั้น | ประวัติกระเป๋าจากฐานข้อมูล เรียงล่าสุดก่อน | dateFrom/dateTo เป็น YYYY-MM-DD แบบ inclusive ใน Asia/Bangkok | เปิด cursor เพื่อโหลดหน้าถัดไป | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('รูปแบบประวัติและ cursor ถูกต้อง', () => {",
+                  "  pm.expect(json.items).to.be.an('array');",
+                  "  pm.expect(json).to.have.property('nextCursor');",
+                  "});",
+                  "pm.environment.set('walletTransactionCursor', json.nextCursor || '');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Top Up Personal Wallet",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('idempotencyKey')) {",
+                  "  pm.environment.set('idempotencyKey', 'postman-' + Date.now());",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ผลลัพธ์ top-up ถูกต้อง', () => {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.transactionId).to.be.a('string');",
+                  "  pm.expect(json.amount).to.eql(100);",
+                  "  pm.expect(json.personalBalance).to.be.a('number');",
+                  "  pm.expect(json.isIdempotentReplay).to.be.a('boolean');",
+                  "});",
+                  "if (json.transactionId) pm.environment.set('transactionId', json.transactionId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"idempotencyKey\": \"{{idempotencyKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C02 Virtual Personal Top-up | integer baht 1-50,000 | สร้าง ledger PERSONAL/PERSONAL_TOPUP | Expected: 200; ยิงซ้ำด้วย key และ amount เดิมต้องไม่เพิ่มยอดซ้ำ"
+          },
+          "response": []
+        },
+        {
+          "name": "Replay Personal Top-up (Same Key and Amount)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('idempotencyKey')) {",
+                  "  throw new Error('ให้เรียก Top Up Personal Wallet ก่อน เพื่อสร้างรายการด้วย key เดียวกัน');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('เป็น idempotent replay และไม่สร้างยอดซ้ำ', () => {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.isIdempotentReplay).to.eql(true);",
+                  "  pm.expect(json.amount).to.eql(100);",
+                  "  pm.expect(json.transactionId).to.eql(pm.environment.get('transactionId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"idempotencyKey\": \"{{idempotencyKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "เรียกหลัง Top Up Personal Wallet โดยไม่เปลี่ยน idempotencyKey | Expected: 200 และ isIdempotentReplay=true พร้อม transactionId เดิม"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Reused Key with Different Amount",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('idempotencyKey')) {",
+                  "  throw new Error('ให้เรียก Top Up Personal Wallet ก่อน เพื่อสร้างรายการด้วย key เดียวกัน');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 409', () => pm.response.to.have.status(409));",
+                  "pm.test('ปฏิเสธ key เดิมที่ payload ต่างกัน', () => pm.expect(pm.response.json().message).to.eql('TOPUP_IDEMPOTENCY_KEY_CONFLICT'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 101,\n  \"idempotencyKey\": \"{{idempotencyKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "ใช้ key จากรายการ 100 บาท แต่เปลี่ยน amount เป็น 101 | Expected: 409 TOPUP_IDEMPOTENCY_KEY_CONFLICT"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Zero Personal Top-up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 0,\n  \"idempotencyKey\": \"postman-zero-test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "FR-C02 ต้องปฏิเสธยอดศูนย์ | Expected: 400"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Negative Personal Top-up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -1,\n  \"idempotencyKey\": \"postman-negative-test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "FR-C02 ต้องปฏิเสธยอดติดลบ | Expected: 400"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Fractional Personal Top-up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1.5,\n  \"idempotencyKey\": \"postman-fractional-test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "FR-C02 รอบนี้รองรับจำนวนเต็มหน่วยบาทเท่านั้น | Expected: 400"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Personal Top-up Above Limit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50001,\n  \"idempotencyKey\": \"postman-over-limit-test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "topup"]
+            },
+            "description": "FR-C02 กำหนดเพดาน 50,000 integer baht ต่อรายการ | Expected: 400"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "description": "Category และ Merchant product catalog",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/catalog/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "catalog", "categories"]
+            },
+            "description": "CONSUMER, MERCHANT หรือ ADMIN | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); const first = Array.isArray(json) ? json[0] : null; if (first && first.categoryId) pm.environment.set('categoryId', first.categoryId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryName\": \"หมวดหมู่ทดสอบ Postman\",\n  \"description\": \"ใช้สำหรับทดสอบ API\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/catalog/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "catalog", "categories"]
+            },
+            "description": "ADMIN เท่านั้น | สร้าง category ตาม CreateCategoryDto | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); if (json.categoryId) pm.environment.set('categoryId', json.categoryId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List My Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "products"]
+            },
+            "description": "MERCHANT เท่านั้น | รายการสินค้าของ active merchant | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); const first = Array.isArray(json) ? json[0] : null; if (first && first.productId) pm.environment.set('productId', first.productId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"สินค้าทดสอบ Postman\",\n  \"description\": \"ใช้สำหรับทดสอบ API\",\n  \"price\": 50,\n  \"categoryId\": {{categoryId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "products"]
+            },
+            "description": "MERCHANT เท่านั้น | สร้างสินค้าตาม CreateProductDto | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); if (json.productId) pm.environment.set('productId', json.productId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"สินค้าทดสอบ Postman (แก้ไข)\",\n  \"price\": 55,\n  \"categoryId\": {{categoryId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "products", "{{productId}}"]
+            },
+            "description": "MERCHANT เท่านั้น | แก้สินค้าของ active merchant ตาม UpdateProductDto | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "products", "{{productId}}"]
+            },
+            "description": "MERCHANT เท่านั้น | soft-delete สินค้าของ active merchant | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ลบสำเร็จ', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Merchant Orders",
+      "description": "Merchant session และ activeMerchantId จาก session เท่านั้น",
+      "item": [
+        {
+          "name": "Create Order and QR",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": {{productId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "orders"]
+            },
+            "description": "MERCHANT เท่านั้น | สร้าง Pending Order/QR ตาม CreateOrderDto | Expected: 201; userCouponId เป็น optional"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); if (json.orderId) pm.environment.set('orderId', json.orderId); if (json.qrToken) pm.environment.set('qrToken', json.qrToken);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Merchant Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "orders"]
+            },
+            "description": "MERCHANT เท่านั้น | รายการ order ของ active merchant | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Consumer Payment",
+      "description": "Consumer preview และจ่ายจาก QR token ที่ Merchant สร้าง",
+      "item": [
+        {
+          "name": "Preview Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"{{qrToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/orders/preview",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "orders", "preview"]
+            },
+            "description": "CONSUMER เท่านั้น | Preview ตาม PreviewOrderDto โดยยังไม่ตัดเงิน | Expected: 200; userCouponId เป็น optional"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มีข้อมูลยอดและความสามารถชำระ', () => { const json = pm.response.json(); pm.expect(json).to.have.property('finalAmount'); pm.expect(json).to.have.property('canAfford'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Pay Order by QR",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"{{qrToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/orders/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "orders", "pay"]
+            },
+            "description": "CONSUMER เท่านั้น | ชำระตาม PayByQrDto | Expected: 200; confirmationToken และ userCouponId เป็น optional"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ชำระสำเร็จ', () => pm.expect(pm.response.json().success).to.eql(true));",
+                  "const json = pm.response.json(); if (json.orderId) pm.environment.set('orderId', json.orderId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

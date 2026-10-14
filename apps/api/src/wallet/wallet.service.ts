@@ -2,26 +2,141 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   BANGKOK_TZ_OFFSET_HOURS,
   FundType,
+  LegacyTransactionType,
+  TOPUP_LIMITS,
   TransactionType,
+  WALLET_TRANSACTION_PAGE_LIMITS,
 } from './wallet.constants.js';
 import type { TopUpDto } from './dto/top-up.dto.js';
+import type { WalletTransactionsQueryDto } from './dto/wallet-transactions-query.dto.js';
 
 const RECENT_PAID_ORDER_LIMIT = 5;
 const PAID_ORDER_STATUS = 'PAID';
+const TRANSACTION_CURSOR_VERSION = 1;
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 @Injectable()
 export class WalletService {
-  private readonly logger = new Logger(WalletService.name);
-
   constructor(private readonly prisma: PrismaService) {}
+
+  private assertMatchingTopUpReplay(
+    transaction: {
+      amount: Prisma.Decimal | number | string;
+      fundType: string;
+      transactionType: string;
+      userId: bigint | null;
+      walletId: bigint;
+    },
+    userId: bigint,
+    walletId: bigint,
+    amount: number,
+  ): void {
+    const isRecognizedPersonalTopUp =
+      transaction.transactionType === TransactionType.PERSONAL_TOPUP ||
+      transaction.transactionType === LegacyTransactionType.PERSONAL_TOPUP;
+    const isSamePayload =
+      transaction.walletId === walletId &&
+      transaction.userId === userId &&
+      transaction.fundType === FundType.PERSONAL &&
+      isRecognizedPersonalTopUp &&
+      new Prisma.Decimal(transaction.amount).equals(amount);
+
+    if (!isSamePayload) {
+      throw new ConflictException('TOPUP_IDEMPOTENCY_KEY_CONFLICT');
+    }
+  }
+
+  private assertActiveConsumerWallet(wallet: {
+    status: string;
+    walletType: string;
+  }): void {
+    if (wallet.status !== 'ACTIVE' || wallet.walletType !== 'CONSUMER') {
+      throw new ConflictException('WALLET_NOT_ACTIVE_CONSUMER');
+    }
+  }
+
+  private parseBangkokDateBoundary(value: string, nextDay: boolean): Date {
+    const match = DATE_ONLY_PATTERN.exec(value);
+    if (!match) {
+      throw new BadRequestException('WALLET_TRANSACTION_DATE_INVALID');
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const calendarDate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      calendarDate.getUTCFullYear() !== year ||
+      calendarDate.getUTCMonth() !== month - 1 ||
+      calendarDate.getUTCDate() !== day
+    ) {
+      throw new BadRequestException('WALLET_TRANSACTION_DATE_INVALID');
+    }
+
+    const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
+    const nextDayMs = nextDay ? 24 * 60 * 60 * 1000 : 0;
+    return new Date(calendarDate.getTime() - offsetMs + nextDayMs);
+  }
+
+  private encodeTransactionCursor(transaction: {
+    createdAt: Date;
+    walletTransactionId: bigint;
+  }): string {
+    return Buffer.from(
+      JSON.stringify({
+        version: TRANSACTION_CURSOR_VERSION,
+        createdAt: transaction.createdAt.toISOString(),
+        transactionId: transaction.walletTransactionId.toString(),
+      }),
+    ).toString('base64url');
+  }
+
+  private decodeTransactionCursor(cursor: string): {
+    createdAt: Date;
+    transactionId: bigint;
+  } {
+    try {
+      const decoded: unknown = JSON.parse(
+        Buffer.from(cursor, 'base64url').toString('utf8'),
+      );
+      if (typeof decoded !== 'object' || decoded === null) {
+        throw new Error('cursor payload must be an object');
+      }
+
+      const payload = decoded as Record<string, unknown>;
+      if (
+        payload.version !== TRANSACTION_CURSOR_VERSION ||
+        typeof payload.createdAt !== 'string' ||
+        typeof payload.transactionId !== 'string' ||
+        !/^[1-9]\d*$/.test(payload.transactionId)
+      ) {
+        throw new Error('cursor payload fields are invalid');
+      }
+
+      const createdAt = new Date(payload.createdAt);
+      if (
+        Number.isNaN(createdAt.getTime()) ||
+        createdAt.toISOString() !== payload.createdAt
+      ) {
+        throw new Error('cursor timestamp is invalid');
+      }
+
+      return {
+        createdAt,
+        transactionId: BigInt(payload.transactionId),
+      };
+    } catch {
+      throw new BadRequestException('WALLET_TRANSACTION_CURSOR_INVALID');
+    }
+  }
 
   /**
    * คำนวณช่วงวันแบบ [เริ่มวัน, เริ่มวันถัดไป) ใน Timezone Asia/Bangkok
@@ -311,15 +426,126 @@ export class WalletService {
   }
 
   /**
+   * FR-C02: อ่านประวัติธุรกรรมของ Consumer แบบ bounded keyset pagination
+   */
+  async getConsumerTransactions(
+    userId: bigint,
+    query: WalletTransactionsQueryDto,
+  ) {
+    if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) {
+      throw new BadRequestException('WALLET_TRANSACTION_DATE_RANGE_INVALID');
+    }
+
+    const limit = query.limit ?? WALLET_TRANSACTION_PAGE_LIMITS.DEFAULT;
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > WALLET_TRANSACTION_PAGE_LIMITS.MAX
+    ) {
+      throw new BadRequestException('WALLET_TRANSACTION_LIMIT_INVALID');
+    }
+
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      select: { walletId: true, walletType: true },
+    });
+    if (!wallet) {
+      throw new NotFoundException('WALLET_NOT_FOUND');
+    }
+    if (wallet.walletType !== 'CONSUMER') {
+      throw new ConflictException('WALLET_NOT_CONSUMER');
+    }
+
+    const dateFilter: { gte?: Date; lt?: Date } = {};
+    if (query.dateFrom) {
+      dateFilter.gte = this.parseBangkokDateBoundary(query.dateFrom, false);
+    }
+    if (query.dateTo) {
+      dateFilter.lt = this.parseBangkokDateBoundary(query.dateTo, true);
+    }
+
+    const cursor = query.cursor
+      ? this.decodeTransactionCursor(query.cursor)
+      : null;
+    const transactions = await this.prisma.walletTransaction.findMany({
+      where: {
+        walletId: wallet.walletId,
+        ...(Object.keys(dateFilter).length > 0
+          ? { createdAt: dateFilter }
+          : {}),
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                {
+                  createdAt: cursor.createdAt,
+                  walletTransactionId: { lt: cursor.transactionId },
+                },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        walletTransactionId: true,
+        fundType: true,
+        transactionType: true,
+        amount: true,
+        balanceBefore: true,
+        balanceAfter: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: 'desc' }, { walletTransactionId: 'desc' }],
+      take: limit + 1,
+    });
+
+    const hasNextPage = transactions.length > limit;
+    const page = hasNextPage ? transactions.slice(0, limit) : transactions;
+    const lastTransaction = page.at(-1);
+
+    return {
+      items: page.map((transaction) => ({
+        transactionId: transaction.walletTransactionId.toString(),
+        fundType: transaction.fundType,
+        transactionType: transaction.transactionType,
+        amount: Number(transaction.amount),
+        balanceBefore: Number(transaction.balanceBefore),
+        balanceAfter: Number(transaction.balanceAfter),
+        createdAt: transaction.createdAt,
+      })),
+      nextCursor:
+        hasNextPage && lastTransaction
+          ? this.encodeTransactionCursor(lastTransaction)
+          : null,
+    };
+  }
+
+  /**
    * FR-C02: เติมเงินจำลองเข้ากระเป๋าส่วนตัว (Virtual Top-up)
    * ปฏิบัติตาม BR-WALLET-003: Idempotent และสร้าง Ledger Entry ใน Transaction เดียว
    */
   async topUpPersonal(userId: bigint, dto: TopUpDto) {
-    if (dto.amount <= 0) {
-      throw new BadRequestException('จำนวนเงินต้องมากกว่า 0');
+    if (
+      !Number.isInteger(dto.amount) ||
+      dto.amount < TOPUP_LIMITS.MIN_AMOUNT ||
+      dto.amount > TOPUP_LIMITS.MAX_AMOUNT
+    ) {
+      throw new BadRequestException('TOPUP_AMOUNT_OUT_OF_RANGE');
+    }
+    if (
+      dto.idempotencyKey.length < TOPUP_LIMITS.IDEMPOTENCY_KEY_MIN_LENGTH ||
+      dto.idempotencyKey.length > TOPUP_LIMITS.IDEMPOTENCY_KEY_MAX_LENGTH
+    ) {
+      throw new BadRequestException('TOPUP_IDEMPOTENCY_KEY_INVALID');
     }
 
-    const wallet = await this.getOrCreateConsumerWallet(userId);
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    if (!wallet) {
+      throw new NotFoundException('WALLET_NOT_FOUND');
+    }
+    this.assertActiveConsumerWallet(wallet);
+
     const businessRef = `topup_${wallet.walletId}_${dto.idempotencyKey}`;
 
     // 1. ตรวจสอบ Idempotency
@@ -328,18 +554,18 @@ export class WalletService {
     });
 
     if (existingTx) {
-      this.logger.log(`Idempotent top-up hit for businessRef: ${businessRef}`);
-      const currentWallet = await this.prisma.wallet.findUnique({
-        where: { walletId: wallet.walletId },
-      });
+      this.assertMatchingTopUpReplay(
+        existingTx,
+        userId,
+        wallet.walletId,
+        dto.amount,
+      );
       return {
         success: true,
         isIdempotentReplay: true,
         transactionId: existingTx.walletTransactionId.toString(),
         amount: Number(existingTx.amount),
-        personalBalance: currentWallet
-          ? Number(currentWallet.personalBalance)
-          : 0,
+        personalBalance: Number(existingTx.balanceAfter),
         createdAt: existingTx.createdAt,
       };
     }
@@ -353,36 +579,38 @@ export class WalletService {
         FOR UPDATE
       `;
 
+      const lockedWallet = await tx.wallet.findUnique({
+        where: { walletId: wallet.walletId },
+      });
+
+      if (!lockedWallet) {
+        throw new NotFoundException('WALLET_NOT_FOUND');
+      }
+      this.assertActiveConsumerWallet(lockedWallet);
+
       // ตรวจซ้ำหลัง lock เพื่อให้ concurrent retry คืนผลเดิมโดยไม่เพิ่มยอดซ้ำ
       const transactionAfterLock = await tx.walletTransaction.findUnique({
         where: { businessRef },
       });
       if (transactionAfterLock) {
-        const replayWallet = await tx.wallet.findUnique({
-          where: { walletId: wallet.walletId },
-        });
+        this.assertMatchingTopUpReplay(
+          transactionAfterLock,
+          userId,
+          wallet.walletId,
+          dto.amount,
+        );
         return {
           success: true,
           isIdempotentReplay: true,
           transactionId: transactionAfterLock.walletTransactionId.toString(),
           amount: Number(transactionAfterLock.amount),
-          personalBalance: replayWallet
-            ? Number(replayWallet.personalBalance)
-            : 0,
+          personalBalance: Number(transactionAfterLock.balanceAfter),
           createdAt: transactionAfterLock.createdAt,
         };
       }
 
-      const lockedWallet = await tx.wallet.findUnique({
-        where: { walletId: wallet.walletId },
-      });
-
-      if (!lockedWallet || lockedWallet.status !== 'ACTIVE') {
-        throw new ConflictException('กระเป๋าเงินไม่อยู่ในสถานะที่ใช้งานได้');
-      }
-
-      const balanceBefore = Number(lockedWallet.personalBalance);
-      const balanceAfter = balanceBefore + dto.amount;
+      const balanceBefore = new Prisma.Decimal(lockedWallet.personalBalance);
+      const balanceAfter = balanceBefore.plus(dto.amount);
 
       // Update wallet balance
       const updatedWallet = await tx.wallet.update({
@@ -399,7 +627,7 @@ export class WalletService {
           walletId: wallet.walletId,
           userId,
           fundType: FundType.PERSONAL,
-          transactionType: TransactionType.TOPUP,
+          transactionType: TransactionType.PERSONAL_TOPUP,
           amount: dto.amount,
           balanceBefore,
           balanceAfter,

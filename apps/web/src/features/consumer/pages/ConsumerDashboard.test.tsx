@@ -8,12 +8,17 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
-import { getConsumerOverview } from '../api/consumer.api';
+import {
+  getConsumerOverview,
+  getWalletTransactions,
+} from '../api/consumer.api';
 import type { ConsumerOverviewResponse } from '../consumer.types';
 import { ConsumerDashboard } from './ConsumerDashboard';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerOverview: vi.fn(),
+  getWalletTransactions: vi.fn(),
+  topUpPersonalWallet: vi.fn(),
 }));
 
 const overviewFixture: ConsumerOverviewResponse = {
@@ -61,7 +66,26 @@ const overviewFixture: ConsumerOverviewResponse = {
       status: 'AVAILABLE',
     },
   ],
-  recentTransactions: [],
+  recentTransactions: [
+    {
+      transactionId: 'wallet-october',
+      fundType: 'PERSONAL',
+      transactionType: 'PERSONAL_TOPUP',
+      amount: 300,
+      balanceBefore: 934,
+      balanceAfter: 1234,
+      createdAt: '2026-10-14T03:00:00.000Z',
+    },
+    {
+      transactionId: 'wallet-september',
+      fundType: 'PERSONAL',
+      transactionType: 'PAYMENT',
+      amount: 50,
+      balanceBefore: 984,
+      balanceAfter: 934,
+      createdAt: '2026-09-20T03:00:00.000Z',
+    },
+  ],
   recentOrders: [
     {
       orderId: 'order-api',
@@ -73,10 +97,22 @@ const overviewFixture: ConsumerOverviewResponse = {
 };
 
 const mockedGetConsumerOverview = vi.mocked(getConsumerOverview);
+const mockedGetWalletTransactions = vi.mocked(getWalletTransactions);
 
 beforeEach(() => {
   mockedGetConsumerOverview.mockReset();
   mockedGetConsumerOverview.mockResolvedValue(overviewFixture);
+  mockedGetWalletTransactions.mockReset();
+  mockedGetWalletTransactions.mockImplementation(async (query) => ({
+    items: overviewFixture.recentTransactions.filter((item) => {
+      const date = item.createdAt.slice(0, 10);
+      return (
+        (!query.dateFrom || date >= query.dateFrom) &&
+        (!query.dateTo || date <= query.dateTo)
+      );
+    }),
+    nextCursor: null,
+  }));
 });
 
 afterEach(cleanup);
@@ -198,7 +234,7 @@ describe('ConsumerDashboard', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('navigates through the customer wallet and validates top-up input', () => {
+  it('navigates through the customer wallet and validates top-up input', async () => {
     renderDashboard();
     clickFirstNavigation(th.consumerPortal.navigation.wallet);
 
@@ -209,7 +245,7 @@ describe('ConsumerDashboard', () => {
       }),
     ).toBeInTheDocument();
     fireEvent.change(
-      screen.getByLabelText(th.consumerPortal.wallet.topUpAmount),
+      await screen.findByLabelText(th.consumerPortal.wallet.topUpAmount),
       { target: { value: '0' } },
     );
     fireEvent.click(
@@ -221,14 +257,21 @@ describe('ConsumerDashboard', () => {
       screen.getByText(th.consumerPortal.wallet.invalidTopUp),
     ).toBeInTheDocument();
 
-    expect(screen.getByText('ชำระตลาดสดบางรัก')).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: th.consumerPortal.wallet.filterMonth,
-      }),
-    );
-    expect(screen.queryByText('ชำระตลาดสดบางรัก')).not.toBeInTheDocument();
-    expect(screen.getByText('พบ 3 รายการ')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        th.consumerPortal.wallet.transactionTypes.payment,
+      ),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(th.consumerPortal.wallet.dateFrom), {
+      target: { value: '2026-10-01' },
+    });
+    fireEvent.change(screen.getByLabelText(th.consumerPortal.wallet.dateTo), {
+      target: { value: '2026-10-31' },
+    });
+    expect(
+      screen.queryByText(th.consumerPortal.wallet.transactionTypes.payment),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText('พบ 1 รายการ')).toBeInTheDocument();
   });
 
   it('completes the mock payment review and opens its receipt', () => {

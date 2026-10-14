@@ -12,6 +12,32 @@ export type ConsumerView = (typeof CONSUMER_VIEWS)[number];
 
 export type PaymentStep = 'scan' | 'review' | 'success';
 
+export const TOP_UP_MIN_BAHT = 1;
+export const TOP_UP_MAX_BAHT = 50_000;
+export const WALLET_HISTORY_PAGE_SIZE = 20;
+
+export type WalletTransactionItem = {
+  transactionId: string;
+  fundType: string;
+  transactionType: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  createdAt: string;
+};
+
+export type WalletTransactionHistoryResponse = {
+  items: WalletTransactionItem[];
+  nextCursor: string | null;
+};
+
+export type WalletTransactionHistoryQuery = {
+  dateFrom?: string;
+  dateTo?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 export type ConsumerOverviewResponse = {
   wallet: {
     walletId: string;
@@ -53,15 +79,7 @@ export type ConsumerOverviewResponse = {
     expiresAt: string;
     status: string;
   }>;
-  recentTransactions: Array<{
-    transactionId: string;
-    fundType: string;
-    transactionType: string;
-    amount: number;
-    balanceBefore: number;
-    balanceAfter: number;
-    createdAt: string;
-  }>;
+  recentTransactions: WalletTransactionItem[];
   recentOrders: Array<{
     orderId: string;
     merchantName: string;

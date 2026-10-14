@@ -42,7 +42,7 @@ Customer ที่เข้าสู่ระบบเห็นหน้า Over
 1. **Backend API — engineer/Level 2 (complete):** เพิ่ม Paid Order ล่าสุดแบบ bounded, ทำ Overview read-only, แก้ Bangkok date boundaries และเพิ่ม service/controller tests
 2. **Frontend Integration — engineer/Level 2 (complete):** เรียก overview API, เพิ่ม loading/error/retry/empty/permission-denied และแสดงข้อมูลจริงด้วยหน่วยเงินที่ถูกต้อง
 3. **Integration Review — primary/Level 3 (complete):** ตรวจและแก้ contract, privacy, authorization, money semantics และ permission-denied flow
-4. **QA — reviewer/Level 3 (in progress):** ตรวจผลแก้ blockers รอบสุดท้ายและออก verdict
+4. **QA — reviewer/Level 3 (complete):** รอบแรกพบ 4 blockers; รอบสองยืนยันว่าปิดครบและออก verdict PASS
 
 ## Verification
 
@@ -64,6 +64,8 @@ Customer ที่เข้าสู่ระบบเห็นหน้า Over
 - 2026-10-14: Backend/Frontend implementation รอบแรกผ่าน tests แต่ QA ไม่อนุมัติจาก concurrency, Bangkok date, privacy และ authorization coverage gaps
 - 2026-10-14: แก้ Overview ให้ read-only, ใช้ Bangkok business date และ half-open day interval, ลด PII query, เพิ่ม 401/403/cross-user tests และ permission-denied UI
 - 2026-10-14: Web tests 17/17, API tests 26/26, API E2E 1/1, typecheck/lint/build ทั้งสอง workspace และ changed-file Prettier ผ่าน
+- 2026-10-14: Final QA รอบสอง PASS; ไม่มี blocker คงเหลือใน scope FR-C01
+- 2026-10-14: เพิ่ม requirements checklist และ Postman collection/environment/README สำหรับ workflow ส่งมอบ API รอบถัดไป
 
 ## Open Questions
 
