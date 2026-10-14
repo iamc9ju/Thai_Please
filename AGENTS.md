@@ -59,12 +59,13 @@ Never invent product requirements, compliance claims, performance targets, or bu
 
 ## 4. Requirement Traceability
 
-Use stable requirement IDs from the product report in implementation plans, tests, pull-request descriptions, and relevant code documentation:
+Use stable requirement IDs from `docs/REQUIREMENTS.md` in implementation plans, tests, pull-request descriptions, and relevant code documentation. That document owns the current numbering; map references by capability rather than blindly replacing numbers:
 
-- Consumer: `FR-C01` through `FR-C07`.
-- Merchant: `FR-M01` through `FR-M05`.
-- System and AI: `FR-S01` through `FR-S03`.
-- Administrator: `FR-A01`.
+- Authentication: `FR-AUTH-01` through `FR-AUTH-06`.
+- Consumer: `FR-C01` through `FR-C09` (personalized quests: `FR-C07`; points: `FR-C08`; coupons: `FR-C09`).
+- Merchant: `FR-M01` through `FR-M08`.
+- System and AI: `FR-S01` through `FR-S06` (logs: `FR-S04`; assignment: `FR-S05`; deterministic completion: `FR-S06`).
+- Administrator: `FR-A01` through `FR-A07`.
 - Non-functional requirements: use `NFR-<AREA>-<NN>`, for example `NFR-SEC-01` or `NFR-DATA-02`, when formalizing them.
 
 Before implementation:

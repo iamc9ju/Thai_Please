@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-06
 - Decision owners: Architecture and product engineering
-- Requirements: `FR-C01`-`FR-C07`, `FR-M01`-`FR-M05`, `FR-S01`-`FR-S03`, `FR-A01`
+- Requirements: `FR-AUTH-01`-`FR-AUTH-06`, `FR-C01`-`FR-C09`, `FR-M01`-`FR-M08`, `FR-S01`-`FR-S06`, `FR-A01`-`FR-A07` (current numbering in `docs/REQUIREMENTS.md`)
 
 ## Context
 

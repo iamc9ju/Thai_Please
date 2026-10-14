@@ -4,7 +4,7 @@ Status: baseline proposal
 
 Last updated: 2026-10-06
 
-Scope: prototype defined by `FR-C01`-`FR-C07`, `FR-M01`-`FR-M05`, `FR-S01`-`FR-S03`, and `FR-A01`
+Scope: prototype defined by `FR-AUTH-01`-`FR-AUTH-06`, `FR-C01`-`FR-C09`, `FR-M01`-`FR-M08`, `FR-S01`-`FR-S06`, and `FR-A01`-`FR-A07` in `docs/REQUIREMENTS.md`
 
 ## 1. Architectural goals and constraints
 
@@ -81,20 +81,20 @@ Dependencies point inward. Contexts do not import another context's repository o
 
 ## 4. Bounded contexts and ownership
 
-| Context                     | Owns                                                                                               | Primary requirements                   | Permitted collaborators                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Identity and Access         | identities, credentials/sessions, roles, actor-tenant relationships                                | `FR-C01`, merchant/admin access        | exposes authenticated actor and policy decisions; owns no wallet or merchant data        |
-| Consumer Profile            | consumer preferences and safe personalization inputs                                               | `FR-C01`, `FR-S01`                     | reads approved transaction features; supplies minimized profile features                 |
-| Merchant Catalog            | merchants, products, categories, price lifecycle                                                   | `FR-M01`, `FR-A01`                     | POS reads current catalog; receipts store snapshots rather than mutable references alone |
-| POS and Pricing             | carts, cart lines, discount calculation, immutable cart/payment snapshot creation                  | `FR-M02`, `FR-M03`, `FR-M04`           | requests coupon eligibility; creates a pending payment intent through Payment            |
-| Payment and Wallet          | payment intents, QR token binding, virtual-money wallet ledger, top-up, debit, payment idempotency | `FR-C02`, `FR-C03`, `FR-M04`           | transactionally coordinates coupon use and receipt creation through application ports    |
-| Transaction and Receipt     | successful transaction and immutable receipt snapshots                                             | `FR-C04`, `FR-S02`                     | emits `receipt.created`; never accepts post-success mutation                             |
-| Quest                       | AI proposal intake, policy validation, assignment, deterministic evaluation, completion uniqueness | `FR-C05`, `FR-S01`, `FR-S02`, `FR-S03` | consumes receipt facts; requests Point reward issuance                                   |
-| Point Ledger                | immutable point earning, spending, expiry, derived balance                                         | `FR-C06`, `FR-S03`                     | issues reward once for a quest-completion key; debits for coupon exchange                |
-| Coupon                      | coupon issuance, ownership, eligibility, reservation/redemption, expiry                            | `FR-C07`, `FR-M03`, `FR-S03`           | participates atomically in pricing/payment; never trusts client status                   |
-| Analytics and Social Impact | event-driven read models and aggregate metrics                                                     | `FR-M05`, `FR-A01`                     | consumes facts; does not write transactional contexts                                    |
-| Administration and Policy   | merchant oversight, versioned quest/reward policy, privileged audit                                | `FR-A01`, `FR-S01`                     | publishes policy changes; cannot mutate ledger or receipt history                        |
-| Notification (deferred)     | delivery preferences and notification attempts                                                     | not currently required                 | may consume events after explicit approval                                               |
+| Context                     | Owns                                                                                               | Primary requirements                             | Permitted collaborators                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Identity and Access         | identities, credentials/sessions, roles, actor-tenant relationships                                | `FR-AUTH-01`-`FR-AUTH-06`, `FR-A03`              | exposes authenticated actor and policy decisions; owns no wallet or merchant data        |
+| Consumer Profile            | consumer preferences and safe personalization inputs                                               | `FR-C01`, `FR-S01`                               | reads approved transaction features; supplies minimized profile features                 |
+| Merchant Catalog            | merchants, products, categories, price lifecycle                                                   | `FR-M01`, `FR-M02`, `FR-A02`                     | POS reads current catalog; receipts store snapshots rather than mutable references alone |
+| POS and Pricing             | carts, cart lines, discount calculation, immutable cart/payment snapshot creation                  | `FR-M03`, `FR-M04`, `FR-C09`                     | requests coupon eligibility; creates a pending payment intent through Payment            |
+| Payment and Wallet          | payment intents, QR token binding, virtual-money wallet ledger, top-up, debit, payment idempotency | `FR-C02`, `FR-C03`, `FR-C05`, `FR-M05`, `FR-M06` | transactionally coordinates coupon use and receipt creation through application ports    |
+| Transaction and Receipt     | successful transaction and immutable receipt snapshots                                             | `FR-C06`, `FR-M08`                               | emits `receipt.created`; never accepts post-success mutation                             |
+| Quest                       | AI proposal intake, policy validation, assignment, deterministic evaluation, completion uniqueness | `FR-C07`, `FR-S01`-`FR-S06`                      | consumes receipt facts; requests Point reward issuance                                   |
+| Point Ledger                | immutable point earning, spending, expiry, derived balance                                         | `FR-C08`, `FR-S06`, `FR-A06`                     | issues reward once for a quest-completion key; debits for coupon exchange                |
+| Coupon                      | coupon issuance, ownership, eligibility, reservation/redemption, expiry                            | `FR-C09`, `FR-M03`, `FR-C05`                     | participates atomically in pricing/payment; never trusts client status                   |
+| Analytics and Social Impact | event-driven read models and aggregate metrics                                                     | `FR-M07`, `FR-A01`, `FR-A07`                     | consumes facts; does not write transactional contexts                                    |
+| Administration and Policy   | merchant oversight, versioned quest/reward policy, privileged audit                                | `FR-A02`-`FR-A06`                                | publishes policy changes; cannot mutate ledger or receipt history                        |
+| Notification (deferred)     | delivery preferences and notification attempts                                                     | not currently required                           | may consume events after explicit approval                                               |
 
 Every table has one owning context. Foreign keys may preserve local-monolith integrity, but cross-context reads still go through an owner-provided query/application contract so a future extraction does not require callers to understand table layout.
 
@@ -229,13 +229,13 @@ Deterministic clocks, IDs, and randomness make expiry and idempotency tests repr
 
 ## 13. Requirement coverage and unresolved decisions
 
-| Capability                         | Requirements                           | Architecture owner                       |
-| ---------------------------------- | -------------------------------------- | ---------------------------------------- |
-| Consumer overview, wallet, history | `FR-C01`, `FR-C02`, `FR-C04`, `FR-C06` | Identity, Payment/Wallet, Receipt, Point |
-| Scan, review, pay                  | `FR-C03`, `FR-M04`                     | POS/Pricing, Payment/Wallet, Receipt     |
-| Products, carts, discounts         | `FR-M01`-`FR-M03`                      | Merchant Catalog, POS/Pricing, Coupon    |
-| Quests and rewards                 | `FR-C05`, `FR-C07`, `FR-S01`-`FR-S03`  | Quest, Point, Coupon                     |
-| Dashboards and policy              | `FR-M05`, `FR-A01`                     | Analytics, Administration/Policy         |
+| Capability                         | Requirements                                    | Architecture owner                       |
+| ---------------------------------- | ----------------------------------------------- | ---------------------------------------- |
+| Consumer overview, wallet, history | `FR-C01`-`FR-C03`, `FR-C06`, `FR-C08`, `FR-M06` | Identity, Payment/Wallet, Receipt, Point |
+| Scan, review, pay                  | `FR-C04`, `FR-C05`, `FR-M04`, `FR-M05`          | POS/Pricing, Payment/Wallet, Receipt     |
+| Products, carts, discounts         | `FR-M02`-`FR-M04`, `FR-C09`                     | Merchant Catalog, POS/Pricing, Coupon    |
+| Quests and rewards                 | `FR-C07`-`FR-C09`, `FR-S01`-`FR-S06`            | Quest, Point, Coupon                     |
+| Dashboards and policy              | `FR-M07`, `FR-A01`-`FR-A07`                     | Analytics, Administration/Policy         |
 
 These product decisions remain intentionally open and must not be hardcoded:
 

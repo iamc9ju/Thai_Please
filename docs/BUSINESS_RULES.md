@@ -34,8 +34,8 @@ Keywords have their normal requirements meaning:
 
 Every monetary amount MUST carry a currency and use integer minor units or an exact
 decimal with an explicitly approved scale and rounding mode. Binary floating point MUST
-NOT be used for financial or reward amounts. Applies to `FR-C02`, `FR-C03`, `FR-C04`,
-`FR-M01` through `FR-M05`, `FR-S02`, and `FR-A01`.
+NOT be used for financial or reward amounts. Applies to `FR-C02`, `FR-C03`, `FR-C05`,
+`FR-C08`, `FR-C09`, `FR-M03`, `FR-M05`, `FR-M06`, `FR-S06`, and `FR-A04`.
 
 ### BR-MONEY-002 - Authoritative calculation
 
@@ -400,17 +400,17 @@ plan.
 
 ## 14. Rule-to-requirement traceability
 
-| Rule family                             | Primary requirements                                                |
-| --------------------------------------- | ------------------------------------------------------------------- |
-| `BR-MONEY-*`                            | `FR-C02`, `FR-C03`, `FR-C04`, `FR-M01`-`FR-M05`, `FR-S02`, `FR-A01` |
-| `BR-CART-*`, `BR-QR-*`                  | `FR-C03`, `FR-M02`, `FR-M03`, `FR-M04`                              |
-| `BR-PAY-*`                              | `FR-C03`, `FR-C04`, `FR-M04`, `FR-S02`                              |
-| `BR-WALLET-*`                           | `FR-C01`, `FR-C02`, `FR-C03`                                        |
-| `BR-POINT-*`, `BR-COUPON-*`, `BR-EXP-*` | `FR-C06`, `FR-C07`, `FR-M03`, `FR-S03`                              |
-| `BR-AI-*`, `BR-QUEST-*`                 | `FR-C05`, `FR-S01`, `FR-S02`, `FR-S03`, `FR-A01`                    |
-| `BR-HIST-*`, `BR-AUDIT-*`               | `FR-C02`, `FR-C04`, `FR-C06`, `FR-A01` and `NFR-AUD-*`              |
-| `BR-AUTH-*`, `BR-PRIV-*`                | All actor-facing requirements and `NFR-SEC-*`/`NFR-PRIV-*`          |
-| `BR-ANALYTICS-*`                        | `FR-M05`, `FR-A01`                                                  |
+| Rule family                             | Primary requirements                                                                               |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `BR-MONEY-*`                            | `FR-C02`, `FR-C03`, `FR-C05`, `FR-C08`, `FR-C09`, `FR-M03`, `FR-M05`, `FR-M06`, `FR-S06`, `FR-A04` |
+| `BR-CART-*`, `BR-QR-*`                  | `FR-C04`, `FR-C05`, `FR-M02`, `FR-M03`, `FR-M04`                                                   |
+| `BR-PAY-*`                              | `FR-C05`, `FR-C06`, `FR-M05`, `FR-M06`, `FR-M08`, `FR-S06`                                         |
+| `BR-WALLET-*`                           | `FR-C01`, `FR-C02`, `FR-C03`, `FR-C05`, `FR-M06`                                                   |
+| `BR-POINT-*`, `BR-COUPON-*`, `BR-EXP-*` | `FR-C07`, `FR-C08`, `FR-C09`, `FR-C05`, `FR-M03`, `FR-S06`, `FR-A06`                               |
+| `BR-AI-*`, `BR-QUEST-*`                 | `FR-C07`, `FR-S01`-`FR-S06`, `FR-A05`, `FR-A06`                                                    |
+| `BR-HIST-*`, `BR-AUDIT-*`               | `FR-C02`, `FR-C06`, `FR-C08`, `FR-M08`, `FR-S04`, `FR-A02`-`FR-A06`, `NFR-OBS-01`                  |
+| `BR-AUTH-*`, `BR-PRIV-*`                | All actor-facing requirements and `NFR-SEC-*`/`NFR-PRIV-*`                                         |
+| `BR-ANALYTICS-*`                        | `FR-M07`, `FR-A01`, `FR-A07`                                                                       |
 
 ## 15. Change-control gate
 

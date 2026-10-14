@@ -32,3 +32,9 @@ Authentication uses an HTTP-only cookie. Set `JWT_SECRET` to a random value of a
 Run `pnpm verify` before handing off a change. Database migrations require separate validation on an empty and representative upgraded database before deployment.
 
 See `docs/REQUIREMENTS.md`, `docs/BUSINESS_RULES.md`, and `docs/ARCHITECTURE.md` before implementing product behavior.
+
+## AI implementation plan
+
+See the [main AI plan](AI_IMPLEMENTATION_PLAN.md), [Thai AI plan](AI_IMPLEMENTATION_PLAN_THAI.md), and [beginner execution roadmap and progress](docs/AI_BEGINNER_ROADMAP_TH.md).
+
+Tooling preparation (roadmap Step 1) is complete. The next step is data and feature design. The AI model and recommendation service have not yet been implemented.

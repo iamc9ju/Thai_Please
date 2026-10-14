@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-06
 - Decision owners: Architecture, payment, and rewards engineering
-- Requirements: `FR-C02`, `FR-C03`, `FR-C04`, `FR-C06`, `FR-C07`, `FR-M03`, `FR-M04`, `FR-S02`, `FR-S03`
+- Requirements: `FR-C02`, `FR-C05`, `FR-C06`, `FR-C07`, `FR-C08`, `FR-C09`, `FR-M03`, `FR-M05`, `FR-M06`, `FR-S06` (current numbering in `docs/REQUIREMENTS.md`)
 
 ## Context
 
