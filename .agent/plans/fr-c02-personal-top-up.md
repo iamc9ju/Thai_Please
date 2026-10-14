@@ -20,7 +20,7 @@ Consumer สามารถเติมเงินจำลองเข้า�
 - Backend มี consumer-only top-up และ transaction-history endpoints, strict DTOs, Decimal arithmetic, transaction/row lock, unique business reference และ legacy replay compatibility
 - Frontend WalletView ใช้ overview/top-up/history APIs จริงและไม่มี mock/fake-success path หรือ unused TopUpModal
 - API unit/controller/DTO, HTTP contract E2E และ frontend integration tests ครอบคลุม acceptance/negative/retry/history paths
-- Postman และ requirement checklist ตรงกับ contract ปัจจุบัน
+- Postman และ requirement checklist ตรงกับ contract ปัจจุบัน; deploy migration ที่รองรับ `PERSONAL_TOPUP` แล้วและรอทดสอบ top-up/runtime journey จริง
 - ข้อจำกัดที่ทราบ: ไม่มี PostgreSQL wallet integration harness สำหรับพิสูจน์ concurrent transactions จริง
 
 ## Invariants and Risks
@@ -46,7 +46,7 @@ Consumer สามารถเติมเงินจำลองเข้า�
 1. **Backend/API owner — completed:** แก้ contract/invariants/idempotency/ledger/missing-wallet, เพิ่ม wallet-history API และ unit/controller/DTO/HTTP tests
 2. **Frontend owner — completed:** เชื่อม WalletView กับ overview/top-up/history API จริง พร้อม states, refresh, date filters, pagination, stale guard และ tests
 3. **QA owner — completed with defects:** requirement review พบ history filter ใช้ข้อมูล overview เพียง 10 รายการ, ไม่มี PostgreSQL concurrency proof/HTTP journey, Postman negative cases ไม่ครบ และ formatting สองไฟล์; defect compatibility legacy TOPUP แก้แล้ว
-4. **Project manager — completed:** รวมงาน แก้ integration defects อัปเดต Postman, README/checklist และรัน verification รอบส่งมอบ
+4. **Project manager — pending runtime verification:** รวมงาน แก้ integration defects อัปเดต Postman, README/checklist รัน verification และ deploy database migration แล้ว แต่ยังต้องยืนยัน top-up กับฐานข้อมูลจริง
 
 ## Verification
 
@@ -59,7 +59,8 @@ Consumer สามารถเติมเงินจำลองเข้า�
 
 ## Rollout and Recovery
 
-- ไม่มี schema migration; transaction type string change เป็น forward-only สำหรับรายการใหม่ และ existing `TOPUP` replay ได้แบบ read-compatible เมื่อ identity/fund/amount ตรงโดยไม่ rewrite ledger
+- Deploy migration `20261015090000_allow_personal_topup_transaction_type` ก่อนเปิดใช้ top-up; migration ขยาย check constraint ให้รองรับ transaction types ปัจจุบันและคง `TOPUP` สำหรับ legacy replay โดยไม่ rewrite ledger
+- ขั้น `VALIDATE CONSTRAINT` จะสแกนตารางและอาจถือ lock จึงต้องรันเป็น controlled release step; หากล้มเหลว transaction ของ migration จะคืน constraint เดิม
 - หาก validation ล้มเหลว ให้หยุดส่งมอบและแก้ใน branch/workspace เดิม; ห้ามแก้ยอดเงินจริงด้วย manual database mutation
 - Recovery คือ revert application changes; ledger/balance writes remain atomic and must not be silently rewritten
 
@@ -72,7 +73,13 @@ Consumer สามารถเติมเงินจำลองเข้า�
 - 2026-10-14: QA รอบแรก FAIL เพราะ date filter กรองเฉพาะ overview 10 รายการ, HTTP/E2E และ real-DB concurrency evidence ไม่ครบ, Postman ขาด negative/fractional และ formatting สองไฟล์ จึงเปิด implementation รอบสองแทนการส่งมอบ
 - 2026-10-14: รอบสองเพิ่ม wallet-history API แบบ Bangkok date range/cursor, เชื่อม server-side filter/load-more/stale guard, เพิ่ม HTTP contract E2E และ Postman negative/fractional cases
 - 2026-10-14: API unit 70/70, API E2E 2/2 และ Web 39/39 ผ่าน พร้อม typecheck/lint/build และ changed-file formatting; ปิด FR-C02 โดยบันทึก real PostgreSQL concurrency proof เป็น residual ของ NFR-DATA-01
+- 2026-10-15: Runtime top-up พบ PostgreSQL SQLSTATE `23514` เพราะฐานข้อมูลยังใช้ `wallet_transactions_transaction_type_check` รุ่นเก่าที่ไม่รองรับ `PERSONAL_TOPUP`; transaction ล้มและ rollback โดยไม่มี partial credit
+- 2026-10-15: เพิ่ม forward migration สำหรับ widened transaction-type constraint และ regression spec; API unit 73/73, API E2E 2/2, migration spec 3/3, Prisma validate/typecheck/lint/build/format ผ่าน แต่ยังไม่ได้ deploy ฐานข้อมูล จึงเปิดสถานะ FR-C02 กลับเป็น Partial
+- 2026-10-15: Deploy migration สำเร็จบน development database และตรวจแบบ read-only ว่า migration finished, ไม่ถูก rollback และ constraint validated พร้อมยอมรับ `PERSONAL_TOPUP`/legacy `TOPUP`
+- 2026-10-15: `prisma migrate status` พบ pre-existing `P3015` เพราะ migration เก่าสอง directory ไม่มี `migration.sql`; ห้ามสร้างเนื้อหาเดาหรือลบประวัติ ต้องกู้ไฟล์ต้นฉบับ/checksum ที่ตรงกับ migration ที่ apply แล้ว
 
 ## Open Questions
 
-- ไม่มี open question ที่กีดขวาง FR-C02; งานสร้าง PostgreSQL wallet integration harness เป็น residual ของ NFR-DATA-01 และไม่ถือว่าทำเสร็จใน plan นี้
+- ต้องทดสอบ `POST /api/v1/wallet/topup` และ history กับ runtime จริงก่อนปิด FR-C02
+- ต้องกู้ migration SQL ต้นฉบับของ `20261013150000_neon_baseline` และ `20261013160000_neon_multi_role_wallets` เพื่อปิด `P3015` โดยไม่ทำลาย migration history
+- งานสร้าง PostgreSQL wallet integration harness เป็น residual ของ NFR-DATA-01 และไม่ถือว่าทำเสร็จใน plan นี้

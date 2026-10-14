@@ -80,7 +80,7 @@
     workspace และ changed-file Prettier ผ่านในรอบส่งมอบ FR-C01
   - Postman: `Consumer Wallet / Get Wallet Overview` พร้อม role, status checks และคำอธิบาย
 
-- [x] **FR-C02 — Personal Top-up — Complete**
+- [ ] **FR-C02 — Personal Top-up — Partial (deploy migration แล้ว รอทดสอบ runtime)**
   - API: authenticated consumer-only `POST /api/v1/wallet/topup`; integer baht 1–50,000,
     idempotency key 8–128 ตัวอักษร, atomic Personal Balance credit และ ledger
     `PERSONAL/PERSONAL_TOPUP` โดยไม่เปลี่ยน Subsidy Balance หรือสร้าง Wallet/สิทธิ์โดยผลข้างเคียง
@@ -95,9 +95,19 @@
   - Evidence: `apps/api/src/wallet/wallet.service.spec.ts`,
     `apps/api/src/wallet/wallet.controller.spec.ts`, DTO specs,
     `apps/api/test/wallet-topup.e2e-spec.ts`, `apps/web/src/features/consumer/api/consumer.api.test.ts`
+  - Database migration: เพิ่ม
+    `apps/api/prisma/migrations/20261015090000_allow_personal_topup_transaction_type/migration.sql`
+    เพื่อให้ constraint รองรับ `PERSONAL_TOPUP` และคง legacy `TOPUP`; regression spec ผ่าน 3/3
     และ `apps/web/src/features/consumer/views/WalletView.test.tsx`
-  - Verified: API unit 70/70, API E2E 2/2, Web 39/39 และ typecheck/lint/build ทั้งสอง workspace
+  - Verified: API unit 73/73, API E2E 2/2, Web 39/39 และ typecheck/lint/build ทั้งสอง workspace
     รวมถึง changed-file Prettier และ Postman JSON ผ่านในรอบส่งมอบ FR-C02
+  - Runtime verification: deploy migration ไปยังฐานข้อมูล development แล้วเมื่อ 2026-10-15 และตรวจพบว่า
+    constraint ถูก validate พร้อมรองรับ `PERSONAL_TOPUP`/legacy `TOPUP`; ต้องยิง top-up จริงสำเร็จ
+    และตรวจยอด/ประวัติก่อนจึงทำเครื่องหมาย Complete
+  - Migration-history maintenance: migration เก่า `20261013150000_neon_baseline` และ
+    `20261013160000_neon_multi_role_wallets` ไม่มี `migration.sql` ใน working copy ทำให้
+    `prisma migrate status` ตอบ `P3015`; ไม่กระทบ constraint ที่ deploy แล้ว แต่ต้องกู้ไฟล์ต้นฉบับ
+    แทนการสร้าง SQL เดาหรือลบประวัติ
   - Postman: overview/history, positive top-up, replay, reused-key conflict, zero, negative,
     fractional และ over-limit พร้อม assertions/คำอธิบาย
   - Residual NFR evidence: repository ยังไม่มี PostgreSQL wallet integration harness จึงยังไม่ถือว่า
