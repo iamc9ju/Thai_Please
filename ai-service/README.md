@@ -1,4 +1,33 @@
-# AI service — ขั้นที่ 3: Synthetic data preparation
+# AI service — ขั้น 2–3: Complete Journey pilot และ legacy synthetic fixtures
+
+## งานปัจจุบัน — Complete Journey (15 ตุลาคม 2026)
+
+อ่าน [contract v2](../docs/ai/COMPLETE_JOURNEY_PREPARATION.md) ก่อนรัน: 8 features, relative targets 1.0/1.5 เท่าของยอดเฉลี่ยทั้งบิล 30 วัน, department หมวดกว้าง, 4 quest types และ observed one-basket-match label วันนี้ยังไม่ฝึกโมเดล
+
+R files ที่ audit อยู่ `external/complete-journey-audit/` และ source hashes ถูก pin ใน `config/complete_journey_pilot.json` Reader pyreadr 0.5.7 / narwhals 2.27.1 ถูกติดตั้งเฉพาะ `external/complete-journey-audit/reader` สำหรับ bundled Python 3.12 แยกจาก venv Python 3.14 เดิม ไม่มีการเพิ่ม package ใน requirements หลักจาก audit นี้
+
+รันจาก repository root:
+
+```powershell
+& 'C:/Users/koath/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' -B ai-service/prepare_complete_journey.py --reader ai-service/external/complete-journey-audit/reader
+```
+
+หาก reader/raw source ไม่มี ต้องจัดหา pinned files/compatible reader ก่อน ไม่รัน third-party notebooks หรือเอาข้อมูลจำลองแทน source เงียบ ๆ เครื่องอื่นใช้ Python ที่ติดตั้ง pandas/NumPy/pyreadr รุ่น compatible ได้ ไม่จำเป็นต้องใช้ path bundled เดียวกัน แต่ตรวจ source/output hashes เสมอ
+
+ผลอยู่ `data/complete_journey_pilot/`: `training_data.csv`, `feature_schema.json`, `template_policy.json`, `sample_preview.json`, `excluded_samples.csv`, `manifest.json` Pilot สูงสุด 3,200 ก่อนกรอง ได้ 1,664 แถว (163/1,501) รวมการตรวจ raw ทั้งชุด แต่ไม่ import DB
+
+การทดสอบ core/source normalization ใช้ venv เดิม ไม่ต้องใช้ R reader:
+
+```powershell
+Set-Location 'C:/Users/koath/Desktop/web-app-project/Thai_Please/ai-service'
+.\.venv\Scripts\python.exe -B -m pytest --basetemp .pytest_cache/preparation-check
+```
+
+Policy กลางอยู่ `config/quest_template_policy_v2.json` และถูก copy/hash ไปกับ artifact; NestJS ภายหลังต้องอ่าน/validate mechanics เวอร์ชันเดียวกัน ไม่ใช้ config mock เป็น production default
+
+Source sales value เป็น retailer revenue ไม่ใช่ verified net payment after discounts ทั้งบาท/dollarsใช้ ratiosแต่ยังต้องประเมิน domain การยกเว้นทั้ง basket และ censor หน้าต่างมีผลต่อ coverage ซึ่งบันทึกใน manifest ส่วน actual completion/reward engine คงกฎของเว็บ
+
+## Legacy — Synthetic data preparation
 
 มีเฉพาะโปรแกรมสร้างข้อมูลจำลองและเตรียม CSV ยังไม่มี trained model, FastAPI หรือ NestJS integration
 

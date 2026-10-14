@@ -1,8 +1,8 @@
 # แผนเริ่มระบบ AI Personalized Quest Recommendation สำหรับผู้เริ่มต้น
 
-สถานะ: ขั้นที่ 1–3 เสร็จในขอบเขตเตรียมเครื่องมือ/ออกแบบ/ข้อมูลจำลอง offline; ขั้นที่ 4–9 ยังไม่เริ่ม
+สถานะ: ขั้น 1 พร้อม; ขั้น 2–3 ปรับเป็น Complete Journey pilot แล้ว (1,664 samples, 8 features); ขั้น 4–9 ยังไม่เริ่ม วันนี้หยุดก่อนฝึก
 
-วันที่: 14 ตุลาคม 2026
+วันที่ปรับล่าสุด: 15 ตุลาคม 2026
 
 เอกสารต้นทาง: `AI_IMPLEMENTATION_PLAN.md` ครบ 17 หัวข้อ และรหัสจาก `docs/REQUIREMENTS.md`
 
@@ -10,18 +10,18 @@
 
 ### สถานะความคืบหน้า
 
-| ขั้น | งาน                             | สถานะ                                                |
-| ---- | ------------------------------- | ---------------------------------------------------- |
-| 0    | เข้าใจขอบเขตและปิดข้อกำหนด      | ยืนยัน Order เดียวแล้ว; policy ที่เหลือยังรอตัดสินใจ |
-| 1    | เตรียมเครื่องมือและ environment | เสร็จแล้วตามผลตรวจที่ผู้ใช้ส่งมา                     |
-| 2    | ออกแบบข้อมูลและ features        | เอกสารเสร็จแล้ว; โค้ดสูตรทำในขั้น 3                  |
-| 3    | เตรียมข้อมูลฝึก                 | เสร็จแล้ว: 496 แถวและ tests ผ่าน 25 รายการ           |
-| 4    | ฝึกโมเดล                        | ยังไม่เริ่ม — ขั้นถัดไป                              |
-| 5    | ประเมินโมเดล                    | ยังไม่เริ่ม                                          |
-| 6    | สร้าง FastAPI                   | ยังไม่เริ่ม                                          |
-| 7    | เชื่อม NestJS                   | ยังไม่เริ่ม                                          |
-| 8    | Completion และ points           | ยังไม่เริ่ม                                          |
-| 9    | ทดสอบทั้งระบบและคู่มือ          | ยังไม่เริ่ม                                          |
+| ขั้น | งาน                             | สถานะ                                                    |
+| ---- | ------------------------------- | -------------------------------------------------------- |
+| 0    | เข้าใจขอบเขตและปิดข้อกำหนด      | ยืนยัน Order เดียวแล้ว; policy ที่เหลือยังรอตัดสินใจ     |
+| 1    | เตรียมเครื่องมือและ environment | เสร็จแล้วตามผลตรวจที่ผู้ใช้ส่งมา                         |
+| 2    | ออกแบบข้อมูลและ features        | v2 เสร็จ: 8 features, proxy label, relative policy       |
+| 3    | เตรียมข้อมูลฝึก                 | pilot 1,664 แถว (163/1,501); tests ทั้งชุดผ่าน 50 รายการ |
+| 4    | ฝึกโมเดล                        | ยังไม่เริ่ม — วันนี้ไม่ทำขั้นนี้                         |
+| 5    | ประเมินโมเดล                    | ยังไม่เริ่ม                                              |
+| 6    | สร้าง FastAPI                   | ยังไม่เริ่ม                                              |
+| 7    | เชื่อม NestJS                   | ยังไม่เริ่ม                                              |
+| 8    | Completion และ points           | ยังไม่เริ่ม                                              |
+| 9    | ทดสอบทั้งระบบและคู่มือ          | ยังไม่เริ่ม                                              |
 
 หลักฐานขั้นที่ 1: ผู้ใช้สร้าง `ai-service/.venv` ด้วย Python 3.14.3 ติดตั้ง libraries สำเร็จ รัน `pip check` ได้ `No broken requirements found`, import libraries ได้ `AI libraries OK` และบันทึก `pip freeze` เป็น `ai-service/requirements.txt` แล้ว ผู้ช่วยตรวจพบไฟล์ requirements ใน Repository ด้วย
 
@@ -29,9 +29,9 @@
 
 ## 1. เรากำลังสร้างอะไร
 
-AI ในงานนี้เป็นโมเดล CatBoost ที่เรียนรู้จากข้อมูลแบบตาราง เพื่อคาดการณ์ว่า “ผู้ใช้คนนี้มีโอกาสทำเควสต์นี้สำเร็จเท่าไร” ไม่ใช่ ChatGPT และไม่สร้างข้อความเควสต์เอง
+AI ในงานนี้เป็น CatBoost ที่เรียนรู้จากข้อมูลแบบตารางเพื่อให้คะแนนว่า “มีแนวโน้มเกิดการซื้อที่ตรงเงื่อนไขของตัวเลือกนี้ในหนึ่งบิลหรือไม่” ไม่ใช่ ChatGPT และไม่สร้างข้อความเควสเอง Source ไม่มี actual quest outcomes จึงไม่อ้างโอกาสสำเร็จหลังได้รับเควสจริง
 
-ตัวอย่างสมมติ: ผู้ใช้ซื้อเฉลี่ย 85 บาท ระบบมีเควสต์ซื้อครบ 100 และ 120 บาท โมเดลคืนโอกาสสำเร็จของแต่ละตัวเลือก NestJS เลือกตาม policy ที่อนุมัติ คะแนนสูงสุดไม่จำเป็นต้องถูกเลือกเสมอไป
+ตัวอย่างสมมติ: ผู้ใช้ซื้อเฉลี่ย 100 หน่วยเงิน ระบบทดลองตัวเลือกเป้า 1.0 และ 1.5 เท่าของ average แล้วคืน purchase-match scores; NestJS เลือกตาม policy ไม่จำเป็นต้องเลือกคะแนนสูงสุด
 
 NestJS สร้างตัวเลือกจากแม่แบบ คำนวณ features เรียก AI ตรวจผล เลือก มอบหมาย และบันทึก log ส่วนการตรวจสำเร็จและออกแต้มเป็นกฎ deterministic ใน NestJS เท่านั้น
 
@@ -39,23 +39,23 @@ NestJS สร้างตัวเลือกจากแม่แบบ คำ
 
 ## 2. คำที่ต้องรู้ก่อนเริ่ม
 
-| คำ                     | ความหมายในโปรเจกต์                                               |
-| ---------------------- | ---------------------------------------------------------------- |
-| Dataset                | ตารางตัวอย่างที่ใช้ฝึก หนึ่งแถวต่อการมอบหมายเควสต์               |
-| Feature                | ข้อมูลที่โมเดลใช้ เช่น จำนวนซื้อใน 30 วัน ยอดเฉลี่ย ประเภทเควสต์ |
-| Label                  | คำตอบของตัวอย่าง: สำเร็จ = 1; หมดอายุโดยไม่สำเร็จ = 0            |
-| Training               | ให้โมเดลเรียนรูปแบบจากตัวอย่างที่ทราบคำตอบแล้ว                   |
-| Prediction / inference | ใช้โมเดลที่ฝึกแล้วให้คะแนนข้อมูลใหม่                             |
-| Model artifact         | ไฟล์โมเดลที่ฝึกแล้ว เช่น `.cbm`                                  |
-| API                    | ช่องทางให้ NestJS ส่งข้อมูลไปหา Python และรับผลกลับ              |
-| Synthetic data         | ข้อมูลจำลองสำหรับทดสอบต้นแบบ ไม่ใช่พฤติกรรมจริง                  |
-| Data leakage           | ใช้ข้อมูลอนาคตที่ยังไม่มีตอนมอบหมาย ทำให้ผลทดสอบดูดีเกินจริง     |
-| Virtual environment    | โฟลเดอร์ Python และ dependencies แยกสำหรับงานนี้                 |
+| คำ                     | ความหมายในโปรเจกต์                                                        |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Dataset                | ตารางตัวอย่างฝึก หนึ่งแถวต่อผู้ซื้อ + cutoff + candidate ใน v2            |
+| Feature                | ข้อมูลที่โมเดลใช้ เช่น จำนวนซื้อใน 30 วัน ยอดเฉลี่ย ประเภทเควสต์          |
+| Label                  | v2 พบหนึ่งบิลตรงเงื่อนไข = 1; ไม่พบและช่วงครบ = 0; ช่วงไม่ครบไม่ให้ label |
+| Training               | ให้โมเดลเรียนรูปแบบจากตัวอย่างที่ทราบคำตอบแล้ว                            |
+| Prediction / inference | ใช้โมเดลที่ฝึกแล้วให้คะแนนข้อมูลใหม่                                      |
+| Model artifact         | ไฟล์โมเดลที่ฝึกแล้ว เช่น `.cbm`                                           |
+| API                    | ช่องทางให้ NestJS ส่งข้อมูลไปหา Python และรับผลกลับ                       |
+| Synthetic data         | ข้อมูลจำลองสำหรับทดสอบต้นแบบ ไม่ใช่พฤติกรรมจริง                           |
+| Data leakage           | ใช้ข้อมูลอนาคตที่ยังไม่มีตอนมอบหมาย ทำให้ผลทดสอบดูดีเกินจริง              |
+| Virtual environment    | โฟลเดอร์ Python และ dependencies แยกสำหรับงานนี้                          |
 
 ## 3. จุดเริ่มต้นที่ตรวจพบ
 
 - มี React/Vite, NestJS, PostgreSQL/Prisma และ pnpm workspace แล้ว
-- ก่อนเริ่มขั้นที่ 1 ยังไม่มี AI service; ปัจจุบันมีโฟลเดอร์และ environment แล้ว แต่ยังไม่มี dataset, training scripts หรือ model artifact
+- ก่อนเริ่มขั้นที่ 1 ยังไม่มี AI service; ปัจจุบันมี environment, legacy synthetic fixtures และ Complete Journey pilot แล้ว แต่ยังไม่มี training scripts หรือ model artifact
 - ตรวจฐานข้อมูลแบบอ่านอย่างเดียวในรอบวิเคราะห์ก่อนหน้า: Paid Orders 0, quests 1, assignments 1 สถานะ ACTIVE, recommendation logs 0
 - จึงยังไม่มี finalized labels สำหรับฝึกจากข้อมูลจริง และห้ามนับ ACTIVE เป็น failure
 - Schema และฐานข้อมูลมี `prediction_score`, `candidate_scores`, `selection_reason` แล้ว ไม่ต้องเพิ่มซ้ำ
@@ -135,7 +135,13 @@ Set-Location .\ai-service
 
 **ไฟล์ที่จะสร้าง/แก้:** `ai-service/requirements.txt`, `ai-service/README.md`, `.gitignore` สำหรับ venv/cache/private datasets; ไม่แก้ pnpm lockfile เพราะ Python แยก environment
 
-## 6. ขั้น 2 — ออกแบบตารางข้อมูลและ features
+## 6. ขั้น 2 — ออกแบบตารางข้อมูลและ features (v2 ปัจจุบัน)
+
+ผู้ใช้อนุมัติ Complete Journey, relative targets และ department หมวดกว้างแล้ว Contract ที่ใช้ต่ออยู่ [COMPLETE_JOURNEY_PREPARATION.md](ai/COMPLETE_JOURNEY_PREPARATION.md) มี 8 features และ label การซื้อที่ตรงเงื่อนไขในหนึ่งบิล นโยบายกลางอยู่ `ai-service/config/quest_template_policy_v2.json` (offline experiment; NestJS adapter ยังไม่ทำ)
+
+ใช้ 1.0/1.5 × average ทั้งบิล 30 วัน, duration 7 วัน Target IDs/ยอดเงินจริง/proof อยู่ metadata ไม่ใช่ predictors ไม่มี quest-history/reward effects ให้โมเดลเรียน Source dollars ไม่แปลงเป็นบาท; ratio ลดปัญหาหน่วยแต่ต้องตรวจ domain ก่อนใช้จริง
+
+### หลักฐาน legacy synthetic-v1 ที่เก็บไว้
 
 **เสร็จเฉพาะงานเอกสาร:** [DATASET_SCHEMA.md](ai/DATASET_SCHEMA.md) และ [FEATURE_DEFINITIONS.md](ai/FEATURE_DEFINITIONS.md) ตรวจเทียบกับ Prisma แล้ว ไม่มีการแก้ schema หรือเขียน Python
 
@@ -161,7 +167,15 @@ Identifiers เป็นข้อมูลติดตามหรือ groupin
 
 **ไฟล์:** `docs/ai/DATASET_SCHEMA.md`, `docs/ai/FEATURE_DEFINITIONS.md`, `ai-service/src/features.py`, `ai-service/tests/test_features.py`
 
-## 7. ขั้น 3 — เตรียมข้อมูลฝึก
+## 7. ขั้น 3 — เตรียมข้อมูลฝึก (v2 ปัจจุบัน)
+
+[prepare_complete_journey.py](../ai-service/prepare_complete_journey.py) อ่าน source เต็มที่ audit แล้ว สุ่ม 200 households จากประวัติก่อน cutoff แรก 4 cutoffs × 4 candidates สูงสุด 3,200 ก่อนกรอง ได้ **1,664 samples (label 1 = 163, label 0 = 1,501)** ครบ 4 ประเภทและทั้งสอง labels ในแต่ละประเภท เก็บใน [manifest ใหม่](../ai-service/data/complete_journey_pilot/manifest.json)
+
+Source quantity/category/department/total ผิดเงื่อนไข → reject ทั้ง basket และ censor หน้าต่างที่ได้รับผล ไม่สร้าง label 0 จากข้อมูลที่ไม่ครบ ภายหลังประเมิน coverage และ product positives ที่น้อยก่อนขยายประมาณ 80,000 possible samples
+
+ไฟล์ใหม่: CSV, feature schema, template policy, preview 8 samples, exclusion reasons และ provenance manifest ไม่ทำ DB import/migration/seed/model/API วันนี้
+
+### หลักฐาน legacy synthetic-v1 ที่เก็บไว้
 
 **เสร็จแล้วสำหรับ offline:** [prepare_data.py](../ai-service/prepare_data.py), [คู่มือรัน](../ai-service/README.md), [training CSV](../ai-service/data/training_data.csv) และ [manifest](../ai-service/data/manifest.json)
 
@@ -173,7 +187,7 @@ Identifiers เป็นข้อมูลติดตามหรือ groupin
 
 ข้อมูลจำลองใช้เรียนรู้ pipeline เท่านั้น ต้องมี provenance, seed และคำอธิบายสมมติฐาน ผล metrics ต้องติดป้าย synthetic ไม่อ้างความแม่นยำจริง
 
-ขอบเขตปัจจุบันไม่มีข้อมูลจริงและไม่เพิ่ม real-data extraction; ใช้ข้อมูลจำลองตาม schema/features ที่ออกแบบ และข้อมูล ACTIVE/PENDING ไม่นำไปติด label 0 ใช้ category-discount allocation และ expiry boundary ที่ยืนยันแล้วใน REQUIREMENTS โดยยังไม่ถือว่า generator ถูก implement แล้ว
+ขอบเขต legacy นี้ใช้ข้อมูลจำลองตาม synthetic-v1; generator และ tests ทำแล้ว แยกจาก external-purchase pipeline v2 ข้อมูล ACTIVE/PENDING ไม่เป็น failure; actual completion ภายหลังยังยึด REQUIREMENTS
 
 **ผ่านเมื่อ:** dataset validation ผ่าน มีทั้งสอง labels และไม่มี features จากอนาคต/PII
 
@@ -182,6 +196,8 @@ Identifiers เป็นข้อมูลติดตามหรือ groupin
 ## 8. ขั้น 4 — ฝึกโมเดลและบันทึก artifact
 
 เรียงงาน: อ่าน dataset → ตรวจ schema → แยก categorical/numerical → แบ่ง train/validation/test ตามเวลา → ฝึก baseline → ฝึก CatBoost → save model และ metadata
+
+ยังไม่ทำวันนี้ v2 ต้องใช้ ordered 8 features กับ purchase-match label ไม่ป้อน metadata และไม่สวมชื่อ actual completion เก็บ same-cutoff candidates ในกลุ่มเดียวกันและ purge train outcome windows ที่ทับ cutoff ของ validation/test ไม่ random split แถวที่ใช้ประวัติร่วมกัน
 
 Training ใช้ข้อมูลฝึก ส่วน validation ใช้ตัดสินใจปรับโมเดล และ test เก็บไว้ตรวจสุดท้าย ไม่ปรับโมเดลจาก test ไปเรื่อย ๆ
 

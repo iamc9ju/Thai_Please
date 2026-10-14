@@ -1,0 +1,230 @@
+{
+  "source_commit": "5b5d06192b9856edd04e4d405787af2f2e4a1fef",
+  "reader": {
+    "pyreadr": "0.5.7",
+    "pandas": "3.0.1",
+    "timezone": "UTC"
+  },
+  "files": {
+    "transactions.rds": {
+      "bytes": 12775661,
+      "sha256": "1fa0700033f1e5d9bb6b09e2be063d8d68474d346e95c50f2833e09d083e0007"
+    },
+    "products.rda": {
+      "bytes": 869019,
+      "sha256": "a80c6df33623b4af296ae9f317a6647e369db7e8ce7e7baed0e1bf44b9d979e5"
+    },
+    "DESCRIPTION": {
+      "bytes": 993,
+      "sha256": "99cd6f9e8391b50b26f4d07d0ae81f1cfae32fe875a79c0d5425e68df3855073"
+    },
+    "prep-data.R": {
+      "bytes": 16562,
+      "sha256": "24f8ba51619fa50754c5aa1c9aa23ef733a2d79c0ce97d0f6e3032bcfe73224e"
+    }
+  },
+  "transactions": {
+    "rows": 1469307,
+    "columns": [
+      "household_id",
+      "store_id",
+      "basket_id",
+      "product_id",
+      "quantity",
+      "sales_value",
+      "retail_disc",
+      "coupon_disc",
+      "coupon_match_disc",
+      "week",
+      "transaction_timestamp"
+    ],
+    "households": 2469,
+    "stores": 457,
+    "products": 68509,
+    "missing": {
+      "household_id": 0,
+      "store_id": 0,
+      "basket_id": 0,
+      "product_id": 0,
+      "quantity": 0,
+      "sales_value": 0,
+      "retail_disc": 0,
+      "coupon_disc": 0,
+      "coupon_match_disc": 0,
+      "week": 0,
+      "transaction_timestamp": 0
+    },
+    "exact_duplicate_rows": 0,
+    "duplicate_basket_product_rows": 0,
+    "quantity_nonpositive": 8869,
+    "quantity_fractional": 0,
+    "min_utc": "2017-01-01T11:53:26+00:00",
+    "max_utc": "2018-01-01T04:01:20+00:00",
+    "local_dates_observed": 364,
+    "money": {
+      "sales_value": {
+        "negative_rows": 0,
+        "zero_rows": 11246,
+        "positive_rows": 1458061,
+        "sum_cents": 459603958,
+        "max_cents": 84000,
+        "max_binary_source_deviation_cents": "1.77635700E-13"
+      },
+      "retail_disc": {
+        "negative_rows": 0,
+        "zero_rows": 732946,
+        "positive_rows": 736361,
+        "sum_cents": 79165064,
+        "max_cents": 13002,
+        "max_binary_source_deviation_cents": "1.3322700E-13"
+      },
+      "coupon_disc": {
+        "negative_rows": 0,
+        "zero_rows": 1447418,
+        "positive_rows": 21889,
+        "sum_cents": 2635990,
+        "max_cents": 5593,
+        "max_binary_source_deviation_cents": "0.0"
+      },
+      "coupon_match_disc": {
+        "negative_rows": 0,
+        "zero_rows": 1459007,
+        "positive_rows": 10300,
+        "sum_cents": 454265,
+        "max_cents": 770,
+        "max_binary_source_deviation_cents": "0.0"
+      }
+    }
+  },
+  "baskets": {
+    "count": 155848,
+    "inconsistent": {
+      "household_id": 0,
+      "store_id": 0,
+      "transaction_timestamp": 0
+    },
+    "zero_source_sales": 478,
+    "source_sales_cents_quantiles": {
+      "0": 0.0,
+      "0.25": 711.0,
+      "0.5": 1750.0,
+      "0.75": 3677.0,
+      "0.95": 10222.299999999988,
+      "1": 96149.0
+    }
+  },
+  "household_history": {
+    "baskets_quantiles": {
+      "0": 1.0,
+      "0.25": 20.0,
+      "0.5": 43.0,
+      "0.75": 83.0,
+      "1": 780.0
+    },
+    "households_at_least_5_baskets": 2349,
+    "households_at_least_10_baskets": 2186,
+    "households_span_at_least_30_days": 2416,
+    "households_span_at_least_90_days": 2389
+  },
+  "product_metadata": {
+    "rows": 92331,
+    "columns": [
+      "product_id",
+      "manufacturer_id",
+      "department",
+      "brand",
+      "product_category",
+      "product_type",
+      "package_size"
+    ],
+    "missing": {
+      "product_id": 0,
+      "manufacturer_id": 0,
+      "department": 0,
+      "brand": 0,
+      "product_category": 540,
+      "product_type": 528,
+      "package_size": 30586
+    },
+    "departments": 32,
+    "categories": 303,
+    "types": 2378,
+    "transaction_products_missing_metadata": 17,
+    "transaction_rows_missing_metadata": 4836,
+    "transaction_rows_missing_category": 7045,
+    "positive_sales_rows_missing_category": 2190,
+    "department_line_counts": {
+      "GROCERY": 928997,
+      "DRUG GM": 156171,
+      "PRODUCE": 147651,
+      "MEAT-PCKGD": 63041,
+      "MEAT": 49822,
+      "DELI": 35478,
+      "PASTRY": 21719,
+      "NUTRITION": 18595,
+      "FUEL": 12997,
+      "SEAFOOD-PCKGD": 6428,
+      "SALAD BAR": 5559,
+      "MISCELLANEOUS": 4871,
+      "nan": 4836,
+      "COSMETICS": 4470,
+      "FLORAL": 2590,
+      "SEAFOOD": 2339,
+      "SPIRITS": 1194,
+      "CHEF SHOPPE": 600,
+      "GARDEN CENTER": 484,
+      "TRAVEL & LEISURE": 475,
+      "COUPON": 411,
+      "RESTAURANT": 316,
+      "FROZEN GROCERY": 144,
+      "GM MERCH EXP": 39,
+      "AUTOMOTIVE": 37,
+      "PHOTO & VIDEO": 17,
+      "CNTRL/STORE SUP": 15,
+      "POSTAL CENTER": 5,
+      "PROD-WHS SALES": 3,
+      "TOYS": 2,
+      "ELECT &PLUMBING": 1
+    }
+  },
+  "example_basket": {
+    "utc_timestamp": "2017-01-01T13:47:20+00:00",
+    "line_count": 6,
+    "source_sales_cents": 1092,
+    "category_sales_cents": {
+      "BAG SNACKS": 376,
+      "CHEESE": 200,
+      "HISPANIC": 150,
+      "ONIONS": 66,
+      "SOFT DRINKS": 300
+    }
+  },
+  "window_demo": {
+    "cutoff_utc": "2017-07-01T00:00:00+00:00",
+    "windows": {
+      "7": {
+        "basket_count": 3042,
+        "households_with_purchases": 1314,
+        "households_without_purchases": 1155,
+        "median_baskets_all_households": 1.0,
+        "median_baskets_purchasing_households": 2.0
+      },
+      "30": {
+        "basket_count": 13015,
+        "households_with_purchases": 2027,
+        "households_without_purchases": 442,
+        "median_baskets_all_households": 3.0,
+        "median_baskets_purchasing_households": 4.0
+      }
+    }
+  },
+  "checks": [
+    "unique_product_metadata_ids",
+    "all_money_finite_cent_precision_with_documented_binary_noise",
+    "basket_line_count_reconciles",
+    "basket_sales_reconciles",
+    "product_join_partition_reconciles",
+    "7d_subset_30d",
+    "example_category_totals_reconcile"
+  ]
+}

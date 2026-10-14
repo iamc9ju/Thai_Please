@@ -19,3 +19,6 @@ test-results/
 ai-service/.venv/
 ai-service/**/__pycache__/
 ai-service/.pytest_cache/
+
+# External audit downloads are retained locally; provenance/aggregate findings live in docs.
+ai-service/external/

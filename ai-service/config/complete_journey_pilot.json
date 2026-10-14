@@ -1,0 +1,25 @@
+{
+  "dataset_version": "complete-journey-proxy-pilot-v1",
+  "seed": 20261015,
+  "households": 200,
+  "cutoffs_utc": [
+    "2017-03-01T00:00:00Z",
+    "2017-04-01T00:00:00Z",
+    "2017-05-01T00:00:00Z",
+    "2017-06-01T00:00:00Z"
+  ],
+  "currency": "USD",
+  "currency_scale": 2,
+  "amount_basis": "SOURCE_SALES_VALUE",
+  "category_level": "department",
+  "observation_start_utc": "2017-01-01T05:00:00Z",
+  "observation_end_utc": "2018-01-01T05:00:00Z",
+  "known_gaps_utc": [["2017-12-25T05:00:00Z", "2017-12-26T05:00:00Z"]],
+  "excluded_departments": ["FUEL", "COUPON", "MISCELLANEOUS"],
+  "money_noise_tolerance_cents": "0.00000001",
+  "source_commit": "5b5d06192b9856edd04e4d405787af2f2e4a1fef",
+  "source_sha256": {
+    "transactions.rds": "1fa0700033f1e5d9bb6b09e2be063d8d68474d346e95c50f2833e09d083e0007",
+    "products.rda": "a80c6df33623b4af296ae9f317a6647e369db7e8ce7e7baed0e1bf44b9d979e5"
+  }
+}

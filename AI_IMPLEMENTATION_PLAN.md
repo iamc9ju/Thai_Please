@@ -2,6 +2,8 @@
 
 ## Execution roadmap and progress
 
+**Current status (2026-10-15):** Steps 2–3 have been adapted to the approved Complete Journey pilot: relative targets, broad department categories, eight features and retrospective single-basket labels. The reviewed pilot contains 1,664 rows (163 matches, 1,501 nonmatches), after exclusions from 3,200 possible rows. All four types have both classes. Today explicitly stops before Step 4; no model is trained. The following synthetic-v1 history is retained as legacy evidence.
+
 The [Thai beginner execution roadmap](docs/AI_BEGINNER_ROADMAP_TH.md) is part of this implementation plan. It expands the five implementation phases into tooling preparation and nine practical steps, without adding AI features.
 
 Tooling preparation (roadmap Step 1) is complete: the user created `ai-service/.venv` with Python 3.14.3, installed the libraries, passed `pip check` and library import checks, and saved pinned versions in `ai-service/requirements.txt`. Evidence is recorded in the roadmap. Clean-environment reinstall has not been tested.
@@ -10,7 +12,7 @@ Roadmap Step 2 is complete for documentation: [dataset schema](docs/ai/DATASET_S
 
 Roadmap Step 3 is complete for offline synthetic preparation: [prepare_data.py](ai-service/prepare_data.py), validated raw history, point-in-time features and deterministic single-order labels. The reviewed demo contains 60 synthetic users, 2,228 paid orders, 540 assignments and 496 training rows (171 completed, 325 expired); 44 active assignments are excluded. All four quest types are represented. Tests passed: 25. Re-generation and raw JSON revalidation reproduce identical output bytes/hashes. See the [AI README](ai-service/README.md) and [manifest](ai-service/data/manifest.json).
 
-Next: roadmap Step 4, CatBoost training. No model, prediction API, DB seeding, reward issuance or NestJS integration has been implemented. The generated facts are analytical fixtures; a later development DB adapter must create consistent ledgers, not directly insert balances. Category allocation and exclusive expiry follow REQUIREMENTS. Synthetic results do not establish real predictive performance.
+On 2026-10-15 the user authorized adapting Steps 2–3 to Complete Journey, relative spending targets and a pilot first, explicitly stopping before Step 4. The synthetic-v1 results above remain a separate legacy fixture, not the active external training contract. See [current dataset/feature contract](docs/ai/COMPLETE_JOURNEY_PREPARATION.md) and [shared template policy](ai-service/config/quest_template_policy_v2.json). The source adapter and pilot preparation are complete for offline use. No model, prediction API, DB seeding, reward issuance or NestJS integration has been implemented.
 
 ## 1. Project Overview
 
@@ -20,7 +22,7 @@ The project is a prototype local-commerce platform with a consumer application, 
 
 This document covers **only the AI-powered Personalized Quest Recommendation system**.
 
-The purpose of AI is to predict the probability that a specific user will successfully complete a candidate quest. The backend uses these predictions to automatically select and assign personalized quests that encourage user engagement and potentially increase spending.
+The current prototype learns the likelihood of an observed purchase matching a hypothetical candidate's conditions in one basket during its validity window. NestJS uses candidate scores and policy to select and automatically assign personalized quests. Complete Journey contains no actual quest exposure/outcomes: this score is not a proven probability of responding to an assigned quest, and does not estimate reward-induced spending uplift.
 
 **Important: The AI does not generate new quest descriptions or evaluate quest completion.**
 
@@ -42,7 +44,7 @@ The AI service must remain separate from the NestJS backend.
 The AI service is responsible for:
 
 1. Receiving user behavior features and predefined candidate quests from the backend.
-2. Predicting the probability of successful completion for each user–quest pair.
+2. Scoring observed-purchase matching for each user–candidate pair using the versioned proxy target.
 3. Returning prediction scores to the backend.
 4. Supporting offline model training, evaluation, and versioning.
 
@@ -81,11 +83,13 @@ Each quest may contain:
 - `reward_point`
 - `duration_days`
 
-The backend must ensure that generated candidate quests are valid and applicable to the user.
+The backend must ensure that generated candidate quests are valid and applicable to the user. Training candidate generation and later NestJS generation must implement the same versioned template mechanics. The current policy is an offline experiment: spending targets are 1.0 or 1.5 times the prior 30-day whole-basket average, rounded upward to a minor unit; product quests are product-only. Rewards, live catalog eligibility and budget are backend policy and remain integration decisions. The model does not learn a reward effect from this source.
 
 ## 5. Data Sources
 
-Relevant PostgreSQL tables:
+Offline preparation uses the pinned Complete Journey transactions/products files; source households/stores are not platform accounts/merchants. Raw source-sales dollars are not converted to THB and are not asserted to equal platform post-discount final amounts. Target IDs and raw amounts stay in metadata; only normalized model inputs are transferable in principle, subject to domain validation. No external-history DB import is required for training.
+
+Relevant PostgreSQL tables for later live inference and deterministic completion:
 
 | Table                   | Purpose                                     |
 | ----------------------- | ------------------------------------------- |
@@ -117,57 +121,46 @@ The latest planned `quest_generation_logs` fields include:
 
 This is a **binary classification problem**.
 
-Each training example represents one user–quest assignment.
+Each current training example represents one household + UTC cutoff + hypothetical candidate. Features use only information before cutoff. Candidate target selection uses a pre-cutoff catalog and a deterministic seed.
 
 Target:
 
-- `1`: The assigned quest was successfully completed.
-- `0`: The assigned quest expired without completion.
+- `1`: At least one owned observed basket matches the candidate in `[cutoff, expires_at)`.
+- `0`: No such basket exists and the full label window is observable.
+- Incomplete/censored windows have no label and are excluded, including source gaps and rejected baskets in the window.
 
-Only use assignments with known, finalized outcomes for supervised training.
+Use the source-sales basis only for the documented offline proxy. Production completion still requires an actual PAID order after discounts, preserving subsidy and reward rules. Never sum multiple baskets to meet a threshold.
 
-Do not label active or pending quests as failures.
+If real assigned-quest data is used in a future dataset version, only finalized outcomes qualify; active/pending assignments are not failures. Do not mix those outcomes with proxy candidates silently.
 
 The model should estimate:
 
-`P(quest_completed = 1 | user_features, quest_features, historical_behavior)`
+`P(observed_single_basket_match = 1 | prior_purchase_features, candidate_conditions)`
 
 The model output must be a probability between 0 and 1.
 
 ## 7. Feature Engineering
 
-Suggested initial features:
+Current ordered feature schema: `purchase-match-features-v2`, documented in [Complete Journey preparation](docs/ai/COMPLETE_JOURNEY_PREPARATION.md).
 
 **User behavior features**
 
 - Number of completed purchases in the past 7 days.
 - Number of completed purchases in the past 30 days.
-- Average order value over the past 30 days.
-- Total spending over the past 30 days.
-- Number of purchases in each relevant product category.
+- Number of distinct purchases in the candidate product category over 30 days.
 - Historical purchases from the candidate merchant.
 - Historical purchases of the candidate product.
 
-**Quest history features**
-
-- Number of previously assigned quests.
-- Number of successfully completed quests.
-- Number of expired quests.
-- Historical quest completion rate.
-- Completion rate for similar quest types.
+The five legacy quest-history features are absent from this model version because source quest exposure/outcomes are absent. NestJS must still use real quest history for eligibility and duplication policy. Historical average spending is calculated to derive a threshold and ratio, but raw currency amounts are metadata, not model inputs.
 
 **Candidate quest features**
 
 - Quest type.
-- Required spending threshold.
-- Reward points.
+- Required spending divided by the prior 30-day whole-basket average (null for product-only).
 - Quest duration.
-- Target category.
-- Target merchant.
-- Target product.
-- Difference between required spending and the user's historical average order value.
+  Target category/store/product identity and reward remain candidate metadata/backend policy, not predictors. Source catalog identifiers do not transfer to the live catalog. There are eight ordered features, not the old synthetic-v1 twenty.
 
-All features must be calculated using information available **at the time of quest assignment**.
+All purchase features must use information available **strictly before the feature cutoff**; candidate conditions must be set before inspecting the label window.
 
 Avoid data leakage from future purchases or quest outcomes.
 
@@ -175,19 +168,18 @@ Do not use citizen ID, full name, or phone number as predictive features.
 
 ## 8. Training Dataset
 
-The dataset should contain one row per historical user–quest assignment.
+The active dataset contains one row per household/cutoff/candidate, with eight features, a binary proxy label and audit metadata. Preserve and isolate the old 496-row synthetic assignment dataset; never merge targets by merely renaming columns.
 
 Example:
 
-| user_id | avg_order_value | purchases_30d | quest_type     | min_spend | reward_point | duration_days | completed |
-| ------- | --------------: | ------------: | -------------- | --------: | -----------: | ------------: | --------: |
-| 101     |              85 |            12 | MIN_SPEND      |       100 |           50 |             7 |         1 |
-| 102     |              60 |             5 | CATEGORY_SPEND |       200 |           80 |             7 |         0 |
-| 103     |             140 |            15 | MERCHANT_SPEND |       150 |           60 |             5 |         1 |
+| household | cutoff | purchases_30d | quest_type | min_spend_ratio | duration_days | label |
+| --------- | ------ | ------------: | ---------- | --------------: | ------------: | ----: |
+| A         | t      |             2 | MIN_SPEND  |        1.000000 |             7 |     1 |
+| A         | t      |             2 | MIN_SPEND  |        1.500000 |             7 |     0 |
 
 These rows are illustrative, not actual project data.
 
-If insufficient historical data exists, use clearly documented **synthetic training data** for the prototype.
+The pilot selects up to 200 households × four cutoffs × four candidate types = 3,200 possible samples before conservative cleaning/censoring. Larger preparation (approximately 80,000 possible rows) is later work after reviewing pilot coverage; sample counts do not guarantee model quality.
 
 Synthetic data must be labeled as synthetic in documentation and evaluation reports. Results from synthetic data must not be presented as real-world model performance.
 
@@ -198,7 +190,7 @@ Implement an offline training pipeline that:
 1. Loads and validates the dataset.
 2. Handles missing values.
 3. Separates categorical and numerical features.
-4. Splits training and evaluation data, preferably chronologically.
+4. Splits chronologically, keeping same-cutoff candidate groups together and purging any train label window that overlaps an evaluation cutoff. Fit preprocessing on training only. Repeated household/candidate rows are not independent.
 5. Trains a CatBoost Classifier.
 6. Evaluates predictive performance.
 7. Saves the trained model and feature schema.
@@ -213,7 +205,7 @@ Suggested evaluation metrics:
 - Log Loss
 - Probability calibration / Brier Score
 
-Use a simple baseline for comparison.
+Use a simple purchase-frequency/target-history baseline for comparison. Evaluate each type and both labels; any future calibration measures purchase-match probabilities, not actual quest-completion response.
 
 Do not claim that the model improves spending or engagement without evidence from an appropriate evaluation.
 
@@ -229,22 +221,21 @@ Example request:
 {
   "user_id": 101,
   "user_features": {
-    "avg_order_value_30d": 85,
-    "purchases_30d": 12,
-    "quest_completion_rate": 0.6
+    "purchases_7d": 3,
+    "purchases_30d": 12
   },
   "candidate_quests": [
     {
       "quest_id": 501,
       "quest_type": "MIN_SPEND",
-      "min_spend": 100,
+      "min_spend_ratio": "1.000000",
       "reward_point": 50,
       "duration_days": 7
     },
     {
       "quest_id": 502,
       "quest_type": "MIN_SPEND",
-      "min_spend": 120,
+      "min_spend_ratio": "1.500000",
       "reward_point": 60,
       "duration_days": 7
     }
@@ -260,11 +251,11 @@ Example response:
   "predictions": [
     {
       "quest_id": 501,
-      "completion_probability": 0.82
+      "purchase_match_probability": 0.82
     },
     {
       "quest_id": 502,
-      "completion_probability": 0.71
+      "purchase_match_probability": 0.71
     }
   ]
 }
@@ -272,7 +263,7 @@ Example response:
 
 The example scores are hypothetical.
 
-The final request schema must include all features required by the trained model, even if omitted from this simplified example.
+This is a future API design only: Step 6 has not started. The final request must produce exactly the eight ordered features for every candidate, including candidate-specific target counts (omitted in this simplified example), and include feature/policy versions. Rewards are transported for backend policy, not fed into the model.
 
 Use Pydantic for request and response validation.
 
@@ -284,7 +275,7 @@ NestJS should perform the following workflow:
 2. Calculate the required user behavior features.
 3. Generate valid candidate quests from predefined templates.
 4. Send the candidate quests and user features to the AI service.
-5. Receive predicted completion probabilities.
+5. Receive versioned purchase-match scores.
 6. Select a quest using a backend selection policy.
 7. Create or reuse the appropriate quest definition.
 8. Assign the selected quest through `user_quests`.
@@ -292,15 +283,15 @@ NestJS should perform the following workflow:
 
 The backend selection policy should consider:
 
-- Predicted completion probability.
-- Potential spending uplift compared with the user's historical behavior.
+- Purchase-match score.
+- Candidate difficulty relative to historical spending; this is not a causal spending-uplift estimate.
 - Quest eligibility.
 - Avoidance of inappropriate or duplicate assignments.
 - Reasonable reward and difficulty levels.
 
 **Do not always select the candidate with the highest predicted probability.**
 
-For example, a quest requiring 120 THB may be preferable to one requiring 100 THB if the user normally spends 85 THB and the higher target still has a reasonable probability of completion.
+The selection policy may trade off normalized difficulty, relevance and reward cost; the largest purchase-match score need not win. Ratio mechanics must match training, and the live target must refer to an eligible actual platform entity. Missing positive purchase history prevents relative spend targets; cold-start behavior needs an explicit integration decision.
 
 The exact selection formula and thresholds must be configurable and should not be invented as fixed business requirements.
 
@@ -411,4 +402,4 @@ Test the full process from user purchase history through recommendation, assignm
 8. Recommendation logs stored in PostgreSQL.
 9. Documentation explaining how to train, evaluate, run, and update the model.
 
-**Primary goal:** Deliver a functional, testable prototype of personalized quest recommendation based on predicted completion probability, with quest selection and business rules controlled by the NestJS backend.
+**Primary goal:** Deliver a functional, testable prototype of template quest recommendation using documented observed-purchase-match scores, with assignment, eligibility, actual completion and financial/reward rules controlled by NestJS. Today stops at a verified Step 3 pilot; Step 4 training is explicitly excluded.

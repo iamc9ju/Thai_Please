@@ -1,0 +1,19 @@
+{
+  "schema_version": "quest-template-policy-v2",
+  "policy_version": "relative-spend-pilot-v1",
+  "scope": "OFFLINE_EXPERIMENT",
+  "quest_types": [
+    "MIN_SPEND",
+    "CATEGORY_SPEND",
+    "PRODUCT_PURCHASE",
+    "MERCHANT_SPEND"
+  ],
+  "spend_multipliers": ["1.0", "1.5"],
+  "duration_days": [7],
+  "history_days": 30,
+  "short_history_days": 7,
+  "feature_decimal_places": 6,
+  "target_history_selection_percent": 50,
+  "product_requires_spend": false,
+  "threshold_rounding": "CEILING_MINOR_UNIT"
+}

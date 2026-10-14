@@ -1,4 +1,6 @@
-# โครงสร้างข้อมูลฝึก AI — Synthetic Dataset v1
+# โครงสร้างข้อมูลฝึก AI — Synthetic Dataset v1 (legacy fixture)
+
+**ชุดที่ใช้ต่อหลังการตัดสินใจ 15 ต.ค. 2026:** [Complete Journey preparation v2](COMPLETE_JOURNEY_PREPARATION.md) ใช้ 8 features กับ observed purchase-match label และ relative targets เอกสารด้านล่างคงนิยาม 20 features ของ synthetic-v1 เพื่อให้ fixtures/tests เดิมตรวจย้อนกลับได้ ไม่ใช่ schema ที่ใช้ฝึกชุดใหม่
 
 สถานะ: ออกแบบขั้นที่ 2 และ implement offline synthetic preparation ในขั้นที่ 3 แล้ว ดู [คู่มือ](../../ai-service/README.md) และ [manifest](../../ai-service/data/manifest.json) ยังไม่ได้ seed DB หรือ train
 

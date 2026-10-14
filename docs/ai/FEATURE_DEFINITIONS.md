@@ -1,4 +1,6 @@
-# สูตร Features — Synthetic Quest Recommendation v1
+# สูตร Features — Synthetic Quest Recommendation v1 (legacy fixture)
+
+**สูตรปัจจุบันสำหรับ Complete Journey:** [Complete Journey preparation v2](COMPLETE_JOURNEY_PREPARATION.md) กำหนด 8 features, relative thresholds และ proxy labels เอกสารด้านล่างเป็น contract ของ synthetic-v1 เดิม ไม่ลบหรือแก้ผลจำลองย้อนหลัง
 
 สถานะ: สูตรออกแบบในขั้นที่ 2; implement offline ใน [features.py](../../ai-service/src/features.py) และ [quest_rules.py](../../ai-service/src/quest_rules.py) แล้ว มี tests ขั้นที่ 3 ไม่ใช่ production NestJS implementation
 

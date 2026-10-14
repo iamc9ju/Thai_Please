@@ -1,0 +1,33 @@
+{
+  "label_column": "label",
+  "label_version": "observed-single-basket-match-v1",
+  "metadata_columns": [
+    "sample_key",
+    "household_key",
+    "feature_as_of",
+    "expires_at",
+    "target_category_key",
+    "target_store_key",
+    "target_product_key",
+    "configured_multiplier",
+    "min_spend_minor",
+    "history_sales_minor",
+    "history_baskets",
+    "currency",
+    "amount_basis",
+    "policy_version",
+    "matching_basket_key"
+  ],
+  "ordered_features": [
+    "purchases_7d",
+    "purchases_30d",
+    "target_category_purchases_30d",
+    "target_merchant_purchases_30d",
+    "target_product_purchases_30d",
+    "quest_type",
+    "min_spend_ratio",
+    "duration_days"
+  ],
+  "score_type": "purchase_match_probability",
+  "version": "purchase-match-features-v2"
+}
