@@ -1,0 +1,67 @@
+{
+  "seed": 20261014,
+  "currency": "THB",
+  "currency_scale": 2,
+  "start_at": "2026-01-01T00:00:00Z",
+  "history_days": 118,
+  "users": 60,
+  "assignments_per_user": 9,
+  "first_assignment_day": 35,
+  "assignment_interval_days": 10,
+  "duration_days": 7,
+  "outcome_delay_seconds": 60,
+  "purchase_chance_percent": [0, 10, 25, 50, 75],
+  "quantities": [1, 2, 3],
+  "discount_percent": [0, 10, 20],
+  "subsidy_percent": [0, 50],
+  "min_spend_minor": [10000, 20000, 30000, 40000],
+  "reward_points": [30, 50, 70],
+  "catalog": {
+    "merchants": [
+      { "merchant_key": "demo-merchant-food" },
+      { "merchant_key": "demo-merchant-local" }
+    ],
+    "categories": [
+      { "category_key": "demo-food" },
+      { "category_key": "demo-household" }
+    ],
+    "products": [
+      {
+        "product_key": "demo-rice",
+        "merchant_key": "demo-merchant-food",
+        "category_key": "demo-food",
+        "unit_price_minor": 4000
+      },
+      {
+        "product_key": "demo-drink",
+        "merchant_key": "demo-merchant-food",
+        "category_key": "demo-food",
+        "unit_price_minor": 2500
+      },
+      {
+        "product_key": "demo-soap-food",
+        "merchant_key": "demo-merchant-food",
+        "category_key": "demo-household",
+        "unit_price_minor": 7500
+      },
+      {
+        "product_key": "demo-snack",
+        "merchant_key": "demo-merchant-local",
+        "category_key": "demo-food",
+        "unit_price_minor": 4000
+      },
+      {
+        "product_key": "demo-soap",
+        "merchant_key": "demo-merchant-local",
+        "category_key": "demo-household",
+        "unit_price_minor": 7500
+      },
+      {
+        "product_key": "demo-basket",
+        "merchant_key": "demo-merchant-local",
+        "category_key": "demo-household",
+        "unit_price_minor": 12000
+      }
+    ]
+  }
+}

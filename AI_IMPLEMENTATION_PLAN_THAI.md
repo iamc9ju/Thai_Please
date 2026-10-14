@@ -6,7 +6,11 @@
 
 **ขั้นที่ 1 เสร็จแล้ว:** ผู้ใช้สร้าง `ai-service/.venv` ด้วย Python 3.14.3 ติดตั้ง libraries ผ่าน `pip check` และ import checks พร้อมบันทึกเวอร์ชันใน `ai-service/requirements.txt` แล้ว หลักฐานอยู่ใน roadmap; ยังไม่ได้ทดสอบติดตั้งซ้ำใน environment ใหม่
 
-ขั้นถัดไปคือ **ขั้นที่ 2 ออกแบบข้อมูลและ features** ซึ่งเป็น Phase 1 ของแผนนี้ ส่วนการฝึกโมเดล API การเชื่อม NestJS completion/rewards และ E2E ยังไม่เริ่ม ข้อกำหนดธุรกิจที่ยังไม่ชัดเจนต้องยืนยันก่อนเริ่มงานที่ขึ้นอยู่กับข้อกำหนดนั้น
+**ขั้นที่ 2 เสร็จในขอบเขตเอกสารออกแบบ:** [Dataset schema](docs/ai/DATASET_SCHEMA.md) และ [สูตร features](docs/ai/FEATURE_DEFINITIONS.md) ผู้ใช้ยืนยันว่าเป็นโปรเจกต์ส่งอาจารย์ ใช้ผู้ใช้และประวัติจำลองทั้งหมด โดยสร้างข้อมูลต้นทางชุดเดียวสำหรับ CSV เทรนและสาธิตผ่านฐานข้อมูล development ภายหลัง จำนวนซื้อแยก 7/30 วัน ยอดซื้อและประวัติซื้อเป้าหมายใช้ 30 วัน ประวัติเควสต์ใช้ทั้งหมดก่อนมอบหมายและเฉพาะผลที่ทราบก่อน cutoff
+
+**ขั้นที่ 3 เสร็จแล้วสำหรับข้อมูลจำลอง offline:** มี [โปรแกรมเตรียมข้อมูล](ai-service/prepare_data.py), raw history, features ณ cutoff และ labels ตาม Paid Order เดียว ชุด demo มีผู้ใช้ 60 คน Paid Orders 2,228 รายการ Assignments 540 รายการ และ training rows 496 แถว (สำเร็จ 171, หมดอายุ 325) อีก 44 assignments ยัง ACTIVE จึงไม่เข้าข้อมูลฝึก ครบ 4 quest types และ tests ผ่าน 25 รายการ ตรวจสร้างซ้ำและอ่าน raw กลับแล้วได้ bytes/hashes เดิม ดู [คู่มือ](ai-service/README.md) และ [manifest](ai-service/data/manifest.json)
+
+ขั้นถัดไปคือ **ขั้นที่ 4 ฝึก CatBoost** ยังไม่มี trained model, API, DB seed, การออกแต้ม หรือ NestJS integration ข้อมูลต้นทางเป็น analytical fixtures; adapter สำหรับ development DB ภายหลังต้องสร้าง ledgers ให้ถูกต้องด้วย ข้อมูลทั้งหมดเป็น SYNTHETIC ไม่ใช่หลักฐานผลจริง
 
 ## 1. ภาพรวมโครงการ (Project Overview)
 

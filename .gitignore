@@ -14,3 +14,8 @@ coverage/
 apps/api/src/generated/
 playwright-report/
 test-results/
+
+# Local Python runtime/cache; keep reviewed synthetic fixtures and requirements.
+ai-service/.venv/
+ai-service/**/__pycache__/
+ai-service/.pytest_cache/

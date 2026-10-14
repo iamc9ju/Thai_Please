@@ -3,3 +3,5 @@ dist
 coverage
 pnpm-lock.yaml
 apps/api/src/generated
+# Deterministic machine-generated fixtures; format through the Python generator.
+ai-service/data/

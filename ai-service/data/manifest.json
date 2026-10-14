@@ -1,0 +1,77 @@
+{
+  "config_sha256": "08b64c1f949e0947224ab626fcf9b3e41480543e01413e78c1ee2774fd83d527",
+  "counts": {
+    "assignments": 540,
+    "excluded_active": 44,
+    "labels": {
+      "0": 325,
+      "1": 171
+    },
+    "paid_orders": 2228,
+    "quest_types": {
+      "CATEGORY_SPEND": 122,
+      "MERCHANT_SPEND": 123,
+      "MIN_SPEND": 123,
+      "PRODUCT_PURCHASE": 128
+    },
+    "training_rows": 496,
+    "users": 60
+  },
+  "currency": "THB",
+  "currency_scale": 2,
+  "data_origin": "SYNTHETIC",
+  "dataset_as_of": "2026-04-29T00:00:00+00:00",
+  "dataset_version": "synthetic-v1",
+  "feature_columns": [
+    "purchases_7d",
+    "purchases_30d",
+    "avg_order_value_30d",
+    "total_spend_30d",
+    "target_category_purchases_30d",
+    "target_merchant_purchases_30d",
+    "target_product_purchases_30d",
+    "quests_assigned_before",
+    "quests_completed_before",
+    "quests_expired_before",
+    "quest_completion_rate",
+    "same_type_completion_rate",
+    "quest_type",
+    "min_spend",
+    "reward_point",
+    "duration_days",
+    "target_category_id",
+    "target_merchant_id",
+    "target_product_id",
+    "spend_gap_vs_avg_30d"
+  ],
+  "feature_schema_version": "features-v1",
+  "files_sha256": {
+    "feature_snapshots.json": "b114a31542b36fe94b188150bb622760334bf1e6955ff44d01e359642d1f9e1b",
+    "raw_history.json": "4dec780a0ed4b6d14f0fa6f4fad0cb2411e1e2f0a41157943b1ecb42ab035cb3",
+    "training_data.csv": "b97bb6ed8ae8d8d506c0b5c00981ea8184390de70757e4161c8e346ec40c97e7"
+  },
+  "limitations": [
+    "SYNTHETIC academic fixture; not evidence of real predictive performance or spending uplift.",
+    "No model training, API, DB seed, wallet/point ledger, or production rule engine implemented.",
+    "Non-overlapping assignments avoid deciding simultaneous reward policy.",
+    "Offline/DB parity has not yet been tested."
+  ],
+  "metadata_columns": [
+    "assignment_key",
+    "user_key",
+    "quest_key",
+    "assigned_at",
+    "feature_as_of",
+    "expires_at",
+    "outcome_known_at",
+    "completed_order_key",
+    "completed",
+    "data_origin",
+    "dataset_version",
+    "feature_schema_version",
+    "rule_version",
+    "currency"
+  ],
+  "rule_version": "single-order-category-allocation-v1",
+  "seed": 20261014
+}

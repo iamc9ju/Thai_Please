@@ -1,6 +1,6 @@
 # แผนเริ่มระบบ AI Personalized Quest Recommendation สำหรับผู้เริ่มต้น
 
-สถานะ: ขั้นที่ 1 เตรียมเครื่องมือเสร็จแล้ว; ขั้นที่ 2–9 ยังไม่ได้เริ่มพัฒนา
+สถานะ: ขั้นที่ 1–3 เสร็จในขอบเขตเตรียมเครื่องมือ/ออกแบบ/ข้อมูลจำลอง offline; ขั้นที่ 4–9 ยังไม่เริ่ม
 
 วันที่: 14 ตุลาคม 2026
 
@@ -14,9 +14,9 @@
 | ---- | ------------------------------- | ---------------------------------------------------- |
 | 0    | เข้าใจขอบเขตและปิดข้อกำหนด      | ยืนยัน Order เดียวแล้ว; policy ที่เหลือยังรอตัดสินใจ |
 | 1    | เตรียมเครื่องมือและ environment | เสร็จแล้วตามผลตรวจที่ผู้ใช้ส่งมา                     |
-| 2    | ออกแบบข้อมูลและ features        | ยังไม่เริ่ม — ขั้นถัดไป                              |
-| 3    | เตรียมข้อมูลฝึก                 | ยังไม่เริ่ม                                          |
-| 4    | ฝึกโมเดล                        | ยังไม่เริ่ม                                          |
+| 2    | ออกแบบข้อมูลและ features        | เอกสารเสร็จแล้ว; โค้ดสูตรทำในขั้น 3                  |
+| 3    | เตรียมข้อมูลฝึก                 | เสร็จแล้ว: 496 แถวและ tests ผ่าน 25 รายการ           |
+| 4    | ฝึกโมเดล                        | ยังไม่เริ่ม — ขั้นถัดไป                              |
 | 5    | ประเมินโมเดล                    | ยังไม่เริ่ม                                          |
 | 6    | สร้าง FastAPI                   | ยังไม่เริ่ม                                          |
 | 7    | เชื่อม NestJS                   | ยังไม่เริ่ม                                          |
@@ -79,8 +79,8 @@ NestJS สร้างตัวเลือกจากแม่แบบ คำ
 - เวลา/ผู้มีสิทธิ์ trigger recommendation จำนวน active quests และวิธีกันซ้ำ
 - selection policy: ช่วง spend, reward, duration, budget และเกณฑ์เลือก ไม่มีตัวเลขธุรกิจที่กำหนดเอง
 - AI ไม่พร้อม: ไม่มอบหมาย หรือ fallback แม่แบบที่ผ่าน policy
-- การแบ่งส่วนลดให้ category และการที่ Order เดียวทำหลาย assignments สำเร็จ
-- expiry boundaries, อายุแต้ม, timezone และเวลาที่ใช้ตรวจ completion
+- การที่ Order เดียวทำหลาย assignments สำเร็จ (การแบ่งส่วนลด category ยืนยันแล้วตาม BR-QUEST-PRICING-01)
+- อายุแต้มและการประมวลผลล่าช้า; expiry boundary ยึด NFR-TIME-01 และใช้ paidAt ตรวจ completion
 - ความหมายของ generation/proposal/prompt fields ใน REQUIREMENTS เมื่อใช้ CatBoost scoring
 
 ## 5. ขั้น 1 — ติดตั้งเครื่องมือและ environment
@@ -137,6 +137,12 @@ Set-Location .\ai-service
 
 ## 6. ขั้น 2 — ออกแบบตารางข้อมูลและ features
 
+**เสร็จเฉพาะงานเอกสาร:** [DATASET_SCHEMA.md](ai/DATASET_SCHEMA.md) และ [FEATURE_DEFINITIONS.md](ai/FEATURE_DEFINITIONS.md) ตรวจเทียบกับ Prisma แล้ว ไม่มีการแก้ schema หรือเขียน Python
+
+ผู้ใช้ยืนยันให้ใช้ข้อมูลจำลองทั้งหมดสำหรับโปรเจกต์ส่งอาจารย์ และข้อมูลต้นทางชุดเดียวสำหรับเทรนกับสาธิตใน development DB ตัวนับซื้อใช้ 7/30 วันคนละคอลัมน์ ประวัติซื้อเป้าหมายใช้ 30 วัน ประวัติเควสต์ใช้ทั้งหมดก่อน cutoff
+
+สูตร missing values เป็น convention ทางเทคนิคใน feature v1; discount allocation ยืนยันตาม BR-QUEST-PRICING-01 และ expiry boundary ยึด NFR-TIME-01 แล้ว ขณะจบขั้น 2 มีเฉพาะเอกสาร; ขั้น 3 implement offline pipeline และ tests แล้วตามสถานะด้านบน
+
 ต้องทำก่อน train เพื่อให้รู้ว่าโมเดลกำลังเรียนรู้อะไร
 
 หนึ่งแถวแทน assignment ในอดีต ประกอบด้วย features ที่มีตอนมอบหมาย และ label ที่ทราบเมื่อผล finalized แล้ว
@@ -157,11 +163,17 @@ Identifiers เป็นข้อมูลติดตามหรือ groupin
 
 ## 7. ขั้น 3 — เตรียมข้อมูลฝึก
 
-เพราะยังไม่มีข้อมูลจริงพร้อมฝึก เสนอใช้ synthetic data หลังอนุมัติ โดยครอบคลุม quest types ทั้ง 4, ผู้ใช้ไม่มีประวัติ, missing targets ตามชนิด, success และ expired failure
+**เสร็จแล้วสำหรับ offline:** [prepare_data.py](../ai-service/prepare_data.py), [คู่มือรัน](../ai-service/README.md), [training CSV](../ai-service/data/training_data.csv) และ [manifest](../ai-service/data/manifest.json)
+
+ชุด demo: 60 users, 2,228 Paid Orders, 540 assignments; CSV 496 แถว (สำเร็จ 171, หมดอายุ 325), ACTIVE 44 ไม่นำไป label 0 ครบ 4 quest types มี cutoff snapshots, seed/versions/hashes และตรวจสร้างซ้ำได้ผลเดิม Tests ผ่าน 25 รายการ รวม leakage, validity, rounding, snapshots และ invalid raw data
+
+ยังไม่ได้ seed Database, ทดสอบ offline/DB parity, train หรือเปิด API และยังไม่ใช่ production completion engine
+
+ผู้ใช้อนุมัติแนวทาง synthetic data สำหรับโปรเจกต์ส่งอาจารย์แล้ว: สร้างประวัติจำนวนซื้อ/assignment/ผลตามกฎต้นทางชุดเดียวภายนอก DB แล้ว derive CSV และใช้ seed development DB ในขั้นหลัง โดยครอบคลุม quest types ทั้ง 4, ผู้ใช้ไม่มีประวัติ, missing targets ตามชนิด, success และ expired failure; ไม่สุ่ม labels ที่ขัดกับ Order history
 
 ข้อมูลจำลองใช้เรียนรู้ pipeline เท่านั้น ต้องมี provenance, seed และคำอธิบายสมมติฐาน ผล metrics ต้องติดป้าย synthetic ไม่อ้างความแม่นยำจริง
 
-เมื่อข้อมูลจริงพร้อม จึงเพิ่มการ extract แบบ read-only จากแหล่ง development/test ที่อนุมัติ ไม่ export production PII อัตโนมัติ ข้อมูล ACTIVE/PENDING ไม่นำไปติด label 0
+ขอบเขตปัจจุบันไม่มีข้อมูลจริงและไม่เพิ่ม real-data extraction; ใช้ข้อมูลจำลองตาม schema/features ที่ออกแบบ และข้อมูล ACTIVE/PENDING ไม่นำไปติด label 0 ใช้ category-discount allocation และ expiry boundary ที่ยืนยันแล้วใน REQUIREMENTS โดยยังไม่ถือว่า generator ถูก implement แล้ว
 
 **ผ่านเมื่อ:** dataset validation ผ่าน มีทั้งสอง labels และไม่มี features จากอนาคต/PII
 
@@ -247,7 +259,7 @@ Service AI ไม่ต้องเชื่อม Neon เพื่อ scoring;
 
 NestJS ตรวจ Paid Order เดียวของเจ้าของ assignment ในช่วง validity จาก snapshots: MIN_SPEND, CATEGORY_SPEND, PRODUCT_PURCHASE, MERCHANT_SPEND
 
-ใช้ final amount หลังส่วนลด ไม่ใช้ userPaidAmount ที่หักสัดส่วน subsidy แล้ว; category allocation ต้องตกลงก่อน implement
+ใช้ final amount หลังส่วนลด ไม่ใช้ userPaidAmount ที่หักสัดส่วน subsidy แล้ว; category allocation ยึด BR-QUEST-PRICING-01 ที่ยืนยันแล้ว
 
 Completion, point ledger และ cached point balance commit atomically พร้อม uniqueness ป้องกัน retry/concurrency กรณี expired ใช้ finalized label 0; pending ไม่ใช่ failure
 

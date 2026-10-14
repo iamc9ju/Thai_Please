@@ -6,7 +6,11 @@ The [Thai beginner execution roadmap](docs/AI_BEGINNER_ROADMAP_TH.md) is part of
 
 Tooling preparation (roadmap Step 1) is complete: the user created `ai-service/.venv` with Python 3.14.3, installed the libraries, passed `pip check` and library import checks, and saved pinned versions in `ai-service/requirements.txt`. Evidence is recorded in the roadmap. Clean-environment reinstall has not been tested.
 
-Next: roadmap Step 2, data and feature design (Phase 1 below). Model training, prediction API, NestJS integration, completion/rewards, and end-to-end testing remain pending. Unresolved business policies still require decisions before dependent implementation.
+Roadmap Step 2 is complete for documentation: [dataset schema](docs/ai/DATASET_SCHEMA.md) and [feature definitions](docs/ai/FEATURE_DEFINITIONS.md). The user confirmed this is an academic prototype using synthetic users and history, with one raw synthetic source for offline training and later development-database demonstrations. Purchase counts use separate 7-day and 30-day features; spend and target purchase history use 30 days; quest history uses all prior assignments and only outcomes known before the feature cutoff.
+
+Roadmap Step 3 is complete for offline synthetic preparation: [prepare_data.py](ai-service/prepare_data.py), validated raw history, point-in-time features and deterministic single-order labels. The reviewed demo contains 60 synthetic users, 2,228 paid orders, 540 assignments and 496 training rows (171 completed, 325 expired); 44 active assignments are excluded. All four quest types are represented. Tests passed: 25. Re-generation and raw JSON revalidation reproduce identical output bytes/hashes. See the [AI README](ai-service/README.md) and [manifest](ai-service/data/manifest.json).
+
+Next: roadmap Step 4, CatBoost training. No model, prediction API, DB seeding, reward issuance or NestJS integration has been implemented. The generated facts are analytical fixtures; a later development DB adapter must create consistent ledgers, not directly insert balances. Category allocation and exclusive expiry follow REQUIREMENTS. Synthetic results do not establish real predictive performance.
 
 ## 1. Project Overview
 
