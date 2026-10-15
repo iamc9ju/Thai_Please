@@ -69,8 +69,9 @@
 - [x] **FR-C01 — Consumer Overview — Complete**
   - API: authenticated consumer-only `GET /api/v1/wallet/overview`, scope ด้วย session user,
     aggregate wallet/program/quest/coupon และ bounded latest paid orders
-  - UI: `ConsumerDashboard` เรียก API จริง; แสดงชื่อและ Citizen ID แบบ mask, integer-baht
-    balances, daily subsidy, program, points, quests, coupons และ recent orders โดยไม่ fallback เป็น mock
+  - UI: `ConsumerDashboard` เรียก API จริง; แสดงชื่อและ Citizen ID แบบ mask, monetary balances
+    ที่รองรับทศนิยมไม่เกิน 2 ตำแหน่ง, daily subsidy, program, points, quests, coupons และ recent orders
+    โดยไม่ fallback เป็น mock
   - States: loading, success, empty collections, generic error/retry, permission denied และ
     accessible live feedback
   - Evidence: `apps/api/src/wallet/wallet.service.spec.ts`,
@@ -113,9 +114,20 @@
   - Residual NFR evidence: repository ยังไม่มี PostgreSQL wallet integration harness จึงยังไม่ถือว่า
     พิสูจน์ concurrent retry กับฐานข้อมูลจริง; ติดตามต่อภายใต้ `NFR-DATA-01`
 
-- [ ] **FR-C03 — Daily Subsidy Status — Partial**
-  - มี API/UI จริงบน Overview และ Wallet: balance, cap, used, remaining, percentage และ program
-  - Gap Test: ต้องเพิ่ม Bangkok boundary/database integration และ E2E ของข้อมูลรายวัน
+- [ ] **FR-C03 — Daily Subsidy Status — Partial (implementation และ QA complete; รอ real PostgreSQL run)**
+  - API: เพิ่ม `GET /wallet/subsidy` แบบ Consumer-only; ใช้ session owner, exact Decimal,
+    monetary amount ทศนิยมไม่เกิน 2 ตำแหน่ง, `THB`, `Asia/Bangkok`, half-open day boundary และสูตร
+    `max(0, daily cap - used)` โดยไม่เขียนหรือ reset ledger
+  - UI: Overview และ Wallet เชื่อม endpoint จริง แสดง balance, cap, used, remaining,
+    percentage และชื่อ/ช่วงโครงการ พร้อม loading, retry, permission-denied และ no-program states
+  - Contract safety: frontend validate response ตอน runtime รวม money invariants, วันที่,
+    timezone/currency และ subsidy percentage แบบ decimal ช่วง 0–100
+  - Test: API service 45, controller 8, web API 31, Wallet 22 และ Dashboard 10 tests ผ่าน;
+    QA รอบสาม PASS, typecheck/lint/build/schema/changed-file format ผ่าน
+  - PostgreSQL integration spec และ HTTP E2E ถูกเพิ่มแล้ว; PostgreSQL spec มี safety gate บังคับ
+    `TEST_DATABASE_URL` ที่ลงท้าย `_test`/`-test` และ explicit mutation opt-in
+  - Residual evidence: รอบนี้ไม่มี disposable PostgreSQL และ sandbox ไม่อนุญาต localhost HTTP;
+    จึงยังไม่อ้างว่า real PostgreSQL/HTTP E2E ผ่านจนกว่าจะรันใน CI หรือ test environment ที่ปลอดภัย
 
 - [ ] **FR-C04 — Scan and Review QR — Partial**
   - มี backend preview/order context และ UI review แบบ mock

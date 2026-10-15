@@ -30,6 +30,8 @@ Logout จะ revoke session ปัจจุบันและลบ cookie
 - Registration bodies เป็นโครงตาม DTO และใช้ข้อมูลตัวอย่างที่ไม่ใช่บุคคลจริง แต่ต้องแทน `citizenId`, เบอร์โทร และข้อมูลอื่นตามระบบตรวจสอบที่ใช้งานอยู่
 - `idempotencyKey` ของ Top-up ต้องยาว 8–128 ตัวอักษร และจะถูกสร้างให้อัตโนมัติเมื่อยังไม่มีค่า
 - FR-C02 ใช้จำนวนเต็มหน่วยบาท ขั้นต่ำ 1 บาท และสูงสุด 50,000 บาทต่อรายการ
+- FR-C03 ใช้ `Get Daily Subsidy Status` ซึ่งคืน `THB`, `Asia/Bangkok`, เวลา `asOf`, ยอดคงเหลือ, วงเงิน, ยอดใช้ และวงเงินคงเหลือเป็นจำนวนเงินทศนิยมไม่เกิน 2 ตำแหน่ง หากไม่มีโครงการที่ active จะได้ `program: null` และวงเงินรายวันเป็นศูนย์
+- `dailySubsidyRemaining` คำนวณจาก `max(0, dailySubsidyLimit - dailySubsidyUsed)` โดยไม่ clamp กับยอด `subsidyBalance`
 - การทดสอบ Idempotency ให้เรียก `Top Up Personal Wallet` ก่อน แล้วเรียก `Replay Personal Top-up (Same Key and Amount)` โดยไม่เปลี่ยน key; ต้องได้ transaction เดิมและ `isIdempotentReplay=true`
 - `Reject Reused Key with Different Amount` ต้องได้ 409 เพราะ key เดิมห้ามใช้กับจำนวนเงินใหม่ เมื่อต้องการเริ่มรายการใหม่ให้ล้างค่า `idempotencyKey` ใน environment ก่อน
 - `Get Wallet Transactions` คืนข้อมูลครั้งละ 20 รายการ หากต้องการกรองวันที่ให้กรอก `walletDateFrom`/`walletDateTo` รูปแบบ `YYYY-MM-DD` แล้วเปิด query parameters ทั้งสอง ค่าเป็นวันตาม `Asia/Bangkok` และรวมทั้งวันเริ่มต้น/สิ้นสุด
