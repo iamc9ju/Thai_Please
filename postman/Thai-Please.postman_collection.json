@@ -363,7 +363,7 @@
     },
     {
       "name": "Consumer Wallet",
-      "description": "Consumer session เท่านั้น จำนวนเงินเป็น integer baht ตาม contract ปัจจุบัน",
+      "description": "Consumer session เท่านั้น ยอดเงินใน response รองรับทศนิยมไม่เกิน 2 ตำแหน่ง ส่วน Virtual Top-up ยังรับจำนวนเต็มบาทตาม contract",
       "item": [
         {
           "name": "Get Wallet Overview",
@@ -385,6 +385,40 @@
                 "exec": [
                   "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
                   "pm.test('มี wallet', () => pm.expect(pm.response.json()).to.have.property('wallet'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Daily Subsidy Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/wallet/subsidy",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "wallet", "subsidy"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C03 สถานะเงินสนับสนุนรายวัน | จำนวนเงินรองรับทศนิยมไม่เกิน 2 ตำแหน่ง, currency THB, timezone Asia/Bangkok | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('FR-C03 contract ครบและเป็นจำนวนเงินไม่เกิน 2 ตำแหน่ง', () => {",
+                  "  pm.expect(json.currency).to.eql('THB');",
+                  "  pm.expect(json.timeZone).to.eql('Asia/Bangkok');",
+                  "  pm.expect(json.asOf).to.be.a('string');",
+                  "  ['subsidyBalance', 'dailySubsidyLimit', 'dailySubsidyUsed', 'dailySubsidyRemaining'].forEach((field) => pm.expect(json[field]).to.satisfy((value) => Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-8));",
+                  "  pm.expect(json.dailySubsidyRemaining).to.eql(Math.max(0, json.dailySubsidyLimit - json.dailySubsidyUsed));",
+                  "  pm.expect(json).to.have.property('program');",
+                  "});"
                 ]
               }
             }
