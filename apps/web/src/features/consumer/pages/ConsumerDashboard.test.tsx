@@ -10,13 +10,16 @@ import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import {
   getConsumerOverview,
+  getConsumerSubsidyStatus,
   getWalletTransactions,
 } from '../api/consumer.api';
 import type { ConsumerOverviewResponse } from '../consumer.types';
+import type { ConsumerSubsidyStatusResponse } from '../consumer.types';
 import { ConsumerDashboard } from './ConsumerDashboard';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerOverview: vi.fn(),
+  getConsumerSubsidyStatus: vi.fn(),
   getWalletTransactions: vi.fn(),
   topUpPersonalWallet: vi.fn(),
 }));
@@ -26,7 +29,7 @@ const overviewFixture: ConsumerOverviewResponse = {
     walletId: 'wallet-api',
     personalBalance: 1234,
     subsidyBalance: 567,
-    totalBalance: 1801,
+    totalBalance: 99_999,
     dailySubsidyLimit: 300,
     dailySubsidyUsed: 75,
     dailySubsidyRemaining: 225,
@@ -96,12 +99,32 @@ const overviewFixture: ConsumerOverviewResponse = {
   ],
 };
 
+const subsidyFixture: ConsumerSubsidyStatusResponse = {
+  currency: 'THB',
+  timeZone: 'Asia/Bangkok',
+  asOf: '2026-10-15T03:00:00.000Z',
+  subsidyBalance: 567,
+  dailySubsidyLimit: 300,
+  dailySubsidyUsed: 75,
+  dailySubsidyRemaining: 225,
+  program: {
+    programId: 'program-api',
+    programName: 'โครงการจากระบบจริง',
+    subsidyPercentage: 60,
+    startDate: '2026-10-01',
+    endDate: '2026-12-31',
+  },
+};
+
 const mockedGetConsumerOverview = vi.mocked(getConsumerOverview);
+const mockedGetConsumerSubsidyStatus = vi.mocked(getConsumerSubsidyStatus);
 const mockedGetWalletTransactions = vi.mocked(getWalletTransactions);
 
 beforeEach(() => {
   mockedGetConsumerOverview.mockReset();
   mockedGetConsumerOverview.mockResolvedValue(overviewFixture);
+  mockedGetConsumerSubsidyStatus.mockReset();
+  mockedGetConsumerSubsidyStatus.mockResolvedValue(subsidyFixture);
   mockedGetWalletTransactions.mockReset();
   mockedGetWalletTransactions.mockImplementation(async (query) => ({
     items: overviewFixture.recentTransactions.filter((item) => {
@@ -154,8 +177,13 @@ describe('ConsumerDashboard', () => {
       screen.getByRole('heading', { name: 'ทดสอบ ระบบ' }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/X-XXXX-0001/)).toHaveLength(2);
-    expect(screen.getByText('1,801.00')).toBeInTheDocument();
+    expect(
+      screen.queryByText('ยอดเงินที่ใช้ได้ทั้งหมด'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('1,801.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('99,999.00')).not.toBeInTheDocument();
     expect(screen.getByText('฿1,234.00')).toBeInTheDocument();
+    expect(screen.getByText('฿567.00')).toBeInTheDocument();
     expect(screen.getByText('โครงการจากระบบจริง')).toBeInTheDocument();
     expect(screen.getByText('ภารกิจจากระบบจริง')).toBeInTheDocument();
     expect(screen.getByText('ลด 25 บาทจากระบบจริง')).toBeInTheDocument();
@@ -166,10 +194,16 @@ describe('ConsumerDashboard', () => {
   it('shows explicit empty states for overview collections', async () => {
     mockedGetConsumerOverview.mockResolvedValue({
       ...overviewFixture,
-      program: null,
       quests: [],
       coupons: [],
       recentOrders: [],
+    });
+    mockedGetConsumerSubsidyStatus.mockResolvedValue({
+      ...subsidyFixture,
+      program: null,
+      dailySubsidyLimit: 0,
+      dailySubsidyUsed: 0,
+      dailySubsidyRemaining: 0,
     });
 
     renderDashboard();
@@ -213,7 +247,7 @@ describe('ConsumerDashboard', () => {
   });
 
   it('shows a permission-denied state for a forbidden overview request', async () => {
-    mockedGetConsumerOverview.mockRejectedValue(
+    mockedGetConsumerSubsidyStatus.mockRejectedValue(
       new ApiError(403, 'Forbidden resource'),
     );
 
@@ -232,6 +266,21 @@ describe('ConsumerDashboard', () => {
         name: th.consumerDashboard.states.retry,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it('clamps the daily subsidy progress to the accessible range', async () => {
+    mockedGetConsumerSubsidyStatus.mockResolvedValue({
+      ...subsidyFixture,
+      dailySubsidyUsed: 450,
+      dailySubsidyRemaining: 0,
+    });
+
+    renderDashboard();
+
+    expect(await screen.findByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    );
   });
 
   it('navigates through the customer wallet and validates top-up input', async () => {

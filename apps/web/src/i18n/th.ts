@@ -76,7 +76,6 @@ export const th = {
     wallet: {
       eyebrow: 'กระเป๋าเงินของฉัน',
       title: 'Virtual Wallet',
-      totalLabel: 'ยอดเงินที่ใช้ได้ทั้งหมด',
       personal: 'เงินส่วนตัว',
       subsidy: 'เงินสนับสนุน',
       dailyRemaining: 'สิทธิ์สนับสนุนคงเหลือวันนี้',
@@ -168,7 +167,6 @@ export const th = {
       description: 'ตรวจสอบเงินส่วนตัว เงินสนับสนุน และสถานะสิทธิ์รายวันของคุณ',
       personalBalance: 'เงินส่วนตัว',
       subsidyBalance: 'เงินสนับสนุน',
-      totalBalance: 'ยอดใช้ได้ทั้งหมด',
       topUpTitle: 'เติมเงินส่วนตัว',
       topUpDescription:
         'เป็น Virtual Top-up สำหรับต้นแบบ และไม่เพิ่มยอดเงินสนับสนุน',
@@ -200,6 +198,7 @@ export const th = {
       dailyUsed: 'ใช้ไปวันนี้',
       dailyRemaining: 'คงเหลือวันนี้',
       subsidyRate: 'สัดส่วนช่วยจ่าย',
+      dailyProgressLabel: 'สัดส่วนการใช้สิทธิ์สนับสนุนรายวัน',
       dailyTimezone: 'คำนวณตามวันในเขตเวลา Asia/Bangkok',
       historyTitle: 'ประวัติกระเป๋าเงิน',
       historyFilterTitle: 'ค้นหารายการเคลื่อนไหว',

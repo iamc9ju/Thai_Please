@@ -4,7 +4,10 @@ import { ApiError } from '../../../lib/api-client';
 import { ConsumerBottomNavigation } from '../components/ConsumerBottomNavigation';
 import { ConsumerHeader } from '../components/ConsumerHeader';
 import { ConsumerNavigation } from '../components/ConsumerNavigation';
-import { getConsumerOverview } from '../api/consumer.api';
+import {
+  getConsumerOverview,
+  getConsumerSubsidyStatus,
+} from '../api/consumer.api';
 import type {
   ConsumerOverviewLoadState,
   ConsumerView,
@@ -51,8 +54,11 @@ export function ConsumerDashboard({
     setOverviewState({ status: 'loading' });
 
     try {
-      const data = await getConsumerOverview();
-      setOverviewState({ status: 'success', data });
+      const [data, subsidy] = await Promise.all([
+        getConsumerOverview(),
+        getConsumerSubsidyStatus(),
+      ]);
+      setOverviewState({ status: 'success', data, subsidy });
     } catch (error) {
       setOverviewState(overviewErrorState(error));
     }
@@ -61,10 +67,10 @@ export function ConsumerDashboard({
   useEffect(() => {
     let isCurrent = true;
 
-    void getConsumerOverview()
-      .then((data) => {
+    void Promise.all([getConsumerOverview(), getConsumerSubsidyStatus()])
+      .then(([data, subsidy]) => {
         if (isCurrent) {
-          setOverviewState({ status: 'success', data });
+          setOverviewState({ status: 'success', data, subsidy });
         }
       })
       .catch((error: unknown) => {

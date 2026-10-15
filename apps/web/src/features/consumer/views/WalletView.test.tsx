@@ -10,14 +10,17 @@ import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import {
   getConsumerOverview,
+  getConsumerSubsidyStatus,
   getWalletTransactions,
   topUpPersonalWallet,
 } from '../api/consumer.api';
 import type { ConsumerOverviewResponse } from '../consumer.types';
+import type { ConsumerSubsidyStatusResponse } from '../consumer.types';
 import { WalletView } from './WalletView';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerOverview: vi.fn(),
+  getConsumerSubsidyStatus: vi.fn(),
   getWalletTransactions: vi.fn(),
   topUpPersonalWallet: vi.fn(),
 }));
@@ -27,7 +30,7 @@ const initialOverview: ConsumerOverviewResponse = {
     walletId: 'wallet-1',
     personalBalance: 1_000,
     subsidyBalance: 600,
-    totalBalance: 1_600,
+    totalBalance: 99_999,
     dailySubsidyLimit: 300,
     dailySubsidyUsed: 80,
     dailySubsidyRemaining: 220,
@@ -88,7 +91,25 @@ const refreshedOverview: ConsumerOverviewResponse = {
   ],
 };
 
+const subsidyStatus: ConsumerSubsidyStatusResponse = {
+  currency: 'THB',
+  timeZone: 'Asia/Bangkok',
+  asOf: '2026-10-15T03:00:00.000Z',
+  subsidyBalance: 600,
+  dailySubsidyLimit: 300,
+  dailySubsidyUsed: 80,
+  dailySubsidyRemaining: 220,
+  program: {
+    programId: 'program-1',
+    programName: 'โครงการทดสอบ',
+    subsidyPercentage: 60,
+    startDate: '2026-10-01',
+    endDate: '2026-12-31',
+  },
+};
+
 const mockedGetOverview = vi.mocked(getConsumerOverview);
+const mockedGetSubsidyStatus = vi.mocked(getConsumerSubsidyStatus);
 const mockedGetTransactions = vi.mocked(getWalletTransactions);
 const mockedTopUp = vi.mocked(topUpPersonalWallet);
 
@@ -102,6 +123,8 @@ beforeEach(() => {
   mockedGetTransactions.mockReset();
   mockedTopUp.mockReset();
   mockedGetOverview.mockResolvedValue(initialOverview);
+  mockedGetSubsidyStatus.mockReset();
+  mockedGetSubsidyStatus.mockResolvedValue(subsidyStatus);
   mockedGetTransactions.mockResolvedValue({
     items: initialOverview.recentTransactions,
     nextCursor: null,
@@ -130,6 +153,11 @@ describe('WalletView FR-C02 integration', () => {
 
     expect(screen.getByText('฿1,000.00')).toBeInTheDocument();
     expect(screen.getByText('฿600.00')).toBeInTheDocument();
+    expect(screen.queryByText('ยอดใช้ได้ทั้งหมด')).not.toBeInTheDocument();
+    expect(screen.queryByText('฿1,600.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('฿99,999.00')).not.toBeInTheDocument();
+    expect(screen.getByText('โครงการทดสอบ')).toBeInTheDocument();
+    expect(mockedGetSubsidyStatus).toHaveBeenCalledOnce();
     expect(
       await screen.findAllByText(
         th.consumerPortal.wallet.transactionTypes.personalTopUp,
@@ -138,6 +166,42 @@ describe('WalletView FR-C02 integration', () => {
     expect(
       screen.getByText(th.consumerPortal.wallet.transactionTypes.payment),
     ).toBeInTheDocument();
+  });
+
+  it('shows no-program subsidy values from the dedicated endpoint', async () => {
+    mockedGetSubsidyStatus.mockResolvedValue({
+      ...subsidyStatus,
+      subsidyBalance: 0,
+      dailySubsidyLimit: 0,
+      dailySubsidyUsed: 0,
+      dailySubsidyRemaining: 0,
+      program: null,
+    });
+
+    await renderLoadedWallet();
+
+    expect(
+      screen.getAllByText(th.consumerPortal.wallet.noProgram),
+    ).not.toHaveLength(0);
+  });
+
+  it('renders all daily subsidy values and clamps over-cap progress', async () => {
+    mockedGetSubsidyStatus.mockResolvedValue({
+      ...subsidyStatus,
+      dailySubsidyUsed: 450,
+      dailySubsidyRemaining: 0,
+    });
+
+    await renderLoadedWallet();
+
+    expect(screen.getByText('฿300.00')).toBeInTheDocument();
+    expect(screen.getByText('฿450.00')).toBeInTheDocument();
+    expect(screen.getByText('฿0.00')).toBeInTheDocument();
+    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    );
   });
 
   it('submits integer baht with one key and refreshes balance and history', async () => {
@@ -274,7 +338,9 @@ describe('WalletView FR-C02 integration', () => {
     );
     firstRender.unmount();
 
-    mockedGetOverview.mockRejectedValueOnce(new ApiError(401, 'unauthorized'));
+    mockedGetSubsidyStatus.mockRejectedValueOnce(
+      new ApiError(401, 'unauthorized'),
+    );
     const secondRender = render(<WalletView />);
     expect(
       await screen.findByText(th.consumerPortal.wallet.permissionDeniedTitle),

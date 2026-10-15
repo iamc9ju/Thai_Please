@@ -955,49 +955,39 @@ input[type='password']::-ms-clear {
   opacity: 0.82;
 }
 
-.wallet-total-label {
-  margin: 1.55rem 0 0;
-  color: rgb(255 255 255 / 72%);
+.wallet-primary-balance {
+  margin-top: 1.55rem;
+}
+
+.wallet-primary-balance small,
+.wallet-primary-balance strong,
+.wallet-subsidy-balance small,
+.wallet-subsidy-balance strong {
+  display: block;
+}
+
+.wallet-primary-balance small,
+.wallet-subsidy-balance small {
+  color: rgb(255 255 255 / 70%);
   font-size: 0.68rem;
 }
 
-.wallet-total {
-  margin: 0.15rem 0 1.2rem;
+.wallet-primary-balance strong {
+  margin-top: 0.15rem;
   font-size: 2.3rem;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
 
-.wallet-total span {
-  margin-right: 0.25rem;
-  font-size: 1.2rem;
-  opacity: 0.75;
-}
-
-.wallet-breakdown {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-}
-
-.wallet-breakdown > span {
+.wallet-subsidy-balance {
+  margin-top: 1.2rem;
   padding: 0.75rem;
   border: 1px solid rgb(255 255 255 / 13%);
   border-radius: 0.7rem;
   background: rgb(255 255 255 / 8%);
 }
 
-.wallet-breakdown small,
-.wallet-breakdown strong {
-  display: block;
-}
-
-.wallet-breakdown small {
-  color: rgb(255 255 255 / 70%);
-  font-size: 0.65rem;
-}
-
-.wallet-breakdown strong {
+.wallet-subsidy-balance strong {
   margin-top: 0.25rem;
   font-size: 0.9rem;
 }
@@ -2148,7 +2138,7 @@ input[type='password']::-ms-clear {
 
 .portal-balance-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
 }
 .portal-balance-grid article {
@@ -3123,7 +3113,6 @@ input[type='password']::-ms-clear {
     grid-template-columns: 1fr;
   }
 
-  .wallet-breakdown,
   .dashboard-side-column {
     grid-template-columns: 1fr;
   }
@@ -3249,8 +3238,8 @@ input[type='password']::-ms-clear {
 }
 
 .wallet-card-heading small,
-.wallet-breakdown small,
-.wallet-total-label {
+.wallet-primary-balance small,
+.wallet-subsidy-balance small {
   color: #6b94aa;
   font-size: 0.78rem;
 }
@@ -3264,18 +3253,16 @@ input[type='password']::-ms-clear {
   color: #1597cc;
 }
 
-.wallet-total,
-.wallet-total span {
-  color: #075f96;
-  opacity: 1;
-}
-
-.wallet-breakdown > span {
+.wallet-subsidy-balance {
   border-color: #d7ebf4;
   background: #f2f9fc;
 }
 
-.wallet-breakdown strong {
+.wallet-primary-balance strong {
+  color: #075f96;
+}
+
+.wallet-subsidy-balance strong {
   color: #087bb5;
   font-size: 1rem;
 }
@@ -3288,10 +3275,6 @@ input[type='password']::-ms-clear {
 
 .wallet-card::after {
   display: none;
-}
-
-.wallet-total {
-  letter-spacing: -0.04em;
 }
 
 .wallet-actions button:first-child {
@@ -3549,7 +3532,7 @@ input[type='password']::-ms-clear {
   }
 
   .portal-balance-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .portal-two-column,

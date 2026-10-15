@@ -11,6 +11,7 @@ import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import {
   getConsumerOverview,
+  getConsumerSubsidyStatus,
   getWalletTransactions,
   topUpPersonalWallet,
 } from '../api/consumer.api';
@@ -22,13 +23,18 @@ import {
 } from '../consumer.types';
 import type {
   ConsumerOverviewResponse,
+  ConsumerSubsidyStatusResponse,
   WalletTransactionHistoryQuery,
   WalletTransactionItem,
 } from '../consumer.types';
 
 type WalletLoadState =
   | { status: 'loading' }
-  | { status: 'success'; data: ConsumerOverviewResponse }
+  | {
+      status: 'success';
+      data: ConsumerOverviewResponse;
+      subsidy: ConsumerSubsidyStatusResponse;
+    }
   | { status: 'permission-denied' }
   | { status: 'error' };
 
@@ -64,6 +70,11 @@ const bahtFormatter = new Intl.NumberFormat(th.consumerDashboard.locale, {
 const dateTimeFormatter = new Intl.DateTimeFormat(th.consumerDashboard.locale, {
   dateStyle: 'medium',
   timeStyle: 'short',
+  timeZone: th.consumerDashboard.timeZone,
+});
+
+const dateFormatter = new Intl.DateTimeFormat(th.consumerDashboard.locale, {
+  dateStyle: 'medium',
   timeZone: th.consumerDashboard.timeZone,
 });
 
@@ -181,8 +192,11 @@ export function WalletView() {
 
   const loadWallet = async () => {
     try {
-      const data = await getConsumerOverview();
-      setWalletState({ status: 'success', data });
+      const [data, subsidy] = await Promise.all([
+        getConsumerOverview(),
+        getConsumerSubsidyStatus(),
+      ]);
+      setWalletState({ status: 'success', data, subsidy });
       return true;
     } catch (error) {
       setWalletState(loadErrorState(error));
@@ -192,8 +206,11 @@ export function WalletView() {
 
   const refreshWalletAfterTopUp = async () => {
     try {
-      const data = await getConsumerOverview();
-      setWalletState({ status: 'success', data });
+      const [data, subsidy] = await Promise.all([
+        getConsumerOverview(),
+        getConsumerSubsidyStatus(),
+      ]);
+      setWalletState({ status: 'success', data, subsidy });
       return true;
     } catch {
       return false;
@@ -202,9 +219,9 @@ export function WalletView() {
 
   useEffect(() => {
     let isCurrent = true;
-    void getConsumerOverview()
-      .then((data) => {
-        if (isCurrent) setWalletState({ status: 'success', data });
+    void Promise.all([getConsumerOverview(), getConsumerSubsidyStatus()])
+      .then(([data, subsidy]) => {
+        if (isCurrent) setWalletState({ status: 'success', data, subsidy });
       })
       .catch((error: unknown) => {
         if (isCurrent) setWalletState(loadErrorState(error));
@@ -436,8 +453,23 @@ export function WalletView() {
     );
   }
 
-  const { wallet, program } = walletState.data;
+  const { wallet } = walletState.data;
+  const { program } = walletState.subsidy;
   const currentMonth = currentBangkokMonth();
+  const dailyUsagePercent =
+    walletState.subsidy.dailySubsidyLimit > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              (walletState.subsidy.dailySubsidyUsed /
+                walletState.subsidy.dailySubsidyLimit) *
+                100,
+            ),
+          ),
+        )
+      : 0;
 
   return (
     <section className="consumer-view">
@@ -455,11 +487,7 @@ export function WalletView() {
         <article>
           <Coins aria-hidden="true" />
           <span>{th.consumerPortal.wallet.subsidyBalance}</span>
-          <strong>฿{formatBaht(wallet.subsidyBalance)}</strong>
-        </article>
-        <article>
-          <span>{th.consumerPortal.wallet.totalBalance}</span>
-          <strong>฿{formatBaht(wallet.totalBalance)}</strong>
+          <strong>฿{formatBaht(walletState.subsidy.subsidyBalance)}</strong>
         </article>
       </div>
 
@@ -528,8 +556,8 @@ export function WalletView() {
           <span className="portal-status">
             {program
               ? copy.programPeriod(
-                  dateTimeFormatter.format(new Date(program.startDate)),
-                  dateTimeFormatter.format(new Date(program.endDate)),
+                  dateFormatter.format(new Date(program.startDate)),
+                  dateFormatter.format(new Date(program.endDate)),
                 )
               : copy.noProgram}
           </span>
@@ -537,20 +565,36 @@ export function WalletView() {
           <div className="program-stats">
             <span>
               <small>{th.consumerPortal.wallet.dailyCap}</small>
-              <strong>฿{formatBaht(wallet.dailySubsidyLimit)}</strong>
+              <strong>
+                ฿{formatBaht(walletState.subsidy.dailySubsidyLimit)}
+              </strong>
             </span>
             <span>
               <small>{th.consumerPortal.wallet.dailyUsed}</small>
-              <strong>฿{formatBaht(wallet.dailySubsidyUsed)}</strong>
+              <strong>
+                ฿{formatBaht(walletState.subsidy.dailySubsidyUsed)}
+              </strong>
             </span>
             <span>
               <small>{th.consumerPortal.wallet.dailyRemaining}</small>
-              <strong>฿{formatBaht(wallet.dailySubsidyRemaining)}</strong>
+              <strong>
+                ฿{formatBaht(walletState.subsidy.dailySubsidyRemaining)}
+              </strong>
             </span>
             <span>
               <small>{th.consumerPortal.wallet.subsidyRate}</small>
               <strong>{program?.subsidyPercentage ?? 0}%</strong>
             </span>
+          </div>
+          <div
+            aria-label={copy.dailyProgressLabel}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={dailyUsagePercent}
+            className="quest-progress"
+            role="progressbar"
+          >
+            <span style={{ width: `${dailyUsagePercent}%` }} />
           </div>
           <p>{th.consumerPortal.wallet.dailyTimezone}</p>
         </article>

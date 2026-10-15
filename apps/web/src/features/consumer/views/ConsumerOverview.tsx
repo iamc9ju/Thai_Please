@@ -15,6 +15,7 @@ import { th } from '../../../i18n/th';
 import type {
   ConsumerOverviewLoadState,
   ConsumerOverviewResponse,
+  ConsumerSubsidyStatusResponse,
   ConsumerView,
 } from '../consumer.types';
 
@@ -101,19 +102,25 @@ function OverviewStatus({
 
 function OverviewContent({
   data,
+  subsidy,
   onNavigate,
 }: Readonly<{
   data: ConsumerOverviewResponse;
+  subsidy: ConsumerSubsidyStatusResponse;
   onNavigate: (view: ConsumerView) => void;
 }>) {
-  const { wallet, program, quests, coupons, recentOrders } = data;
+  const { wallet, quests, coupons, recentOrders } = data;
+  const { program } = subsidy;
   const activeQuest = quests[0];
   const dailyUsagePercent =
-    wallet.dailySubsidyLimit > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (wallet.dailySubsidyUsed / wallet.dailySubsidyLimit) * 100,
+    subsidy.dailySubsidyLimit > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              (subsidy.dailySubsidyUsed / subsidy.dailySubsidyLimit) * 100,
+            ),
           ),
         )
       : 0;
@@ -132,22 +139,13 @@ function OverviewContent({
             </span>
             <WalletCards aria-hidden="true" />
           </div>
-          <p className="wallet-total-label">
-            {th.consumerDashboard.wallet.totalLabel}
-          </p>
-          <p className="wallet-total">
-            <span>฿</span>
-            {formatBaht(wallet.totalBalance)}
-          </p>
-          <div className="wallet-breakdown">
-            <span>
-              <small>{th.consumerDashboard.wallet.personal}</small>
-              <strong>฿{formatBaht(wallet.personalBalance)}</strong>
-            </span>
-            <span>
-              <small>{th.consumerDashboard.wallet.subsidy}</small>
-              <strong>฿{formatBaht(wallet.subsidyBalance)}</strong>
-            </span>
+          <div className="wallet-primary-balance">
+            <small>{th.consumerDashboard.wallet.personal}</small>
+            <strong>฿{formatBaht(wallet.personalBalance)}</strong>
+          </div>
+          <div className="wallet-subsidy-balance">
+            <small>{th.consumerDashboard.wallet.subsidy}</small>
+            <strong>฿{formatBaht(subsidy.subsidyBalance)}</strong>
           </div>
           <div className="wallet-actions">
             <button onClick={() => onNavigate('wallet')} type="button">
@@ -168,11 +166,11 @@ function OverviewContent({
             </div>
             <div>
               <p>{th.consumerDashboard.wallet.dailyRemaining}</p>
-              <strong>฿{formatBaht(wallet.dailySubsidyRemaining)}</strong>
+              <strong>฿{formatBaht(subsidy.dailySubsidyRemaining)}</strong>
               <small>
                 {th.consumerDashboard.wallet.dailyUsage(
-                  formatBaht(wallet.dailySubsidyUsed),
-                  formatBaht(wallet.dailySubsidyLimit),
+                  formatBaht(subsidy.dailySubsidyUsed),
+                  formatBaht(subsidy.dailySubsidyLimit),
                 )}
               </small>
               <small>
@@ -372,7 +370,11 @@ export function ConsumerOverview({
       </section>
 
       {overviewState.status === 'success' ? (
-        <OverviewContent data={overviewState.data} onNavigate={onNavigate} />
+        <OverviewContent
+          data={overviewState.data}
+          subsidy={overviewState.subsidy}
+          onNavigate={onNavigate}
+        />
       ) : (
         <OverviewStatus state={overviewState} onRetry={onRetry} />
       )}
