@@ -1,0 +1,69 @@
+{
+  "version": "quest-policy-v1",
+  "candidates": {
+    "types": [
+      "MIN_SPEND",
+      "CATEGORY_SPEND",
+      "PRODUCT_PURCHASE",
+      "MERCHANT_SPEND"
+    ],
+    "historyDays": 30,
+    "recentHistoryDays": 7,
+    "minimumHistoryOrders": 3,
+    "minimumTargetOrders": 2,
+    "spendMultipliers": [
+      { "numerator": 1, "denominator": 1 },
+      { "numerator": 3, "denominator": 2 }
+    ],
+    "spendBasis": {
+      "MIN_SPEND": "WHOLE_ORDER_AVERAGE",
+      "CATEGORY_SPEND": "TARGET_CATEGORY_AVERAGE",
+      "MERCHANT_SPEND": "TARGET_MERCHANT_AVERAGE"
+    },
+    "currency": "THB",
+    "minorUnitsPerMajor": 100,
+    "minimumSpendMinorUnits": 1000,
+    "maximumSpendMinorUnits": 100000,
+    "rounding": "CEIL_MINOR_UNIT",
+    "targetSelection": "PREVIOUSLY_PURCHASED_ACTIVE_ONLY",
+    "targetOrdering": "FREQUENCY_DESC_LAST_PURCHASE_DESC_ID_ASC",
+    "maximumPerType": 4,
+    "maximumTotal": 16,
+    "insufficientHistory": "DEFER"
+  },
+  "selection": {
+    "scoreMinimum": 0,
+    "scoreMaximum": 100,
+    "criteria": "PURCHASE_RELEVANCE_AND_ACHIEVABLE_CHALLENGE",
+    "tieBreak": "LOWER_SPEND_THEN_CANDIDATE_ID_ASC",
+    "providerFailure": "DEFER",
+    "maximumAttemptsPerGeneration": 2
+  },
+  "assignment": {
+    "maximumActivePerUser": 1,
+    "maximumNewPerUserPerDay": 1,
+    "scheduleTimezone": "Asia/Bangkok",
+    "dailyHour": 8,
+    "dailyMinute": 0,
+    "durationDays": 7,
+    "duplicateCooldownDays": 7,
+    "duplicateIdentity": "TYPE_AND_TARGET",
+    "cooldownStartsAt": "COMPLETION_OR_EXPIRY",
+    "nextQuest": "NEXT_DAILY_RUN_AFTER_FINALIZATION"
+  },
+  "rewards": {
+    "pointsByType": {
+      "MIN_SPEND": 20,
+      "CATEGORY_SPEND": 20,
+      "PRODUCT_PURCHASE": 20,
+      "MERCHANT_SPEND": 20
+    },
+    "pointValidityDays": 90,
+    "globalDailyReservationBudgetPoints": 2000,
+    "globalOutstandingReservationBudgetPoints": 14000,
+    "budgetExhausted": "DEFER",
+    "reserveAt": "ASSIGNMENT",
+    "releaseAt": "EXPIRY_OR_REWARD_ISSUANCE"
+  },
+  "completion": { "maximumAssignmentsPerReceipt": 1 }
+}

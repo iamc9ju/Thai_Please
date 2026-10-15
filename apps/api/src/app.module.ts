@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { validateEnvironment } from './config/environment.js';
+import { QuestsModule } from './quests/quests.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { validateEnvironment } from './config/environment.js';
     WalletModule,
     CatalogModule,
     OrderModule,
+    QuestsModule,
   ],
   controllers: [AppController],
 })
