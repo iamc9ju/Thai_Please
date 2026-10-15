@@ -26,6 +26,7 @@ interface MockPrisma {
   };
   subsidyProgram: { findFirst: Mock };
   walletTransaction: {
+    aggregate: Mock;
     findMany: Mock;
     findUnique: Mock;
     create: Mock;
@@ -57,7 +58,8 @@ describe('WalletService', () => {
         findFirst: vi.fn(),
       },
       walletTransaction: {
-        findMany: vi.fn(),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { amount: null } }),
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
         create: vi.fn(),
       },
@@ -87,6 +89,202 @@ describe('WalletService', () => {
     vi.useRealTimers();
   });
 
+  describe('getConsumerSubsidyStatus', () => {
+    const userId = 100n;
+    const walletId = 1n;
+    const activeWallet = {
+      walletId,
+      walletType: 'CONSUMER',
+      status: 'ACTIVE',
+      personalBalance: new Prisma.Decimal(500),
+      subsidyBalance: new Prisma.Decimal(800),
+    };
+
+    it('returns the FR-C03 contract with safe money amounts and deterministic program selection', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-14T10:30:00.000Z'));
+      prismaMock.wallet.findUnique.mockResolvedValue(activeWallet);
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue({
+        programId: 7n,
+        programName: 'โครงการทดสอบ',
+        subsidyPercentage: new Prisma.Decimal(50),
+        userPercentage: new Prisma.Decimal(50),
+        dailySubsidyLimit: new Prisma.Decimal(200),
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-31T00:00:00.000Z'),
+      });
+      prismaMock.walletTransaction.aggregate.mockResolvedValue({
+        _sum: { amount: new Prisma.Decimal(50) },
+      });
+
+      await expect(service.getConsumerSubsidyStatus(userId)).resolves.toEqual({
+        currency: 'THB',
+        timeZone: 'Asia/Bangkok',
+        asOf: '2026-10-14T10:30:00.000Z',
+        subsidyBalance: 800,
+        dailySubsidyLimit: 200,
+        dailySubsidyUsed: 50,
+        dailySubsidyRemaining: 150,
+        program: {
+          programId: '7',
+          programName: 'โครงการทดสอบ',
+          subsidyPercentage: 50,
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+        },
+      });
+      expect(prismaMock.subsidyProgram.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
+        }),
+      );
+      expect(prismaMock.walletTransaction.aggregate).toHaveBeenCalledWith({
+        where: {
+          walletId,
+          fundType: 'SUBSIDY',
+          transactionType: 'PAYMENT_SUBSIDY',
+          createdAt: {
+            gte: new Date('2026-10-13T17:00:00.000Z'),
+            lt: new Date('2026-10-14T17:00:00.000Z'),
+          },
+        },
+        _sum: { amount: true },
+      });
+      expect(prismaMock.wallet.update).not.toHaveBeenCalled();
+      expect(prismaMock.walletTransaction.create).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('clamps remaining at zero when exact usage exceeds the cap', async () => {
+      prismaMock.wallet.findUnique.mockResolvedValue(activeWallet);
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue({
+        programId: 7n,
+        programName: 'โครงการทดสอบ',
+        subsidyPercentage: new Prisma.Decimal(50),
+        userPercentage: new Prisma.Decimal(50),
+        dailySubsidyLimit: new Prisma.Decimal(200),
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-31T00:00:00.000Z'),
+      });
+      prismaMock.walletTransaction.aggregate.mockResolvedValue({
+        _sum: { amount: new Prisma.Decimal(250) },
+      });
+
+      const result = await service.getConsumerSubsidyStatus(userId);
+
+      expect(result.dailySubsidyUsed).toBe(250);
+      expect(result.dailySubsidyRemaining).toBe(0);
+      expect(result.subsidyBalance).toBe(800);
+    });
+
+    it('returns an explicit no-program state without hiding the subsidy balance', async () => {
+      prismaMock.wallet.findUnique.mockResolvedValue(activeWallet);
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
+
+      await expect(service.getConsumerSubsidyStatus(userId)).resolves.toEqual(
+        expect.objectContaining({
+          subsidyBalance: 800,
+          dailySubsidyLimit: 0,
+          dailySubsidyUsed: 0,
+          dailySubsidyRemaining: 0,
+          program: null,
+        }),
+      );
+    });
+
+    it.each([
+      ['missing', null, NotFoundException],
+      ['inactive', { ...activeWallet, status: 'INACTIVE' }, ConflictException],
+      [
+        'non-consumer',
+        { ...activeWallet, walletType: 'MERCHANT' },
+        ConflictException,
+      ],
+    ])(
+      'rejects a %s wallet before reading ledger data',
+      async (_name, wallet, errorType) => {
+        prismaMock.wallet.findUnique.mockResolvedValue(wallet);
+
+        await expect(service.getConsumerSubsidyStatus(userId)).rejects.toThrow(
+          errorType,
+        );
+        expect(prismaMock.subsidyProgram.findFirst).not.toHaveBeenCalled();
+        expect(prismaMock.walletTransaction.aggregate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('returns fractional subsidy balance, usage, and remaining without rounding', async () => {
+      prismaMock.wallet.findUnique.mockResolvedValue({
+        ...activeWallet,
+        subsidyBalance: new Prisma.Decimal('800.40'),
+      });
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue({
+        programId: 7n,
+        programName: 'โครงการทดสอบ',
+        subsidyPercentage: new Prisma.Decimal(60),
+        userPercentage: new Prisma.Decimal(40),
+        dailySubsidyLimit: new Prisma.Decimal(200),
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-31T00:00:00.000Z'),
+      });
+      prismaMock.walletTransaction.aggregate.mockResolvedValue({
+        _sum: { amount: new Prisma.Decimal('60.60') },
+      });
+
+      await expect(service.getConsumerSubsidyStatus(userId)).resolves.toEqual(
+        expect.objectContaining({
+          subsidyBalance: 800.4,
+          dailySubsidyLimit: 200,
+          dailySubsidyUsed: 60.6,
+          dailySubsidyRemaining: 139.4,
+        }),
+      );
+    });
+
+    it.each(['800.501', '-0.01', '90071992547409.92'])(
+      'rejects unsafe subsidy money %s with the stable contract error',
+      async (subsidyBalance) => {
+        prismaMock.wallet.findUnique.mockResolvedValue({
+          ...activeWallet,
+          subsidyBalance: new Prisma.Decimal(subsidyBalance),
+        });
+        prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
+
+        await expect(service.getConsumerSubsidyStatus(userId)).rejects.toThrow(
+          'WALLET_AMOUNT_NOT_INTEGER_BAHT',
+        );
+      },
+    );
+  });
+
+  describe('getOrCreateConsumerWallet', () => {
+    it('selects overlapping active programs deterministically', async () => {
+      const existingWallet = {
+        walletId: 1n,
+        userId: 100n,
+        walletType: 'CONSUMER',
+        status: 'ACTIVE',
+      };
+      prismaMock.wallet.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existingWallet);
+      prismaMock.subsidyProgram.findFirst.mockResolvedValue({
+        programId: 7n,
+        initialGrant: new Prisma.Decimal(1000),
+      });
+
+      await expect(service.getOrCreateConsumerWallet(100n)).resolves.toBe(
+        existingWallet,
+      );
+      expect(prismaMock.subsidyProgram.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
+        }),
+      );
+      expect(prismaMock.wallet.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getConsumerOverview', () => {
     it('returns wallet overview with calculated daily subsidy', async () => {
       const userId = 100n;
@@ -104,7 +302,7 @@ describe('WalletService', () => {
         userId,
         walletType: 'CONSUMER',
         personalBalance: '500.00',
-        subsidyBalance: '800.00',
+        subsidyBalance: '800.40',
         status: 'ACTIVE',
       });
 
@@ -118,25 +316,20 @@ describe('WalletService', () => {
         endDate: new Date('2026-12-31'),
       });
 
-      prismaMock.walletTransaction.findMany.mockImplementation(
-        (args: unknown) => {
-          const params = args as { select?: { amount?: boolean } } | undefined;
-          if (params?.select?.amount) {
-            return Promise.resolve([{ amount: '50.00' }]);
-          }
-          return Promise.resolve([
-            {
-              walletTransactionId: 1n,
-              fundType: 'PERSONAL',
-              transactionType: 'PERSONAL_TOPUP',
-              amount: '100.00',
-              balanceBefore: '0.00',
-              balanceAfter: '100.00',
-              createdAt: new Date(),
-            },
-          ]);
+      prismaMock.walletTransaction.aggregate.mockResolvedValue({
+        _sum: { amount: new Prisma.Decimal('60.60') },
+      });
+      prismaMock.walletTransaction.findMany.mockResolvedValue([
+        {
+          walletTransactionId: 1n,
+          fundType: 'PERSONAL',
+          transactionType: 'PERSONAL_TOPUP',
+          amount: '100.00',
+          balanceBefore: '0.00',
+          balanceAfter: '100.00',
+          createdAt: new Date(),
         },
-      );
+      ]);
 
       prismaMock.userQuest.findMany.mockResolvedValue([]);
       prismaMock.userCoupon.findMany.mockResolvedValue([]);
@@ -145,11 +338,11 @@ describe('WalletService', () => {
       const result = await service.getConsumerOverview(userId);
 
       expect(result.wallet.personalBalance).toBe(500);
-      expect(result.wallet.subsidyBalance).toBe(800);
-      expect(result.wallet.totalBalance).toBe(1300);
+      expect(result.wallet.subsidyBalance).toBe(800.4);
+      expect(result.wallet.totalBalance).toBe(1300.4);
       expect(result.wallet.dailySubsidyLimit).toBe(200);
-      expect(result.wallet.dailySubsidyUsed).toBe(50);
-      expect(result.wallet.dailySubsidyRemaining).toBe(150); // 200 - 50 = 150
+      expect(result.wallet.dailySubsidyUsed).toBe(60.6);
+      expect(result.wallet.dailySubsidyRemaining).toBe(139.4);
       expect(result.wallet.pointBalance).toBe(250);
       expect(result.recentOrders).toEqual([]);
       expect(JSON.stringify(result)).not.toContain('1234567890123');
@@ -175,17 +368,18 @@ describe('WalletService', () => {
         vi.setSystemTime(new Date(instant));
         prismaMock.user.findUnique.mockResolvedValue({
           userId: 100n,
+          walletType: 'CONSUMER',
           pointBalance: 0,
         });
         prismaMock.wallet.findUnique.mockResolvedValue({
           walletId: 1n,
           userId: 100n,
+          walletType: 'CONSUMER',
           personalBalance: '0.00',
           subsidyBalance: '0.00',
           status: 'ACTIVE',
         });
         prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
-        prismaMock.walletTransaction.findMany.mockResolvedValue([]);
         prismaMock.userQuest.findMany.mockResolvedValue([]);
         prismaMock.userCoupon.findMany.mockResolvedValue([]);
 
@@ -198,6 +392,16 @@ describe('WalletService', () => {
             startDate: { lte: businessDate },
             endDate: { gte: businessDate },
           },
+          orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
+          select: {
+            programId: true,
+            programName: true,
+            subsidyPercentage: true,
+            userPercentage: true,
+            dailySubsidyLimit: true,
+            startDate: true,
+            endDate: true,
+          },
         });
       },
     );
@@ -207,23 +411,24 @@ describe('WalletService', () => {
       vi.setSystemTime(new Date('2026-10-14T10:30:00.000Z'));
       prismaMock.user.findUnique.mockResolvedValue({
         userId: 100n,
+        walletType: 'CONSUMER',
         pointBalance: 0,
       });
       prismaMock.wallet.findUnique.mockResolvedValue({
         walletId: 1n,
         userId: 100n,
+        walletType: 'CONSUMER',
         personalBalance: '0.00',
         subsidyBalance: '0.00',
         status: 'ACTIVE',
       });
       prismaMock.subsidyProgram.findFirst.mockResolvedValue(null);
-      prismaMock.walletTransaction.findMany.mockResolvedValue([]);
       prismaMock.userQuest.findMany.mockResolvedValue([]);
       prismaMock.userCoupon.findMany.mockResolvedValue([]);
 
       await service.getConsumerOverview(100n);
 
-      expect(prismaMock.walletTransaction.findMany).toHaveBeenCalledWith({
+      expect(prismaMock.walletTransaction.aggregate).toHaveBeenCalledWith({
         where: {
           walletId: 1n,
           fundType: 'SUBSIDY',
@@ -233,7 +438,7 @@ describe('WalletService', () => {
             lt: new Date('2026-10-14T17:00:00.000Z'),
           },
         },
-        select: { amount: true },
+        _sum: { amount: true },
       });
     });
 

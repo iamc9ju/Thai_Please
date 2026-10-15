@@ -29,6 +29,7 @@ export const LegacyTransactionType = {
 
 export const BANGKOK_TIMEZONE = 'Asia/Bangkok';
 export const BANGKOK_TZ_OFFSET_HOURS = 7;
+export const WALLET_CURRENCY = 'THB';
 
 export const TOPUP_LIMITS = {
   MIN_AMOUNT: 1,

@@ -33,6 +33,15 @@ export class WalletController {
   }
 
   /**
+   * FR-C03: สถานะสิทธิเงินสนับสนุนรายวันของ Consumer ที่เข้าสู่ระบบ
+   */
+  @Get('subsidy')
+  @Roles('CONSUMER')
+  async getSubsidyStatus(@Req() req: Request) {
+    return this.walletService.getConsumerSubsidyStatus(req.user!.userId);
+  }
+
+  /**
    * FR-C02: เติมเงินจำลองเข้ากระเป๋าส่วนตัว (Virtual Top-up)
    */
   @Post('topup')

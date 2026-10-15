@@ -9,11 +9,13 @@ import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   BANGKOK_TZ_OFFSET_HOURS,
+  BANGKOK_TIMEZONE,
   FundType,
   LegacyTransactionType,
   TOPUP_LIMITS,
   TransactionType,
   WALLET_TRANSACTION_PAGE_LIMITS,
+  WALLET_CURRENCY,
 } from './wallet.constants.js';
 import type { TopUpDto } from './dto/top-up.dto.js';
 import type { WalletTransactionsQueryDto } from './dto/wallet-transactions-query.dto.js';
@@ -22,6 +24,26 @@ const RECENT_PAID_ORDER_LIMIT = 5;
 const PAID_ORDER_STATUS = 'PAID';
 const TRANSACTION_CURSOR_VERSION = 1;
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+interface ConsumerSubsidyCalculation {
+  asOf: Date;
+  wallet: {
+    walletId: bigint;
+    personalBalance: Prisma.Decimal;
+    subsidyBalance: Prisma.Decimal;
+  };
+  program: {
+    programId: bigint;
+    programName: string;
+    subsidyPercentage: Prisma.Decimal;
+    userPercentage: Prisma.Decimal;
+    dailySubsidyLimit: Prisma.Decimal;
+    startDate: Date;
+    endDate: Date;
+  } | null;
+  dailySubsidyUsed: Prisma.Decimal;
+  dailySubsidyRemaining: Prisma.Decimal;
+}
 
 @Injectable()
 export class WalletService {
@@ -61,6 +83,28 @@ export class WalletService {
     if (wallet.status !== 'ACTIVE' || wallet.walletType !== 'CONSUMER') {
       throw new ConflictException('WALLET_NOT_ACTIVE_CONSUMER');
     }
+  }
+
+  private decimalToSafeMoney(value: Prisma.Decimal | number | string): number {
+    const decimal = new Prisma.Decimal(value);
+    const amount = decimal.toNumber();
+    const minorUnits = decimal.mul(100);
+
+    if (
+      decimal.isNegative() ||
+      decimal.decimalPlaces() > 2 ||
+      !minorUnits.isInteger() ||
+      !Number.isSafeInteger(minorUnits.toNumber()) ||
+      !Number.isFinite(amount)
+    ) {
+      throw new ConflictException('WALLET_AMOUNT_NOT_INTEGER_BAHT');
+    }
+
+    return amount;
+  }
+
+  private formatBusinessDate(value: Date): string {
+    return value.toISOString().slice(0, 10);
   }
 
   private parseBangkokDateBoundary(value: string, nextDay: boolean): Date {
@@ -182,6 +226,116 @@ export class WalletService {
   }
 
   /**
+   * FR-C03 authoritative calculation shared with the legacy overview response.
+   * All money arithmetic stays in Prisma.Decimal until the safe two-decimal
+   * response boundary.
+   */
+  private async calculateConsumerSubsidyStatus(
+    userId: bigint,
+    asOf = new Date(),
+  ): Promise<ConsumerSubsidyCalculation> {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      select: {
+        walletId: true,
+        walletType: true,
+        status: true,
+        personalBalance: true,
+        subsidyBalance: true,
+      },
+    });
+    if (!wallet) {
+      throw new NotFoundException('WALLET_NOT_FOUND');
+    }
+    this.assertActiveConsumerWallet(wallet);
+
+    const businessDate = this.getBangkokBusinessDate(asOf);
+    const program = await this.prisma.subsidyProgram.findFirst({
+      where: {
+        status: 'ACTIVE',
+        startDate: { lte: businessDate },
+        endDate: { gte: businessDate },
+      },
+      orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
+      select: {
+        programId: true,
+        programName: true,
+        subsidyPercentage: true,
+        userPercentage: true,
+        dailySubsidyLimit: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(asOf);
+    const aggregate = await this.prisma.walletTransaction.aggregate({
+      where: {
+        walletId: wallet.walletId,
+        fundType: FundType.SUBSIDY,
+        transactionType: TransactionType.PAYMENT_SUBSIDY,
+        createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
+      },
+      _sum: { amount: true },
+    });
+
+    const dailySubsidyUsed = new Prisma.Decimal(aggregate._sum.amount ?? 0);
+    const dailySubsidyLimit = new Prisma.Decimal(
+      program?.dailySubsidyLimit ?? 0,
+    );
+    const remaining = dailySubsidyLimit.minus(dailySubsidyUsed);
+    const dailySubsidyRemaining = remaining.isNegative()
+      ? new Prisma.Decimal(0)
+      : remaining;
+
+    // Validate every monetary contract field before returning any data.
+    this.decimalToSafeMoney(wallet.subsidyBalance);
+    this.decimalToSafeMoney(dailySubsidyLimit);
+    this.decimalToSafeMoney(dailySubsidyUsed);
+    this.decimalToSafeMoney(dailySubsidyRemaining);
+
+    return {
+      asOf,
+      wallet: {
+        walletId: wallet.walletId,
+        personalBalance: new Prisma.Decimal(wallet.personalBalance),
+        subsidyBalance: new Prisma.Decimal(wallet.subsidyBalance),
+      },
+      program,
+      dailySubsidyUsed,
+      dailySubsidyRemaining,
+    };
+  }
+
+  async getConsumerSubsidyStatus(userId: bigint, asOf = new Date()) {
+    const status = await this.calculateConsumerSubsidyStatus(userId, asOf);
+    const dailySubsidyLimit = new Prisma.Decimal(
+      status.program?.dailySubsidyLimit ?? 0,
+    );
+
+    return {
+      currency: WALLET_CURRENCY,
+      timeZone: BANGKOK_TIMEZONE,
+      asOf: status.asOf.toISOString(),
+      subsidyBalance: this.decimalToSafeMoney(status.wallet.subsidyBalance),
+      dailySubsidyLimit: this.decimalToSafeMoney(dailySubsidyLimit),
+      dailySubsidyUsed: this.decimalToSafeMoney(status.dailySubsidyUsed),
+      dailySubsidyRemaining: this.decimalToSafeMoney(
+        status.dailySubsidyRemaining,
+      ),
+      program: status.program
+        ? {
+            programId: status.program.programId.toString(),
+            programName: status.program.programName,
+            subsidyPercentage: Number(status.program.subsidyPercentage),
+            startDate: this.formatBusinessDate(status.program.startDate),
+            endDate: this.formatBusinessDate(status.program.endDate),
+          }
+        : null,
+    };
+  }
+
+  /**
    * ดึงหรือสร้าง Consumer Wallet หากยังไม่มี (ป้องกัน Race Condition และ Unique Constraint)
    */
   async getOrCreateConsumerWallet(userId: bigint) {
@@ -201,6 +355,7 @@ export class WalletService {
         startDate: { lte: businessDate },
         endDate: { gte: businessDate },
       },
+      orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
     });
 
     const initialGrant = activeProgram ? activeProgram.initialGrant : 0;
@@ -273,46 +428,24 @@ export class WalletService {
       throw new NotFoundException('ไม่พบข้อมูลผู้ใช้งาน');
     }
 
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
-    if (!wallet) {
-      throw new NotFoundException('ไม่พบข้อมูลกระเป๋าเงิน');
-    }
-
-    const businessDate = this.getBangkokBusinessDate(now);
-    const activeProgram = await this.prisma.subsidyProgram.findFirst({
-      where: {
-        status: 'ACTIVE',
-        startDate: { lte: businessDate },
-        endDate: { gte: businessDate },
-      },
-    });
-
-    const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(now);
-
-    // คำนวณยอดเงินอุดหนุนที่ใช้ไปในวันนี้
-    const todaySubsidyTxs = await this.prisma.walletTransaction.findMany({
-      where: {
-        walletId: wallet.walletId,
-        fundType: FundType.SUBSIDY,
-        transactionType: TransactionType.PAYMENT_SUBSIDY,
-        createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
-      },
-      select: { amount: true },
-    });
-
-    const dailySubsidyUsed = todaySubsidyTxs.reduce(
-      (sum, tx) => sum + Number(tx.amount),
-      0,
+    const subsidyStatus = await this.calculateConsumerSubsidyStatus(
+      userId,
+      now,
     );
-
-    const dailySubsidyLimit = activeProgram
-      ? Number(activeProgram.dailySubsidyLimit)
-      : 0;
-    const subsidyBalance = Number(wallet.subsidyBalance);
-    const dailyCapRemaining = Math.max(0, dailySubsidyLimit - dailySubsidyUsed);
-    const dailySubsidyRemaining = Math.min(subsidyBalance, dailyCapRemaining);
+    const wallet = subsidyStatus.wallet;
+    const activeProgram = subsidyStatus.program;
+    const dailySubsidyLimit = this.decimalToSafeMoney(
+      activeProgram?.dailySubsidyLimit ?? 0,
+    );
+    const subsidyBalance = this.decimalToSafeMoney(
+      subsidyStatus.wallet.subsidyBalance,
+    );
+    const dailySubsidyUsed = this.decimalToSafeMoney(
+      subsidyStatus.dailySubsidyUsed,
+    );
+    const dailySubsidyRemaining = this.decimalToSafeMoney(
+      subsidyStatus.dailySubsidyRemaining,
+    );
 
     // FR-C01 เป็น read-only: การ assign Quest เป็นหน้าที่ของ workflow FR-C07
     const userQuests = await this.prisma.userQuest.findMany({

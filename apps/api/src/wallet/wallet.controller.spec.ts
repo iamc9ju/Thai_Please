@@ -27,6 +27,10 @@ const topUpHandler = Object.getOwnPropertyDescriptor(
   WalletController.prototype,
   'topUp',
 )?.value as WalletController['topUp'];
+const subsidyHandler = Object.getOwnPropertyDescriptor(
+  WalletController.prototype,
+  'getSubsidyStatus',
+)?.value as WalletController['getSubsidyStatus'];
 const transactionsHandler = Object.getOwnPropertyDescriptor(
   WalletController.prototype,
   'getTransactions',
@@ -36,6 +40,7 @@ function createExecutionContext(
   role?: ActiveRole,
   handler:
     | WalletController['getOverview']
+    | WalletController['getSubsidyStatus']
     | WalletController['topUp']
     | WalletController['getTransactions'] = overviewHandler,
 ): ExecutionContext {
@@ -111,6 +116,39 @@ describe('WalletController FR-C01 authorization', () => {
     expect(() =>
       guard.canActivate(createExecutionContext('MERCHANT', topUpHandler)),
     ).toThrow(ForbiddenException);
+  });
+
+  it('requires the CONSUMER role and passes only the session identity for subsidy status', async () => {
+    expect(Reflect.getMetadata(ROLES_METADATA_KEY, subsidyHandler)).toEqual([
+      'CONSUMER',
+    ]);
+    const guard = new RolesGuard(new Reflector());
+    expect(
+      guard.canActivate(createExecutionContext('CONSUMER', subsidyHandler)),
+    ).toBe(true);
+    expect(() =>
+      guard.canActivate(createExecutionContext('MERCHANT', subsidyHandler)),
+    ).toThrow(ForbiddenException);
+
+    const getConsumerSubsidyStatus = vi.fn().mockResolvedValue({});
+    const controller = new WalletController({
+      getConsumerSubsidyStatus,
+    } as unknown as WalletService);
+    const request = {
+      user: {
+        userId: 42n,
+        citizenId: '1000000000001',
+        fullName: 'ผู้ใช้ทดสอบ',
+        role: 'CONSUMER',
+        activeMerchantId: null,
+        sessionId: 7n,
+      },
+    } as Request;
+
+    await controller.getSubsidyStatus(request);
+
+    expect(getConsumerSubsidyStatus).toHaveBeenCalledOnce();
+    expect(getConsumerSubsidyStatus).toHaveBeenCalledWith(42n);
   });
 
   it('uses session userId and the validated body for top-up', async () => {
