@@ -1,12 +1,26 @@
 import { apiClient } from '../../../lib/api-client';
 import type {
   ConsumerOverviewResponse,
+  ConsumerQuestListResponse,
   TopUpResponse,
   WalletTransactionHistoryQuery,
   WalletTransactionHistoryResponse,
 } from '../consumer.types';
 
 const WALLET_API_PATH = '/api/v1/wallet';
+const QUEST_API_PATH = '/api/v1/quests';
+
+export function getConsumerQuests(
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ConsumerQuestListResponse> {
+  const queryString = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  const requestOptions: RequestInit = signal ? { signal } : {};
+  return apiClient.get<ConsumerQuestListResponse>(
+    `${QUEST_API_PATH}${queryString}`,
+    requestOptions,
+  );
+}
 
 export function getConsumerOverview(): Promise<ConsumerOverviewResponse> {
   return apiClient.get<ConsumerOverviewResponse>(`${WALLET_API_PATH}/overview`);

@@ -469,6 +469,7 @@ export class QuestsRepository {
         completedAt: true,
         quest: {
           select: {
+            questName: true,
             questType: true,
             targetCategoryId: true,
             targetProductId: true,
@@ -476,12 +477,16 @@ export class QuestsRepository {
             minSpend: true,
             rewardPoint: true,
             durationDays: true,
+            category: { select: { categoryName: true } },
+            product: { select: { productName: true } },
+            merchant: { select: { merchantName: true } },
           },
         },
       },
     });
     return rows.map((r) => ({
       id: String(r.userQuestId),
+      questName: r.quest.questName,
       status:
         r.status === 'ACTIVE' && r.expiresAt <= now ? 'EXPIRED' : r.status,
       assignedAt: r.assignedAt.toISOString(),
@@ -489,8 +494,11 @@ export class QuestsRepository {
       completedAt: r.completedAt?.toISOString() ?? null,
       type: r.quest.questType,
       targetCategoryId: r.quest.targetCategoryId?.toString() ?? null,
+      targetCategoryName: r.quest.category?.categoryName ?? null,
       targetProductId: r.quest.targetProductId?.toString() ?? null,
+      targetProductName: r.quest.product?.productName ?? null,
       targetMerchantId: r.quest.targetMerchantId?.toString() ?? null,
+      targetMerchantName: r.quest.merchant?.merchantName ?? null,
       minimumSpendMinor:
         r.quest.minSpend === null ? null : minor(r.quest.minSpend).toString(),
       rewardPoints: r.quest.rewardPoint,

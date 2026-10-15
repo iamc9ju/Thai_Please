@@ -97,7 +97,9 @@ export function ConsumerDashboard({
       />
       <ConsumerNavigation activeView={activeView} onNavigate={navigate} />
       <div className="consumer-content" id="dashboard-top">
-        {activeView !== 'overview' && activeView !== 'wallet' && (
+        {activeView !== 'overview' &&
+          activeView !== 'wallet' &&
+          activeView !== 'quests' && (
           <div className="draft-banner">
             <span>{th.consumerPortal.draftLabel}</span>
             <p aria-live="polite">{announcement}</p>
