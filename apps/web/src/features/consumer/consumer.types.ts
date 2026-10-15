@@ -88,9 +88,30 @@ export type ConsumerOverviewResponse = {
   }>;
 };
 
+export type ConsumerSubsidyStatusResponse = {
+  currency: 'THB';
+  timeZone: 'Asia/Bangkok';
+  asOf: string;
+  subsidyBalance: number;
+  dailySubsidyLimit: number;
+  dailySubsidyUsed: number;
+  dailySubsidyRemaining: number;
+  program: {
+    programId: string;
+    programName: string;
+    subsidyPercentage: number;
+    startDate: string;
+    endDate: string;
+  } | null;
+};
+
 export type ConsumerOverviewLoadState =
   | { status: 'loading' }
-  | { status: 'success'; data: ConsumerOverviewResponse }
+  | {
+      status: 'success';
+      data: ConsumerOverviewResponse;
+      subsidy: ConsumerSubsidyStatusResponse;
+    }
   | { status: 'permission-denied' }
   | { status: 'error' };
 
