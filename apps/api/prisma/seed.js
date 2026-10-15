@@ -23,10 +23,10 @@ async function seed() {
     activeProgram = await prisma.subsidyProgram.create({
       data: {
         programName: 'โครงการไทยช่วยไทยพลีส (ระยะที่ 1)',
-        initialGrant: 1000.0,
-        subsidyPercentage: 50.0,
-        userPercentage: 50.0,
-        dailySubsidyLimit: 200.0,
+        initialGrant: 1000,
+        subsidyPercentage: 60,
+        userPercentage: 40,
+        dailySubsidyLimit: 200,
         startDate: new Date('2026-01-01T00:00:00Z'),
         endDate: new Date('2026-12-31T23:59:59Z'),
         status: 'ACTIVE',

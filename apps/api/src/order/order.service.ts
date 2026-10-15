@@ -78,13 +78,21 @@ function splitPayment(
   subsidyBalance: Prisma.Decimal,
   dailyCapRemaining: Prisma.Decimal,
 ): { subsidyAmount: Prisma.Decimal; userPaidAmount: Prisma.Decimal } {
+  if (
+    !subsidyPercentage.isFinite() ||
+    subsidyPercentage.isNegative() ||
+    subsidyPercentage.greaterThan(100)
+  ) {
+    throw new ConflictException('SUBSIDY_POLICY_INVALID');
+  }
+
   const configuredShare = finalAmount
     .mul(subsidyPercentage)
     .dividedBy(100)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_FLOOR);
   const subsidyAmount = Prisma.Decimal.max(
     ZERO,
-    minMoney(configuredShare, subsidyBalance, dailyCapRemaining),
+    minMoney(configuredShare, finalAmount, subsidyBalance, dailyCapRemaining),
   );
 
   return {
@@ -120,10 +128,7 @@ export class OrderService {
       facts.qrExpiresAt?.toISOString() ?? 'none',
     ].join('|');
 
-    return createHmac(
-      'sha256',
-      this.config.getOrThrow<string>('JWT_SECRET'),
-    )
+    return createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET'))
       .update(canonicalFacts)
       .digest('hex');
   }
@@ -148,7 +153,7 @@ export class OrderService {
 
   private getBangkokDayBoundaries(now = new Date()): {
     startOfDayUtc: Date;
-    endOfDayUtc: Date;
+    nextDayUtc: Date;
   } {
     const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
     const bangkokNow = new Date(now.getTime() + offsetMs);
@@ -159,18 +164,27 @@ export class OrderService {
         bangkokNow.getUTCDate(),
       ) - offsetMs,
     );
-    const endOfDayUtc = new Date(
+    const nextDayUtc = new Date(
+      Date.UTC(
+        bangkokNow.getUTCFullYear(),
+        bangkokNow.getUTCMonth(),
+        bangkokNow.getUTCDate() + 1,
+      ) - offsetMs,
+    );
+    return { startOfDayUtc, nextDayUtc };
+  }
+
+  private getBangkokBusinessDate(now = new Date()): Date {
+    const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
+    const bangkokNow = new Date(now.getTime() + offsetMs);
+
+    return new Date(
       Date.UTC(
         bangkokNow.getUTCFullYear(),
         bangkokNow.getUTCMonth(),
         bangkokNow.getUTCDate(),
-        23,
-        59,
-        59,
-        999,
-      ) - offsetMs,
+      ),
     );
-    return { startOfDayUtc, endOfDayUtc };
   }
 
   private applyCouponDiscount(
@@ -496,24 +510,25 @@ export class OrderService {
         this.validateCoupon(coupon, consumerId, lockedOrder.merchantId, now);
       }
 
+      const businessDate = this.getBangkokBusinessDate(now);
       const activeProgram = await tx.subsidyProgram.findFirst({
         where: {
           status: 'ACTIVE',
-          startDate: { lte: now },
-          endDate: { gte: now },
+          startDate: { lte: businessDate },
+          endDate: { gte: businessDate },
         },
+        orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
       });
 
       let dailySubsidyRemaining = ZERO;
       if (activeProgram) {
-        const { startOfDayUtc, endOfDayUtc } =
-          this.getBangkokDayBoundaries(now);
+        const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(now);
         const todaySubsidyTransactions = await tx.walletTransaction.findMany({
           where: {
             walletId: lockedWallet.walletId,
             fundType: FundType.SUBSIDY,
             transactionType: TransactionType.PAYMENT_SUBSIDY,
-            createdAt: { gte: startOfDayUtc, lte: endOfDayUtc },
+            createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
           },
           select: { amount: true },
         });
@@ -756,24 +771,26 @@ export class OrderService {
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId: consumerId },
     });
+    const businessDate = this.getBangkokBusinessDate(now);
     const activeProgram = await this.prisma.subsidyProgram.findFirst({
       where: {
         status: 'ACTIVE',
-        startDate: { lte: now },
-        endDate: { gte: now },
+        startDate: { lte: businessDate },
+        endDate: { gte: businessDate },
       },
+      orderBy: [{ startDate: 'desc' }, { programId: 'desc' }],
     });
 
     let dailySubsidyRemaining = ZERO;
     if (activeProgram && wallet) {
-      const { startOfDayUtc, endOfDayUtc } = this.getBangkokDayBoundaries(now);
+      const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(now);
       const todaySubsidyTransactions =
         await this.prisma.walletTransaction.findMany({
           where: {
             walletId: wallet.walletId,
             fundType: FundType.SUBSIDY,
             transactionType: TransactionType.PAYMENT_SUBSIDY,
-            createdAt: { gte: startOfDayUtc, lte: endOfDayUtc },
+            createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
           },
           select: { amount: true },
         });
