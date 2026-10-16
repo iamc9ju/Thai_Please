@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RolePreview } from '../features/auth/pages/RolePreview';
 import { ConsumerDashboard } from '../features/consumer/pages/ConsumerDashboard';
 import { MerchantPos } from '../features/merchant/pages/MerchantPos';
+import { LandingPage } from '../features/landing/pages/LandingPage';
 import { th } from '../i18n/th';
 
 function MainContent() {
   const { user, isLoading, logout } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
 
   if (isLoading) {
     return (
@@ -45,7 +48,11 @@ function MainContent() {
     }
   }
 
-  return <LoginPage />;
+  if (showLogin) {
+    return <LoginPage onBack={() => setShowLogin(false)} />;
+  }
+
+  return <LandingPage onLogin={() => setShowLogin(true)} />;
 }
 
 function App() {

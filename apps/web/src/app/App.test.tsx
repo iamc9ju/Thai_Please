@@ -25,10 +25,34 @@ afterEach(() => {
 
 async function renderApp() {
   render(<App />);
+  const loginButton = await screen.findByRole('button', {
+    name: th.landing.nav.login,
+  });
+  fireEvent.click(loginButton);
   return screen.findByRole('heading', { level: 2, name: th.login.title });
 }
 
 describe('App', () => {
+  it('renders the landing page initially and navigates to login', async () => {
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: th.landing.schedule.dates,
+      }),
+    ).toBeInTheDocument();
+
+    const loginButton = screen.getByRole('button', {
+      name: th.landing.nav.login,
+    });
+    fireEvent.click(loginButton);
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: th.login.title }),
+    ).toBeInTheDocument();
+  });
+
   it('renders the login page for all supported roles', async () => {
     await renderApp();
 

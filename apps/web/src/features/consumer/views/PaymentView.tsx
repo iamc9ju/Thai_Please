@@ -2,7 +2,6 @@ import {
   CheckCircle2,
   QrCode,
   ReceiptText,
-  ScanLine,
   ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -28,7 +27,11 @@ export function PaymentView({ onNavigate }: PaymentViewProps) {
       {step === 'scan' && (
         <article className="portal-card payment-scan-card">
           <div className="scanner-frame">
-            <ScanLine aria-hidden="true" />
+            <img
+              src="/images/scan-qr-icon.png"
+              alt=""
+              className="size-20 object-contain drop-shadow-md z-10"
+            />
             <span />
           </div>
           <h2>{copy.scanTitle}</h2>

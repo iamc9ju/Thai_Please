@@ -2,25 +2,27 @@ export const th = {
   app: {
     checkingSession: 'กำลังตรวจสอบข้อมูลผู้ใช้งาน...',
   },
-  brand: 'ไทยช่วยไทยพลีส',
+  brand: 'ไทยช่วยไทยพรีส',
   login: {
-    brandEnglish: 'THAI CHUAY THAI PLEASE',
-    backToWebsite: 'กลับไปที่เว็บไซต์',
-    projectBadge: 'โครงการร่วมจ่ายเพื่อคนไทย',
+    brandEnglish: 'THAI PLEASE',
+    backToWebsite: 'กลับหน้าหลัก',
+    projectBadge: 'ระบบต้นแบบ • เงินเสมือน',
     heroTitle: {
-      primary: 'ช่วยลดค่าครองชีพ',
-      secondary: 'เพิ่มรายได้ให้ชุมชน',
+      primary: 'ใช้จ่ายใกล้บ้าน',
+      secondary: 'ส่งต่อโอกาสให้ชุมชน',
     },
+    prototypeSubtitle: 'ระบบต้นแบบ • เงินเสมือน',
+    securityNote: 'ระบบจะตรวจสอบสิทธิ์ตามประเภทผู้ใช้งาน',
     heroDescription:
       'ใช้จ่ายผ่าน Virtual Wallet รับสิทธิ์ร่วมจ่าย สะสมพอยต์จากภารกิจ และกลับมาสนับสนุนร้านค้าไทยใกล้บ้านอีกครั้ง',
     benefits: {
       label: 'สิทธิประโยชน์ของโครงการ',
-      subsidy: 'รัฐช่วยจ่าย 60%',
+      subsidy: 'สิทธิ์ร่วมจ่าย',
       community: 'เพื่อร้านค้าชุมชน',
     },
-    welcome: 'ยินดีต้อนรับ',
-    title: 'เข้าสู่ระบบ',
-    subtitle: 'เลือกประเภทบัญชีที่ต้องการเข้าใช้งาน',
+    welcome: 'ไทยช่วยไทยพรีส',
+    title: 'ยินดีต้อนรับกลับ',
+    subtitle: 'เข้าสู่ระบบเพื่อใช้งานโครงการ',
     role: {
       label: 'ประเภทบัญชี',
       options: {
@@ -32,7 +34,7 @@ export const th = {
     fields: {
       citizenId: {
         label: 'เลขประจำตัวประชาชน',
-        placeholder: 'กรอกเลขประจำตัวประชาชน 13 หลัก',
+        placeholder: 'เลขประจำตัวประชาชน 13 หลัก',
       },
       password: {
         label: 'รหัสผ่าน',
@@ -52,7 +54,9 @@ export const th = {
       'Mock authentication ยังไม่พร้อมใช้งาน กรุณาตรวจสอบค่า VITE_MOCK_* ในไฟล์ .env',
     unavailableFeedback: 'ความสามารถนี้จะเปิดใช้งานในขั้นตอนถัดไป',
     registration: {
-      prompt: 'ยังไม่มีบัญชี?',
+      prompt: 'ยังไม่มีบัญชี',
+      promptConsumer: 'ยังไม่มีบัญชีประชาชน?',
+      promptMerchant: 'ยังไม่มีบัญชีร้านค้า?',
       actions: {
         consumer: 'ลงทะเบียนประชาชน',
         merchant: 'ลงทะเบียนร้านค้า',
@@ -67,6 +71,7 @@ export const th = {
     locale: 'th-TH',
     timeZone: 'Asia/Bangkok',
     brand: 'ไทยช่วยไทย',
+    overviewTitle: 'ภาพรวมบัญชี',
     prototype: 'ระบบต้นแบบ',
     greeting: 'สวัสดีตอนเช้า',
     displayName: 'สมชาย ใจดี',
@@ -76,18 +81,18 @@ export const th = {
     wallet: {
       eyebrow: 'กระเป๋าเงินของฉัน',
       title: 'Virtual Wallet',
-      totalLabel: 'ยอดเงินที่ใช้ได้ทั้งหมด',
+      totalLabel: 'ยอดคงเหลือรวม',
       personal: 'เงินส่วนตัว',
       subsidy: 'เงินสนับสนุน',
       dailyRemaining: 'สิทธิ์สนับสนุนคงเหลือวันนี้',
       dailyUsage: (used: string, limit: string) =>
-        `ใช้แล้ว ฿${used} จากวงเงิน ฿${limit} ต่อวัน`,
+        `ใช้แล้ว ฿${used} จาก ฿${limit} ต่อวัน`,
       dailyProgressLabel: 'สัดส่วนการใช้สิทธิ์สนับสนุนรายวัน',
       noActiveProgram: 'ไม่มีโครงการสนับสนุนที่เปิดใช้งาน',
       programDetail: (percentage: number, startDate: string, endDate: string) =>
         `สนับสนุน ${percentage}% · ${startDate} – ${endDate}`,
       topUp: 'เติมเงิน',
-      history: 'ประวัติ Wallet',
+      history: 'ประวัติกระเป๋าเงิน',
     },
     payment: {
       title: 'สแกนเพื่อชำระเงิน',
@@ -106,18 +111,24 @@ export const th = {
       reward: (points: number) => `+${points.toLocaleString('th-TH')} พอยต์`,
       expiry: (date: string) => `หมดเขต ${date}`,
       activeStatus: 'กำลังดำเนินการ',
-      viewAll: 'ดูภารกิจทั้งหมด',
+      viewAll: 'ดูทั้งหมด',
+      emptySubtext: 'ภารกิจที่ได้รับจะแสดงที่นี่',
     },
     coupons: {
       title: 'คูปองของฉัน',
       count: (count: number) => `มีคูปองพร้อมใช้ ${count} ใบ`,
-      viewAll: 'ดูคูปองทั้งหมด',
+      viewAll: 'ดูทั้งหมด',
     },
     activity: {
       title: 'รายการซื้อล่าสุด',
       viewAll: 'ดูทั้งหมด',
       paidAt: 'ชำระด้วย Wallet ·',
       paidAmount: (amount: string) => `-${amount} บาท`,
+      tableMerchant: 'ร้านค้า',
+      tableDatetime: 'วันที่และเวลา',
+      tableNetAmount: 'ยอดสุทธิ',
+      tableStatus: 'สถานะ',
+      statusSuccess: 'สำเร็จ',
     },
     states: {
       loading: 'กำลังโหลดข้อมูลภาพรวม...',
@@ -646,4 +657,57 @@ export const th = {
     },
   },
   footer: 'สร้างบนหลักความถูกต้อง ความปลอดภัย และการตรวจสอบย้อนหลังได้',
+  landing: {
+    brand: 'ไทยช่วยไทยพรีส',
+    brandSub: 'THAI PLEASE',
+    bannerAlt: 'แบนเนอร์โครงการไทยช่วยไทยพรีส',
+    nav: {
+      home: 'หน้าแรก',
+      projectInfo: 'ข้อมูลโครงการ',
+      eligibility: 'วิธีการเข้าร่วมสิทธิ',
+      findShops: 'ค้นหาร้านค้า',
+      mofNews: 'ข่าวจากกระทรวงการคลัง',
+      faq: 'คำถามที่พบบ่อย',
+      login: 'เข้าสู่ระบบ',
+      forConsumers: 'สำหรับประชาชน',
+      forMerchants: 'สำหรับร้านค้า',
+      menuToggle: 'เปิดเมนู',
+      menuClose: 'ปิดเมนู',
+    },
+    schedule: {
+      title: 'โครงการไทยช่วยไทยพรีส',
+      dates: 'ลงทะเบียนเพื่อสิทธิประโยชน์มากมาย',
+      subtitle:
+        'ประชาชนและร้านค้ายืนยันรับสิทธิและเข้าใช้งานผ่านระบบ Virtual Wallet ได้ทุกวัน ตลอด 24 ชั่วโมง',
+    },
+    howItWorks: {
+      ariaLabel: 'ขั้นตอนการใช้งาน ช้อปใกล้บ้าน ทำภารกิจ รับแต้ม',
+      imageAlt:
+        'ขั้นตอนการใช้งานไทยช่วยไทยพรีส: 1. เลือกร้านค้า 2. สแกนและชำระ 3. ทำภารกิจ รับแต้ม 4. แลกคูปอง',
+    },
+    actions: {
+      title: 'ลงทะเบียนเข้าร่วมโครงการ / ยืนยันสิทธิ',
+      description:
+        'สิทธิประโยชน์เพื่อคนไทยและร้านค้าชุมชน สะสมพอยต์จากภารกิจ และแลกรับคูปองส่วนลดพิเศษ',
+      loginCta: 'เข้าสู่ระบบ / ยืนยันรับสิทธิ',
+      registerConsumer: 'ลงทะเบียนรับสิทธิสำหรับประชาชน',
+      registerMerchant: 'ลงทะเบียนสำหรับร้านค้า',
+    },
+    support: {
+      buttonLabel: 'ติดต่อศูนย์ช่วยเหลือโครงการ',
+      contactSupport: 'ติดต่อสอบถาม',
+      modalTitle: 'ศูนย์ช่วยเหลือและติดต่อสอบถาม',
+      phone: 'สายด่วนโครงการ: 02-111-1122',
+      hours: 'เวลาทำการ: ทุกวันตลอด 24 ชั่วโมง',
+      close: 'ปิดหน้าต่าง',
+    },
+    news: {
+      title: 'ข่าวสารและประกาศจากกระทรวงการคลัง',
+      close: 'ปิดหน้าต่าง',
+    },
+    faq: {
+      title: 'คำถามที่พบบ่อย',
+      close: 'ปิดหน้าต่าง',
+    },
+  },
 } as const;
