@@ -44,6 +44,8 @@ export const th = {
       },
     },
     remember: 'จดจำข้อมูลของฉัน',
+    rememberCredentials: 'บันทึกเลขบัตรและรหัสผ่าน',
+    clearSaved: 'ล้างข้อมูลที่จำไว้',
     forgotPassword: 'ลืมรหัสผ่าน?',
     submit: 'เข้าสู่ระบบ',
     validation: {

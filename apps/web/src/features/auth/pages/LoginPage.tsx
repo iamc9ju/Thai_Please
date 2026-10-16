@@ -20,16 +20,72 @@ export interface LoginPageProps {
   onBack?: () => void;
 }
 
+const REMEMBERED_CREDENTIALS_KEY = 'thai_please_remembered_credentials';
+
+type StoredCredentials = {
+  citizenId: string;
+  password: string;
+};
+
+type RememberedStore = Partial<Record<LoginRole, StoredCredentials>>;
+
+function getStoredCredentials(): RememberedStore {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_CREDENTIALS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as RememberedStore;
+  } catch {
+    return {};
+  }
+}
+
+function saveCredentials(role: LoginRole, creds: StoredCredentials) {
+  try {
+    const current = getStoredCredentials();
+    current[role] = creds;
+    localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore storage issues in restricted environments
+  }
+}
+
+function removeStoredCredentials(role: LoginRole) {
+  try {
+    const current = getStoredCredentials();
+    delete current[role];
+    localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore
+  }
+}
+
 export function LoginPage({ onBack }: LoginPageProps = {}) {
   const { login } = useAuth();
   const [role, setRole] = useState<LoginRole>('consumer');
-  const [citizenId, setCitizenId] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [citizenId, setCitizenId] = useState<string>(() => {
+    const stored = getStoredCredentials();
+    return stored.consumer?.citizenId || '';
+  });
+  const [password, setPassword] = useState<string>(() => {
+    const stored = getStoredCredentials();
+    return stored.consumer?.password || '';
+  });
+  const [rememberCredentials, setRememberCredentials] = useState<boolean>(() => {
+    const stored = getStoredCredentials();
+    return Boolean(stored.consumer?.citizenId);
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationRole, setRegistrationRole] =
     useState<RegistrationRole | null>(null);
+
+  const hasSavedForCurrentRole = useMemo(() => {
+    const stored = getStoredCredentials();
+    return Boolean(stored[role]?.citizenId);
+  }, [role, citizenId, password]);
 
   const citizenIdIsValid = /^\d{13}$/.test(citizenId);
   const canSubmit = citizenIdIsValid && password.length > 0 && !isSubmitting;
@@ -49,6 +105,24 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
   const handleRoleChange = (nextRole: LoginRole) => {
     setRole(nextRole);
     setFeedback('');
+    const stored = getStoredCredentials();
+    const creds = stored[nextRole];
+    if (creds && creds.citizenId) {
+      setCitizenId(creds.citizenId);
+      setPassword(creds.password || '');
+      setRememberCredentials(true);
+    } else {
+      setCitizenId('');
+      setPassword('');
+      setRememberCredentials(false);
+    }
+  };
+
+  const handleClearSaved = () => {
+    removeStoredCredentials(role);
+    setCitizenId('');
+    setPassword('');
+    setRememberCredentials(false);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -67,7 +141,12 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
         password,
       });
 
-      setPassword('');
+      if (rememberCredentials) {
+        saveCredentials(role, { citizenId, password });
+      } else {
+        removeStoredCredentials(role);
+      }
+
       setFeedback('');
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -191,6 +270,7 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
               <CreditCard className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
               <input
                 id="citizen-id"
+                name="username"
                 autoComplete="username"
                 inputMode="numeric"
                 maxLength={13}
@@ -221,6 +301,7 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
               <Lock className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
               <input
                 id="password"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 value={password}
@@ -247,6 +328,39 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
                   <Eye className="size-4.5" aria-hidden="true" />
                 )}
               </button>
+            </div>
+
+            {/* Remember Credentials Checkbox & Clear Action */}
+            <div className="flex items-center justify-between mb-3 select-none">
+              <label
+                htmlFor="remember-credentials"
+                className="flex items-center gap-2 cursor-pointer group"
+              >
+                <input
+                  id="remember-credentials"
+                  name="rememberCredentials"
+                  type="checkbox"
+                  checked={rememberCredentials}
+                  onChange={(event) =>
+                    setRememberCredentials(event.target.checked)
+                  }
+                  className="size-4 rounded border-slate-300 text-[#0056b3] focus:ring-[#0056b3]/30 accent-[#0056b3] cursor-pointer"
+                />
+                <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
+                  {th.login.rememberCredentials}
+                </span>
+              </label>
+
+              {hasSavedForCurrentRole && (
+                <button
+                  type="button"
+                  onClick={handleClearSaved}
+                  className="text-xs text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                  title={th.login.clearSaved}
+                >
+                  {th.login.clearSaved}
+                </button>
+              )}
             </div>
 
             {/* Error or Feedback message */}
