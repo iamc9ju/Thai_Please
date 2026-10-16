@@ -47,6 +47,7 @@ export function MerchantPos({
   });
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [qrCountdown, setQrCountdown] = useState<number>(0);
+  const [copiedToken, setCopiedToken] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -551,6 +552,39 @@ export function MerchantPos({
                     </div>
                   </div>
 
+                  {/* QR Token copy box for desktop testing & manual input */}
+                  {createdOrder.qrToken && (
+                    <div className="mt-4 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3.5 shadow-inner">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                          <span>🔑</span> รหัส QR Token
+                        </span>
+                        <button
+                          type="button"
+                          id="copy-token-btn"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(createdOrder.qrToken);
+                            setCopiedToken(true);
+                            setTimeout(() => setCopiedToken(false), 2000);
+                          }}
+                          className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                            copiedToken
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                              : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30'
+                          }`}
+                        >
+                          {copiedToken ? '✓ คัดลอกแล้ว!' : '📋 คัดลอก Token'}
+                        </button>
+                      </div>
+                      <p className="font-mono text-[11px] text-slate-200 break-all bg-slate-950/90 p-2.5 rounded-xl border border-slate-800 select-all leading-relaxed">
+                        {createdOrder.qrToken}
+                      </p>
+                      <p className="mt-2 text-[11px] text-slate-400">
+                        💡 คัดลอกรหัสนี้ไปวางในเมนู <strong>"สแกน / ชำระเงิน"</strong> ฝั่งประชาชนเพื่อทดสอบชำระเงิน
+                      </p>
+                    </div>
+                  )}
+
                   <div className="mt-4 space-y-1.5 rounded-xl bg-slate-800/50 p-3">
                     <p className="text-xs font-medium text-slate-300 mb-2">
                       รายการสินค้า
@@ -569,7 +603,7 @@ export function MerchantPos({
                   </div>
 
                   <p className="mt-4 text-center text-xs text-slate-500">
-                    ให้ลูกค้าสแกน QR Code เพื่อชำระเงิน
+                    ให้ลูกค้าสแกน QR Code หรือใช้ Token เพื่อชำระเงิน
                   </p>
                 </div>
 
