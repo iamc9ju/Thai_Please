@@ -1,18 +1,10 @@
-import {
-  CheckCircle2,
-  Clock3,
-  History,
-  Sparkles,
-} from 'lucide-react';
+import { CheckCircle2, Clock3, History, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import { PortalPageHeader } from '../components/PortalPageHeader';
 import { getConsumerQuests } from '../api/consumer.api';
-import type {
-  ConsumerQuest,
-  ConsumerQuestLoadState,
-} from '../consumer.types';
+import type { ConsumerQuest, ConsumerQuestLoadState } from '../consumer.types';
 
 type QuestTab = 'active' | 'history';
 
@@ -73,25 +65,44 @@ export function QuestsView() {
     status: 'loading',
   });
 
-  const loadQuests = async (signal?: AbortSignal) => {
-    setLoadState({ status: 'loading' });
-    try {
-      const data = await getConsumerQuests(undefined, signal);
-      setLoadState({ status: 'success', data });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        setLoadState({ status: 'permission-denied' });
-      } else {
-        setLoadState({ status: 'error' });
-      }
+  const applyQuestError = (err: unknown) => {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      setLoadState({ status: 'permission-denied' });
+    } else {
+      setLoadState({ status: 'error' });
     }
+  };
+
+  const handleRetry = () => {
+    setLoadState({ status: 'loading' });
+    void getConsumerQuests()
+      .then((data) => {
+        setLoadState({ status: 'success', data });
+      })
+      .catch((err: unknown) => {
+        applyQuestError(err);
+      });
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadQuests(controller.signal);
+    let isCurrent = true;
+
+    void getConsumerQuests(undefined, controller.signal)
+      .then((data) => {
+        if (isCurrent) {
+          setLoadState({ status: 'success', data });
+        }
+      })
+      .catch((err: unknown) => {
+        if (isCurrent) {
+          applyQuestError(err);
+        }
+      });
+
     return () => {
+      isCurrent = false;
       controller.abort();
     };
   }, []);
@@ -104,7 +115,11 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div aria-live="polite" className="portal-card order-empty-state" role="status">
+        <div
+          aria-live="polite"
+          className="portal-card order-empty-state"
+          role="status"
+        >
           <p>{copy.loading}</p>
         </div>
       </section>
@@ -119,7 +134,11 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div aria-live="assertive" className="portal-card order-empty-state" role="alert">
+        <div
+          aria-live="assertive"
+          className="portal-card order-empty-state"
+          role="alert"
+        >
           <p>{copy.permissionDenied}</p>
         </div>
       </section>
@@ -134,9 +153,13 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div aria-live="assertive" className="portal-card order-empty-state" role="alert">
+        <div
+          aria-live="assertive"
+          className="portal-card order-empty-state"
+          role="alert"
+        >
           <p>{copy.loadError}</p>
-          <button onClick={() => void loadQuests()} type="button">
+          <button onClick={handleRetry} type="button">
             {copy.retry}
           </button>
         </div>
@@ -191,10 +214,7 @@ export function QuestsView() {
         ) : (
           <div className="quest-grid" role="tabpanel">
             {activeQuests.map((quest) => (
-              <article
-                className="portal-card quest-detail-card"
-                key={quest.id}
-              >
+              <article className="portal-card quest-detail-card" key={quest.id}>
                 <div className="quest-detail-heading">
                   <span className="summary-icon">
                     <Sparkles aria-hidden="true" />
@@ -204,12 +224,14 @@ export function QuestsView() {
                 <h2>{getQuestTitle(quest)}</h2>
                 <p>{getQuestDescription(quest)}</p>
                 <strong className="quest-reward">
-                  {copy.rewardPrefix}{quest.rewardPoints} {copy.pointsSuffix}
+                  {copy.rewardPrefix}
+                  {quest.rewardPoints} {copy.pointsSuffix}
                 </strong>
                 <div className="quest-detail-meta">
                   <span>
                     <Clock3 aria-hidden="true" />
-                    {copy.expiryPrefix} {dateFormatter.format(new Date(quest.expiresAt))}
+                    {copy.expiryPrefix}{' '}
+                    {dateFormatter.format(new Date(quest.expiresAt))}
                   </span>
                   <span>{copy.defaultProgress}</span>
                 </div>
@@ -253,7 +275,8 @@ export function QuestsView() {
                   </small>
                 </div>
                 <strong>
-                  {copy.rewardPrefix}{quest.rewardPoints} {copy.pointsSuffix}
+                  {copy.rewardPrefix}
+                  {quest.rewardPoints} {copy.pointsSuffix}
                 </strong>
               </article>
             ))}

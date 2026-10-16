@@ -20,6 +20,7 @@ import {
   FundType,
   TransactionType,
 } from '../wallet/wallet.constants.js';
+import { QuestsService } from '../quests/quests.service.js';
 import type {
   CreateOrderDto,
   PayByQrDto,
@@ -28,6 +29,7 @@ import type {
 
 const QR_TTL_MS = 10 * 60 * 1000;
 const ZERO = new Prisma.Decimal(0);
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 type MoneyInput = Prisma.Decimal | number | string;
 
@@ -103,6 +105,7 @@ export class OrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly questsService: QuestsService,
   ) {}
 
   private paymentConfirmationToken(facts: ConfirmationFacts): string {
@@ -120,10 +123,7 @@ export class OrderService {
       facts.qrExpiresAt?.toISOString() ?? 'none',
     ].join('|');
 
-    return createHmac(
-      'sha256',
-      this.config.getOrThrow<string>('JWT_SECRET'),
-    )
+    return createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET'))
       .update(canonicalFacts)
       .digest('hex');
   }
@@ -265,6 +265,19 @@ export class OrderService {
       throw new ForbiddenException('ร้านค้ายังไม่ได้รับการอนุมัติ');
     }
 
+    const merchantWallet = await this.prisma.wallet.findFirst({
+      where: {
+        merchantId,
+        walletType: 'MERCHANT',
+        status: 'ACTIVE',
+      },
+    });
+    if (!merchantWallet) {
+      throw new BadRequestException(
+        'ร้านค้ายังไม่มีกระเป๋าเงินที่พร้อมรับเงิน',
+      );
+    }
+
     const productIds = dto.items.map((item) => BigInt(item.productId));
     const products = await this.prisma.product.findMany({
       where: { productId: { in: productIds }, merchantId, status: 'ACTIVE' },
@@ -304,24 +317,26 @@ export class OrderService {
     const qrExpiresAt = new Date(Date.now() + QR_TTL_MS);
     const finalAmount = subtotal;
 
-    const order = await this.prisma.$transaction((tx) =>
-      tx.order.create({
-        data: {
-          merchantId,
-          subtotal,
-          discountAmount: ZERO,
-          finalAmount,
-          subsidyAmount: ZERO,
-          userPaidAmount: ZERO,
-          status: 'PENDING',
-          qrToken,
-          qrExpiresAt,
-          orderItems: {
-            createMany: { data: itemsData },
+    const order = await this.prisma.$transaction(
+      (tx) =>
+        tx.order.create({
+          data: {
+            merchantId,
+            subtotal,
+            discountAmount: ZERO,
+            finalAmount,
+            subsidyAmount: ZERO,
+            userPaidAmount: finalAmount,
+            status: 'PENDING',
+            qrToken,
+            qrExpiresAt,
+            orderItems: {
+              createMany: { data: itemsData },
+            },
           },
-        },
-        include: { orderItems: true },
-      }),
+          include: { orderItems: true },
+        }),
+      TRANSACTION_OPTIONS,
     );
 
     return {
@@ -405,7 +420,7 @@ export class OrderService {
       throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const paymentResult = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw<Array<{ order_id: bigint }>>`
         SELECT "order_id"
         FROM "orders"
@@ -696,7 +711,19 @@ export class OrderService {
       );
 
       return this.paymentResponse(paidOrder, false);
-    });
+    }, TRANSACTION_OPTIONS);
+
+    if (!paymentResult.isIdempotentReplay) {
+      try {
+        await this.questsService.evaluateOrder(orderReference.orderId);
+      } catch (error) {
+        this.logger.error(
+          `Quest evaluation failed for order ${orderReference.orderId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    return paymentResult;
   }
 
   /** FR-M02: Merchant ดูรายการ orders ของร้าน */

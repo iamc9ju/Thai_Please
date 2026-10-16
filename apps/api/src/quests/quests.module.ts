@@ -10,5 +10,6 @@ import { QuestsService } from './quests.service.js';
   imports: [AuthModule, PrismaModule],
   controllers: [QuestsController],
   providers: [QuestsRepository, GeminiQuestProvider, QuestsService],
+  exports: [QuestsService],
 })
 export class QuestsModule {}

@@ -146,6 +146,27 @@ async function seed() {
     );
   }
 
+  // 6. Ensure all merchants have a merchant wallet
+  const merchants = await prisma.merchant.findMany();
+  for (const m of merchants) {
+    const existing = await prisma.wallet.findFirst({
+      where: { merchantId: m.merchantId },
+    });
+    if (!existing) {
+      await prisma.wallet.create({
+        data: {
+          merchantId: m.merchantId,
+          walletType: 'MERCHANT',
+          personalBalance: 0,
+          subsidyBalance: 0,
+          merchantBalance: 0,
+          status: 'ACTIVE',
+        },
+      });
+      console.log('Created wallet for merchant:', m.merchantName);
+    }
+  }
+
   console.log('Seeding completed successfully!');
 }
 

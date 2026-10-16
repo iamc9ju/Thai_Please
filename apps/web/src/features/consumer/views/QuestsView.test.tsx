@@ -67,7 +67,9 @@ describe('QuestsView (FR-C07)', () => {
 
     render(<QuestsView />);
 
-    expect(screen.getByText(th.consumerPortal.quests.loading)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerPortal.quests.loading),
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(
@@ -102,7 +104,9 @@ describe('QuestsView (FR-C07)', () => {
       screen.getByText(th.consumerPortal.quests.historyDescription),
     ).toBeInTheDocument();
     expect(screen.getByText('+50 พอยต์')).toBeInTheDocument();
-    expect(screen.getByText(th.consumerPortal.quests.completed)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerPortal.quests.completed),
+    ).toBeInTheDocument();
   });
 
   it('renders empty active state when there are no active quests', async () => {

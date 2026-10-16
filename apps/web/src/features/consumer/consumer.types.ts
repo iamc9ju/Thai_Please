@@ -131,4 +131,3 @@ export type ConsumerQuestLoadState =
   | { status: 'success'; data: ConsumerQuestListResponse }
   | { status: 'permission-denied' }
   | { status: 'error'; message?: string };
-

@@ -194,4 +194,21 @@ export class QuestsService {
       }
     }
   }
+
+  async evaluateOrder(orderId: bigint) {
+    const result = await this.repository.evaluateAndCompleteOrder(
+      orderId,
+      this.policy,
+    );
+    if (result) {
+      this.logger.log({
+        event: 'quest_completed',
+        orderId: orderId.toString(),
+        userQuestId: result.userQuestId,
+        questId: result.questId,
+        rewardPoints: result.rewardPoints,
+      });
+    }
+    return result;
+  }
 }

@@ -360,10 +360,14 @@ export const th = {
       expiryPrefix: 'หมดเขต',
       completedPrefix: 'สำเร็จเมื่อ',
       defaultProgress: 'ยังไม่มีใบเสร็จที่ผ่านเงื่อนไข',
-      spendMinSpendCondition: (amount: string) => `ซื้อสินค้าครบ ${amount} บาทในหนึ่งบิล`,
-      categorySpendCondition: (category: string, amount: string) => `ซื้อหมวด ${category} ครบ ${amount} บาทในหนึ่งบิล`,
-      merchantSpendCondition: (merchant: string, amount: string) => `ซื้อร้าน ${merchant} ครบ ${amount} บาทในหนึ่งบิล`,
-      productPurchaseCondition: (product: string) => `ซื้อสินค้า ${product} ในหนึ่งบิล`,
+      spendMinSpendCondition: (amount: string) =>
+        `ซื้อสินค้าครบ ${amount} บาทในหนึ่งบิล`,
+      categorySpendCondition: (category: string, amount: string) =>
+        `ซื้อหมวด ${category} ครบ ${amount} บาทในหนึ่งบิล`,
+      merchantSpendCondition: (merchant: string, amount: string) =>
+        `ซื้อร้าน ${merchant} ครบ ${amount} บาทในหนึ่งบิล`,
+      productPurchaseCondition: (product: string) =>
+        `ซื้อสินค้า ${product} ในหนึ่งบิล`,
       fallbackTitles: {
         MIN_SPEND: 'ซื้อครบยอดในหนึ่งบิล',
         CATEGORY_SPEND: 'ซื้อหมวดที่กำหนดครบยอดในหนึ่งบิล',

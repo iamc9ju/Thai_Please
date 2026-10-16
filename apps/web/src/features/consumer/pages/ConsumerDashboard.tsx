@@ -100,11 +100,11 @@ export function ConsumerDashboard({
         {activeView !== 'overview' &&
           activeView !== 'wallet' &&
           activeView !== 'quests' && (
-          <div className="draft-banner">
-            <span>{th.consumerPortal.draftLabel}</span>
-            <p aria-live="polite">{announcement}</p>
-          </div>
-        )}
+            <div className="draft-banner">
+              <span>{th.consumerPortal.draftLabel}</span>
+              <p aria-live="polite">{announcement}</p>
+            </div>
+          )}
         {activeView === 'overview' && (
           <ConsumerOverview
             displayName={displayName}

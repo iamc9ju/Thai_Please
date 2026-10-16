@@ -122,3 +122,41 @@ describe('quest generation orchestration', () => {
     expect(f.finalize).not.toHaveBeenCalled();
   });
 });
+
+describe('quest completion evaluation', () => {
+  it('delegates order evaluation to repository and returns result', async () => {
+    const repository = new QuestsRepository(new PrismaService());
+    const provider = new GeminiQuestProvider(new ConfigService());
+    const service = new QuestsService(
+      repository,
+      provider,
+      new ConfigService({ GEMINI_MODEL: 'test' }),
+    );
+    const mockResult = {
+      userQuestId: '10',
+      questId: '20',
+      type: 'MIN_SPEND' as const,
+      rewardPoints: 20,
+    };
+    vi.spyOn(repository, 'evaluateAndCompleteOrder').mockResolvedValue(
+      mockResult,
+    );
+
+    const result = await service.evaluateOrder(99n);
+    expect(result).toEqual(mockResult);
+  });
+
+  it('returns null when no quest is satisfied or order ineligible', async () => {
+    const repository = new QuestsRepository(new PrismaService());
+    const provider = new GeminiQuestProvider(new ConfigService());
+    const service = new QuestsService(
+      repository,
+      provider,
+      new ConfigService({ GEMINI_MODEL: 'test' }),
+    );
+    vi.spyOn(repository, 'evaluateAndCompleteOrder').mockResolvedValue(null);
+
+    const result = await service.evaluateOrder(99n);
+    expect(result).toBeNull();
+  });
+});

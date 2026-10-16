@@ -49,10 +49,9 @@ describe('consumer wallet API', () => {
     const controller = new AbortController();
     await getConsumerQuests('10', controller.signal);
 
-    expect(mockedGet).toHaveBeenCalledWith(
-      '/api/v1/quests?cursor=10',
-      { signal: controller.signal },
-    );
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests?cursor=10', {
+      signal: controller.signal,
+    });
   });
 
   it('fetches consumer quests without cursor when not provided', async () => {
@@ -61,4 +60,3 @@ describe('consumer wallet API', () => {
     expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests', {});
   });
 });
-
