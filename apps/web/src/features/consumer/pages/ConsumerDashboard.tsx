@@ -139,7 +139,17 @@ export function ConsumerDashboard({
           )}
 
           {activeView === 'wallet' && <WalletView />}
-          {activeView === 'payment' && <PaymentView onNavigate={navigate} />}
+          {activeView === 'payment' && (
+            <PaymentView
+              onNavigate={navigate}
+              availableCoupons={
+                overviewState.status === 'success'
+                  ? overviewState.data.coupons
+                  : []
+              }
+              onPaymentSuccess={() => void retryOverview()}
+            />
+          )}
           {activeView === 'orders' && <OrdersView />}
           {activeView === 'quests' && <QuestsView />}
           {activeView === 'rewards' && <RewardsView />}

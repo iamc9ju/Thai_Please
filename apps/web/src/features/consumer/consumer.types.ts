@@ -131,3 +131,45 @@ export type ConsumerQuestLoadState =
   | { status: 'success'; data: ConsumerQuestListResponse }
   | { status: 'permission-denied' }
   | { status: 'error'; message?: string };
+
+export type OrderPreviewItem = {
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type OrderPreviewResponse = {
+  orderId: string;
+  merchantName: string;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  personalBalance: number;
+  subsidyBalance: number;
+  canAfford: boolean;
+  qrExpiresAt: string;
+  items: OrderPreviewItem[];
+  appliedCoupon: {
+    userCouponId: string;
+    couponName: string;
+    discountType: string;
+    discountValue: number;
+  } | null;
+};
+
+export type PaymentResultResponse = {
+  success: boolean;
+  isIdempotentReplay: boolean;
+  orderId: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  paidAt: string;
+};
+

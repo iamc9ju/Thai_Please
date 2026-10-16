@@ -21,6 +21,8 @@ vi.mock('../api/consumer.api', () => ({
   getConsumerQuests: vi.fn(),
   getWalletTransactions: vi.fn(),
   topUpPersonalWallet: vi.fn(),
+  previewOrder: vi.fn(),
+  payByQr: vi.fn(),
 }));
 
 const overviewFixture: ConsumerOverviewResponse = {

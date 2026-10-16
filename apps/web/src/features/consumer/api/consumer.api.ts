@@ -2,6 +2,8 @@ import { apiClient } from '../../../lib/api-client';
 import type {
   ConsumerOverviewResponse,
   ConsumerQuestListResponse,
+  OrderPreviewResponse,
+  PaymentResultResponse,
   TopUpResponse,
   WalletTransactionHistoryQuery,
   WalletTransactionHistoryResponse,
@@ -9,6 +11,7 @@ import type {
 
 const WALLET_API_PATH = '/api/v1/wallet';
 const QUEST_API_PATH = '/api/v1/quests';
+const ORDER_API_PATH = '/api/v1/consumer/orders';
 
 export function getConsumerQuests(
   cursor?: string,
@@ -54,3 +57,19 @@ export function getWalletTransactions(
     requestOptions,
   );
 }
+
+export function previewOrder(data: {
+  qrToken: string;
+  userCouponId?: string | undefined;
+}): Promise<OrderPreviewResponse> {
+  return apiClient.post<OrderPreviewResponse>(`${ORDER_API_PATH}/preview`, data);
+}
+
+export function payByQr(data: {
+  qrToken: string;
+  userCouponId?: string | undefined;
+  confirmationToken?: string | undefined;
+}): Promise<PaymentResultResponse> {
+  return apiClient.post<PaymentResultResponse>(`${ORDER_API_PATH}/pay`, data);
+}
+
