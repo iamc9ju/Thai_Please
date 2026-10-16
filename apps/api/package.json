@@ -17,6 +17,7 @@
     "start:prod": "node dist/main",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:build": "node --test test/quest-build.smoke.mjs",
     "lint": "oxlint --type-aware src/ prisma.config.ts",
     "pretypecheck": "prisma generate",
     "typecheck": "tsc --noEmit --pretty false",

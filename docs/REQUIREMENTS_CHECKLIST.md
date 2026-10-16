@@ -129,16 +129,17 @@
   - Residual evidence: รอบนี้ไม่มี disposable PostgreSQL และ sandbox ไม่อนุญาต localhost HTTP;
     จึงยังไม่อ้างว่า real PostgreSQL/HTTP E2E ผ่านจนกว่าจะรันใน CI หรือ test environment ที่ปลอดภัย
 
-- [ ] **FR-C04 — Scan and Review QR — Partial**
-  - มี backend preview/order context และ UI review แบบ mock
-  - Gap API/UI: route/contract ยังไม่ตรง `GET /payments/qr/:token`; scanner และ review
-    ยังไม่เชื่อมข้อมูลจริงครบ
-  - Gap Test: expired/invalid/foreign QR contract และ E2E
+- [ ] **FR-C04 — Scan and Review QR — Partial (Frontend Integrated with API)**
+  - มี backend preview/order context (`POST /api/v1/consumer/orders/preview`)
+  - UI: `PaymentView.tsx` เชื่อมต่อ API จริง รองรับทั้งการกรอก QR Token, demo preview, ตรวจสอบรายการสินค้า, นับถอยหลังวันหมดอายุ (Expiry Countdown), ส่วนลดคูปอง และคำนวณสัดส่วนเงินสนับสนุน/เงินส่วนตัว Authoritative จาก Server
+  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/web/src/features/consumer/api/consumer.api.ts`
+  - Gap Test: E2E ทดสอบสแกนกล้องร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-C05 — Payment — Partial**
-  - มี backend atomic payment, wallet debit, merchant credit, coupon checks และ unit tests
-  - Gap UI: payment flow ยังใช้ mock และไม่ได้เรียก API จริง
-  - Gap Test: ต้องมี database integration สำหรับ duplicate/concurrent/rollback และ full E2E
+- [ ] **FR-C05 — Payment — Partial (Frontend Integrated with API)**
+  - มี backend atomic payment (`POST /api/v1/consumer/orders/pay`), wallet debit, merchant credit, coupon checks, quest completion evaluation และ unit tests
+  - UI: `PaymentView.tsx` รองรับการยืนยันชำระเงินจริง ป้องกัน Double-submission ด้วย loading state, ตรวจสอบยอดเงินส่วนตัว (`canAfford`) และแสดงหน้าใบเสร็จรับเงินสำเร็จ (Success Receipt)
+  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/api/src/order/order.service.spec.ts`
+  - Gap Test: database integration สำหรับ duplicate/concurrent/rollback บน environment จริง
 
 - [ ] **FR-C06 — Order History and Receipt — Partial**
   - มี recent paid orders ใน Overview และ UI history/receipt แบบ mock

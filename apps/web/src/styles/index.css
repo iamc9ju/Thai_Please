@@ -11,7 +11,7 @@
   --color-brand: #1479c9;
   --color-brand-strong: #07549a;
   --color-brand-soft: #e5f3fc;
-  --font-sans: 'Noto Sans Thai', 'Leelawadee UI', system-ui, sans-serif;
+  --font-sans: 'Anuphan', -apple-system, BlinkMacSystemFont, 'Noto Sans Thai', 'Leelawadee UI', system-ui, sans-serif;
 }
 
 :root {

@@ -1,16 +1,16 @@
 import {
-  ChevronRight,
-  Clock3,
-  Coins,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Flag,
   History,
   Plus,
   QrCode,
   ReceiptText,
-  Sparkles,
-  Tag,
-  TicketPercent,
-  WalletCards,
+  Ticket,
 } from 'lucide-react';
+import { useState } from 'react';
 import { th } from '../../../i18n/th';
 import type {
   ConsumerOverviewLoadState,
@@ -49,7 +49,7 @@ function formatBaht(amount: number) {
 }
 
 function formatDateTime(value: string) {
-  return dateTimeFormatter.format(new Date(value));
+  return dateTimeFormatter.format(new Date(value)).replace(' เวลา ', ' · ');
 }
 
 function formatDate(value: string) {
@@ -68,10 +68,13 @@ function OverviewStatus({
       <section
         aria-live="polite"
         aria-busy="true"
-        className="portal-card order-empty-state"
         role="status"
+        className="p-10 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs"
       >
-        <p>{th.consumerDashboard.states.loading}</p>
+        <div className="inline-block size-8 animate-spin rounded-full border-3 border-solid border-[#0056b3] border-r-transparent mb-3" />
+        <p className="text-slate-500 font-medium text-sm">
+          {th.consumerDashboard.states.loading}
+        </p>
       </section>
     );
   }
@@ -80,20 +83,35 @@ function OverviewStatus({
     return (
       <section
         aria-live="assertive"
-        className="portal-card order-empty-state"
         role="alert"
+        className="p-8 text-center bg-white rounded-3xl border border-red-200 shadow-xs"
       >
-        <h2>{th.consumerDashboard.states.permissionDeniedTitle}</h2>
-        <p>{th.consumerDashboard.states.permissionDeniedDescription}</p>
+        <h2 className="text-lg font-bold text-red-600 mb-2">
+          {th.consumerDashboard.states.permissionDeniedTitle}
+        </h2>
+        <p className="text-slate-600 text-sm">
+          {th.consumerDashboard.states.permissionDeniedDescription}
+        </p>
       </section>
     );
   }
 
   return (
-    <section aria-live="assertive" className="portal-card order-empty-state">
-      <h2>{th.consumerDashboard.states.errorTitle}</h2>
-      <p>{th.consumerDashboard.states.errorDescription}</p>
-      <button onClick={onRetry} type="button">
+    <section
+      aria-live="assertive"
+      className="p-8 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs"
+    >
+      <h2 className="text-lg font-bold text-slate-900 mb-2">
+        {th.consumerDashboard.states.errorTitle}
+      </h2>
+      <p className="text-slate-600 text-sm mb-4">
+        {th.consumerDashboard.states.errorDescription}
+      </p>
+      <button
+        onClick={onRetry}
+        type="button"
+        className="px-5 py-2.5 rounded-xl bg-[#0056b3] text-white text-sm font-bold shadow-xs hover:bg-[#004494] transition-all cursor-pointer"
+      >
         {th.consumerDashboard.states.retry}
       </button>
     </section>
@@ -109,9 +127,11 @@ function OverviewContent({
   subsidy: ConsumerSubsidyStatusResponse;
   onNavigate: (view: ConsumerView) => void;
 }>) {
+  const [showBalance, setShowBalance] = useState(true);
   const { wallet, quests, coupons, recentOrders } = data;
   const { program } = subsidy;
   const activeQuest = quests[0];
+  const activeCoupon = coupons[0];
   const dailyUsagePercent =
     subsidy.dailySubsidyLimit > 0
       ? Math.max(
@@ -127,221 +147,407 @@ function OverviewContent({
 
   return (
     <>
-      <section
-        className="dashboard-grid"
-        aria-label={th.consumerDashboard.wallet.title}
-      >
-        <article className="wallet-card">
-          <div className="wallet-card-heading">
-            <span>
-              <small>{th.consumerDashboard.wallet.eyebrow}</small>
-              <strong>{th.consumerDashboard.wallet.title}</strong>
-            </span>
-            <WalletCards aria-hidden="true" />
+      {/* Row 1: Wallet Card + Daily Subsidy & Points Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5">
+        {/* Left: My Wallet Card */}
+        <article className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs flex flex-col justify-between">
+          <div>
+            {/* Card Header: Icon + Title + Eye Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/images/wallet-blue-icon.png"
+                  alt={th.consumerDashboard.wallet.eyebrow}
+                  className="size-10 sm:size-11 object-contain shrink-0"
+                />
+                <strong className="text-lg font-bold text-slate-900 tracking-tight">
+                  {th.consumerDashboard.wallet.eyebrow}
+                </strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBalance((prev) => !prev)}
+                className="size-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
+                aria-label={
+                  showBalance
+                    ? th.consumerDashboard.wallet.hideBalance
+                    : th.consumerDashboard.wallet.showBalance
+                }
+              >
+                {showBalance ? (
+                  <Eye className="size-4.5" />
+                ) : (
+                  <EyeOff className="size-4.5" />
+                )}
+              </button>
+            </div>
+
+            {/* Fund Breakdown: Personal & Subsidy */}
+            <div className="grid grid-cols-2 gap-4 pb-6">
+              {/* Personal Fund */}
+              <div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mb-1">
+                  <span className="size-2 rounded-full bg-blue-600 inline-block" />
+                  <span>{th.consumerDashboard.wallet.personal}</span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold text-slate-900">
+                  {showBalance
+                    ? `฿${formatBaht(wallet.personalBalance)}`
+                    : '••••••'}
+                </div>
+              </div>
+
+              {/* Subsidy Fund */}
+              <div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mb-1">
+                  <span className="size-2 rounded-full bg-emerald-500 inline-block" />
+                  <span>{th.consumerDashboard.wallet.subsidy}</span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold text-slate-900">
+                  {showBalance
+                    ? `฿${formatBaht(subsidy.subsidyBalance)}`
+                    : '••••••'}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="wallet-primary-balance">
-            <small>{th.consumerDashboard.wallet.personal}</small>
-            <strong>฿{formatBaht(wallet.personalBalance)}</strong>
-          </div>
-          <div className="wallet-subsidy-balance">
-            <small>{th.consumerDashboard.wallet.subsidy}</small>
-            <strong>฿{formatBaht(subsidy.subsidyBalance)}</strong>
-          </div>
-          <div className="wallet-actions">
-            <button onClick={() => onNavigate('wallet')} type="button">
-              <Plus aria-hidden="true" />
-              {th.consumerDashboard.wallet.topUp}
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => onNavigate('wallet')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#0056b3] text-white font-bold text-sm hover:bg-[#004494] active:scale-98 shadow-xs transition-all cursor-pointer"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>{th.consumerDashboard.wallet.topUp}</span>
             </button>
-            <button onClick={() => onNavigate('wallet')} type="button">
-              <History aria-hidden="true" />
-              {th.consumerDashboard.wallet.history}
+
+            <button
+              type="button"
+              onClick={() => onNavigate('wallet')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-blue-200/80 bg-white text-[#0056b3] font-bold text-sm hover:bg-blue-50/50 active:scale-98 transition-all cursor-pointer"
+            >
+              <History className="size-4" aria-hidden="true" />
+              <span>{th.consumerDashboard.wallet.history}</span>
             </button>
           </div>
         </article>
 
-        <div className="dashboard-side-column">
-          <article className="daily-subsidy-card">
-            <div className="summary-icon summary-icon-blue">
-              <Coins aria-hidden="true" />
-            </div>
+        {/* Right: Daily Subsidy & Reward Points Column */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {/* Daily Subsidy Card */}
+          <article className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex-1 flex flex-col justify-between">
             <div>
-              <p>{th.consumerDashboard.wallet.dailyRemaining}</p>
-              <strong>฿{formatBaht(subsidy.dailySubsidyRemaining)}</strong>
-              <small>
+              <div className="flex items-start gap-3.5 mb-2.5">
+                <img
+                  src="/images/subsidy-icon.png"
+                  alt={th.consumerDashboard.wallet.subsidy}
+                  className="size-11 object-contain shrink-0"
+                />
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {th.consumerDashboard.wallet.dailyRemaining}
+                  </p>
+                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                    ฿{formatBaht(subsidy.dailySubsidyRemaining)}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 mb-2.5">
                 {th.consumerDashboard.wallet.dailyUsage(
                   formatBaht(subsidy.dailySubsidyUsed),
                   formatBaht(subsidy.dailySubsidyLimit),
                 )}
-              </small>
-              <small>
+              </p>
+
+              {/* Progress Bar */}
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden"
+                  role="progressbar"
+                  aria-label={th.consumerDashboard.wallet.dailyProgressLabel}
+                  aria-valuenow={dailyUsagePercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                    style={{ width: `${dailyUsagePercent}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-400 shrink-0">
+                  {dailyUsagePercent}%
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-400 space-y-0.5 pt-2 border-t border-slate-50">
+              <p className="font-semibold text-slate-600 truncate">
                 {program?.programName ??
                   th.consumerDashboard.wallet.noActiveProgram}
-              </small>
+              </p>
               {program && (
-                <small>
+                <p className="text-slate-400">
                   {th.consumerDashboard.wallet.programDetail(
                     program.subsidyPercentage,
                     formatDate(program.startDate),
                     formatDate(program.endDate),
                   )}
-                </small>
+                </p>
               )}
-              <div
-                aria-label={th.consumerDashboard.wallet.dailyProgressLabel}
-                aria-valuemax={100}
-                aria-valuemin={0}
-                aria-valuenow={dailyUsagePercent}
-                className="quest-progress"
-                role="progressbar"
-              >
-                <span style={{ width: `${dailyUsagePercent}%` }} />
+            </div>
+          </article>
+
+          {/* Reward Points Card */}
+          <article className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <img
+                src="/images/points-coin-icon.png"
+                alt={th.consumerDashboard.points.title}
+                className="size-11 object-contain shrink-0"
+              />
+              <div>
+                <p className="text-xs text-slate-500 font-medium">
+                  {th.consumerDashboard.points.title}
+                </p>
+                <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {wallet.pointBalance.toLocaleString(
+                    th.consumerDashboard.locale,
+                  )}{' '}
+                  <span className="text-sm font-bold text-slate-600">
+                    {th.consumerDashboard.points.unit}
+                  </span>
+                </div>
               </div>
             </div>
-          </article>
-          <article className="point-card">
-            <div className="summary-icon summary-icon-gold">
-              <Sparkles aria-hidden="true" />
-            </div>
-            <div>
-              <p>{th.consumerDashboard.points.title}</p>
-              <strong>
-                {wallet.pointBalance.toLocaleString(
-                  th.consumerDashboard.locale,
-                )}{' '}
-                <span>{th.consumerDashboard.points.unit}</span>
-              </strong>
-              <button onClick={() => onNavigate('rewards')} type="button">
-                {th.consumerDashboard.points.history}
-                <ChevronRight aria-hidden="true" />
-              </button>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('rewards')}
+              className="text-xs sm:text-sm font-bold text-[#0056b3] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>{th.consumerDashboard.points.history}</span>
+              <ArrowRight className="size-3.5" aria-hidden="true" />
+            </button>
           </article>
         </div>
+      </div>
 
-        <article className="qr-card">
-          <div className="qr-icon">
-            <QrCode aria-hidden="true" />
+      {/* Row 2: Scan to Pay Banner */}
+      <article className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="size-14 sm:size-16 flex items-center justify-center shrink-0">
+            <img
+              src="/images/scan-qr-icon.png"
+              alt=""
+              className="size-12 sm:size-14 object-contain drop-shadow-md hover:scale-105 transition-transform"
+            />
           </div>
           <div>
-            <h2>{th.consumerDashboard.payment.title}</h2>
-            <p>{th.consumerDashboard.payment.description}</p>
+            <h2 className="text-base font-bold text-slate-900">
+              {th.consumerDashboard.payment.title}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {th.consumerDashboard.payment.description}
+            </p>
           </div>
-          <button onClick={() => onNavigate('payment')} type="button">
-            <QrCode aria-hidden="true" />
-            {th.consumerDashboard.payment.action}
-          </button>
-        </article>
-      </section>
+        </div>
 
-      <section className="consumer-detail-grid">
-        <article className="quest-card">
-          <div className="section-heading">
-            <div>
-              <p>{th.consumerDashboard.quest.eyebrow}</p>
-              <h2>
-                {activeQuest?.questName ?? th.consumerDashboard.quest.title}
-              </h2>
-            </div>
-            {activeQuest && (
-              <span className="reward-badge">
-                {th.consumerDashboard.quest.reward(activeQuest.rewardPoint)}
-              </span>
-            )}
+        <button
+          type="button"
+          onClick={() => onNavigate('payment')}
+          className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-xs active:scale-98 transition-all cursor-pointer shrink-0"
+        >
+          <QrCode className="size-4" aria-hidden="true" />
+          <span>{th.consumerDashboard.payment.action}</span>
+        </button>
+      </article>
+
+      {/* Row 3: Quests and Coupons Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        {/* Quests Card */}
+        <article className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900">
+              {th.consumerDashboard.quest.title}
+            </h2>
+            <button
+              type="button"
+              onClick={() => onNavigate('quests')}
+              className="text-xs font-bold text-[#0056b3] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>{th.consumerDashboard.quest.viewAll}</span>
+              <ArrowRight className="size-3" aria-hidden="true" />
+            </button>
           </div>
+
           {activeQuest ? (
-            <>
-              <p className="quest-description">
-                {activeQuest.description ?? activeQuest.questName}
-              </p>
-              <div className="quest-meta">
-                <span>
-                  <Clock3 aria-hidden="true" />
+            <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {activeQuest.questName}
+                </h3>
+                <p className="text-xs text-slate-500 mb-2">
+                  {activeQuest.description}
+                </p>
+                <span className="text-[11px] text-slate-400">
                   {th.consumerDashboard.quest.expiry(
                     formatDate(activeQuest.expiresAt),
                   )}
                 </span>
-                <span>{th.consumerDashboard.quest.activeStatus}</span>
               </div>
-            </>
-          ) : (
-            <p className="quest-description">
-              {th.consumerDashboard.states.noQuests}
-            </p>
-          )}
-          <button
-            className="text-action"
-            onClick={() => onNavigate('quests')}
-            type="button"
-          >
-            {th.consumerDashboard.quest.viewAll}
-            <ChevronRight aria-hidden="true" />
-          </button>
-        </article>
-
-        <article className="coupon-card">
-          <div className="section-heading">
-            <div>
-              <p>{th.consumerDashboard.coupons.count(coupons.length)}</p>
-              <h2>{th.consumerDashboard.coupons.title}</h2>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60 shrink-0">
+                {th.consumerDashboard.quest.reward(activeQuest.rewardPoint)}
+              </span>
             </div>
-            <TicketPercent aria-hidden="true" />
-          </div>
-          {coupons.length > 0 ? (
-            coupons.slice(0, 2).map((coupon) => (
-              <div className="coupon-row" key={coupon.userCouponId}>
-                <Tag aria-hidden="true" />
-                <span>{coupon.description ?? coupon.couponName}</span>
-              </div>
-            ))
           ) : (
-            <p>{th.consumerDashboard.states.noCoupons}</p>
+            <div className="py-8 text-center flex flex-col items-center justify-center">
+              <div className="size-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2.5">
+                <Flag className="size-5" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-bold text-slate-700">
+                {th.consumerDashboard.states.noQuests}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {th.consumerDashboard.quest.emptySubtext}
+              </p>
+            </div>
           )}
-          <button
-            className="text-action"
-            onClick={() => onNavigate('rewards')}
-            type="button"
-          >
-            {th.consumerDashboard.coupons.viewAll}
-            <ChevronRight aria-hidden="true" />
-          </button>
         </article>
-      </section>
 
-      <section className="activity-card">
-        <div className="activity-heading">
-          <h2>{th.consumerDashboard.activity.title}</h2>
-          <button onClick={() => onNavigate('orders')} type="button">
-            {th.consumerDashboard.activity.viewAll}
+        {/* Coupons Card */}
+        <article className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-900">
+              {th.consumerDashboard.coupons.title} {coupons.length} ใบ
+            </h2>
+            <button
+              type="button"
+              onClick={() => onNavigate('rewards')}
+              className="text-xs font-bold text-[#0056b3] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>{th.consumerDashboard.coupons.viewAll}</span>
+              <ArrowRight className="size-3" aria-hidden="true" />
+            </button>
+          </div>
+
+          {activeCoupon ? (
+            <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">
+                  {activeCoupon.couponName}
+                </h3>
+                <p className="text-xs text-slate-500 mb-2">
+                  {activeCoupon.description}
+                </p>
+                <span className="text-[11px] text-slate-400">
+                  {th.consumerDashboard.quest.expiry(
+                    formatDate(activeCoupon.expiresAt),
+                  )}
+                </span>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0056b3] border border-blue-200/60 shrink-0">
+                {activeCoupon.discountType === 'FIXED'
+                  ? `ลด ${activeCoupon.discountValue} บาท`
+                  : `ลด ${activeCoupon.discountValue}%`}
+              </span>
+            </div>
+          ) : (
+            <div className="py-8 text-center flex flex-col items-center justify-center">
+              <div className="size-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2.5">
+                <Ticket className="size-5" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-bold text-slate-700">
+                {th.consumerDashboard.states.noCoupons}
+              </p>
+            </div>
+          )}
+        </article>
+      </div>
+
+      {/* Row 4: Recent Purchases / Orders Table */}
+      <article className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-6">
+        <div className="p-5 sm:p-6 flex items-center justify-between border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-900">
+            {th.consumerDashboard.activity.title}
+          </h2>
+          <button
+            type="button"
+            onClick={() => onNavigate('orders')}
+            className="text-xs font-bold text-[#0056b3] hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>{th.consumerDashboard.activity.viewAll}</span>
+            <ArrowRight className="size-3" aria-hidden="true" />
           </button>
         </div>
+
         {recentOrders.length > 0 ? (
-          <div className="activity-list">
-            {recentOrders.map((order) => (
-              <article key={order.orderId}>
-                <span aria-hidden="true" className="activity-icon">
-                  <ReceiptText />
-                </span>
-                <span className="activity-copy">
-                  <strong>{order.merchantName}</strong>
-                  <small>
-                    {th.consumerDashboard.activity.paidAt}{' '}
-                    <time dateTime={order.paidAt}>
-                      {formatDateTime(order.paidAt)}
-                    </time>
-                  </small>
-                </span>
-                <strong>
-                  {th.consumerDashboard.activity.paidAmount(
-                    formatBaht(order.finalAmount),
-                  )}
-                </strong>
-              </article>
-            ))}
+          <div className="w-full overflow-x-auto">
+            {/* Table Column Headers */}
+            <div className="grid grid-cols-12 min-w-[500px] bg-slate-50/80 px-6 py-2.5 text-xs font-semibold text-slate-500 border-b border-slate-100">
+              <div className="col-span-5 sm:col-span-4">
+                {th.consumerDashboard.activity.tableMerchant}
+              </div>
+              <div className="col-span-3 sm:col-span-4">
+                {th.consumerDashboard.activity.tableDatetime}
+              </div>
+              <div className="col-span-2 sm:col-span-2 text-right">
+                {th.consumerDashboard.activity.tableNetAmount}
+              </div>
+              <div className="col-span-2 sm:col-span-2 text-right">
+                {th.consumerDashboard.activity.tableStatus}
+              </div>
+            </div>
+
+            {/* Table Rows */}
+            <div className="divide-y divide-slate-100 min-w-[500px]">
+              {recentOrders.map((order) => (
+                <div
+                  key={order.orderId}
+                  className="grid grid-cols-12 items-center px-6 py-4 hover:bg-slate-50/50 transition-colors text-sm"
+                >
+                  {/* Shop / Merchant */}
+                  <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0 pr-2">
+                    <div className="size-8 rounded-xl bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+                      <ReceiptText className="size-4" aria-hidden="true" />
+                    </div>
+                    <span className="font-bold text-slate-900 truncate">
+                      {order.merchantName}
+                    </span>
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="col-span-3 sm:col-span-4 text-xs text-slate-500">
+                    {formatDateTime(order.paidAt)}
+                  </div>
+
+                  {/* Net Amount */}
+                  <div className="col-span-2 sm:col-span-2 text-right font-extrabold text-slate-900">
+                    ฿{formatBaht(order.finalAmount)}
+                  </div>
+
+                  {/* Status */}
+                  <div className="col-span-2 sm:col-span-2 text-right">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                      <CheckCircle2
+                        className="size-3 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span>{th.consumerDashboard.activity.statusSuccess}</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
-          <p aria-live="polite">{th.consumerDashboard.states.noOrders}</p>
+          <div className="py-8 text-center text-sm font-medium text-slate-500">
+            <p aria-live="polite">{th.consumerDashboard.states.noOrders}</p>
+          </div>
         )}
-      </section>
+      </article>
     </>
   );
 }
@@ -356,18 +562,20 @@ export function ConsumerOverview({
 }: ConsumerOverviewProps) {
   return (
     <>
-      <section className="consumer-welcome">
-        <div>
-          <p>{th.consumerDashboard.greeting}</p>
-          <h1>{displayName}</h1>
-          <span>
-            {th.consumerDashboard.identityLabel} · {maskedCitizenId}
-          </span>
-        </div>
-        <p aria-live="polite" className="consumer-announcement">
+      {/* Visually-hidden for screen readers & identity accessibility */}
+      <div className="sr-only">
+        <h2>{displayName}</h2>
+        <span>{maskedCitizenId}</span>
+      </div>
+
+      {announcement && (
+        <p
+          aria-live="polite"
+          className="mb-4 text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/80 font-medium"
+        >
           {announcement}
         </p>
-      </section>
+      )}
 
       {overviewState.status === 'success' ? (
         <OverviewContent

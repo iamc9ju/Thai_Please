@@ -26,4 +26,25 @@ describe('environment configuration', () => {
       parseCorsOrigins('http://localhost:5173, https://example.test '),
     ).toEqual(['http://localhost:5173', 'https://example.test']);
   });
+  it('requires Gemini credentials and model together while allowing it disabled', () => {
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        GEMINI_API_KEY: 'test-key',
+      }),
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        GEMINI_MODEL: 'test-model',
+      }),
+    ).toThrow();
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        GEMINI_API_KEY: '',
+        GEMINI_MODEL: '',
+      }).GEMINI_MODEL,
+    ).toBeUndefined();
+  });
 });

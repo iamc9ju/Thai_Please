@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../lib/api-client';
 import {
+  getConsumerQuests,
   getConsumerSubsidyStatus,
   getWalletTransactions,
 } from './consumer.api';
@@ -239,5 +240,20 @@ describe('consumer wallet API', () => {
       '/api/v1/wallet/transactions?limit=20',
       {},
     );
+  });
+
+  it('fetches consumer quests with optional cursor and abort signal', async () => {
+    const controller = new AbortController();
+    await getConsumerQuests('10', controller.signal);
+
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests?cursor=10', {
+      signal: controller.signal,
+    });
+  });
+
+  it('fetches consumer quests without cursor when not provided', async () => {
+    await getConsumerQuests();
+
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests', {});
   });
 });

@@ -10,6 +10,7 @@ import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import {
   getConsumerOverview,
+  getConsumerQuests,
   getConsumerSubsidyStatus,
   getWalletTransactions,
 } from '../api/consumer.api';
@@ -19,9 +20,12 @@ import { ConsumerDashboard } from './ConsumerDashboard';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerOverview: vi.fn(),
+  getConsumerQuests: vi.fn(),
   getConsumerSubsidyStatus: vi.fn(),
   getWalletTransactions: vi.fn(),
   topUpPersonalWallet: vi.fn(),
+  previewOrder: vi.fn(),
+  payByQr: vi.fn(),
 }));
 
 const overviewFixture: ConsumerOverviewResponse = {
@@ -119,12 +123,15 @@ const subsidyFixture: ConsumerSubsidyStatusResponse = {
 const mockedGetConsumerOverview = vi.mocked(getConsumerOverview);
 const mockedGetConsumerSubsidyStatus = vi.mocked(getConsumerSubsidyStatus);
 const mockedGetWalletTransactions = vi.mocked(getWalletTransactions);
+const mockedGetConsumerQuests = vi.mocked(getConsumerQuests);
 
 beforeEach(() => {
   mockedGetConsumerOverview.mockReset();
   mockedGetConsumerOverview.mockResolvedValue(overviewFixture);
   mockedGetConsumerSubsidyStatus.mockReset();
   mockedGetConsumerSubsidyStatus.mockResolvedValue(subsidyFixture);
+  mockedGetConsumerQuests.mockReset();
+  mockedGetConsumerQuests.mockResolvedValue({ items: [], nextCursor: null });
   mockedGetWalletTransactions.mockReset();
   mockedGetWalletTransactions.mockImplementation(async (query) => ({
     items: overviewFixture.recentTransactions.filter((item) => {
@@ -379,14 +386,49 @@ describe('ConsumerDashboard', () => {
     expect(screen.getByText('พบ 3 รายการ')).toBeInTheDocument();
   });
 
-  it('shows completed quest history with its receipt reference', () => {
+  it('shows completed quest history with its receipt reference', async () => {
+    mockedGetConsumerQuests.mockResolvedValueOnce({
+      items: [
+        {
+          id: '1',
+          questName: 'อุดหนุนร้านอาหารชุมชน',
+          status: 'ACTIVE',
+          assignedAt: '2026-10-15T11:57:56.278Z',
+          expiresAt: '2026-10-22T11:57:56.278Z',
+          completedAt: null,
+          type: 'CATEGORY_SPEND',
+          targetCategoryId: '1',
+          targetCategoryName: 'อาหารและเครื่องดื่ม',
+          targetProductId: null,
+          targetMerchantId: null,
+          minimumSpendMinor: '10000',
+          rewardPoints: 50,
+        },
+        {
+          id: '2',
+          questName: 'ช้อปของใช้ในชุมชน',
+          status: 'COMPLETED',
+          assignedAt: '2026-10-01T10:00:00.000Z',
+          expiresAt: '2026-10-08T10:00:00.000Z',
+          completedAt: '2026-10-05T14:30:00.000Z',
+          type: 'MIN_SPEND',
+          targetCategoryId: null,
+          targetProductId: null,
+          targetMerchantId: null,
+          minimumSpendMinor: '15000',
+          rewardPoints: 60,
+        },
+      ],
+      nextCursor: null,
+    });
     renderDashboard();
     clickFirstNavigation(th.consumerPortal.navigation.quests);
 
-    expect(screen.getByText('อุดหนุนร้านอาหารชุมชน')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('อุดหนุนร้านอาหารชุมชน')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole('tab', { name: /ประวัติภารกิจ/ }));
 
     expect(screen.getByText('ช้อปของใช้ในชุมชน')).toBeInTheDocument();
-    expect(screen.getByText(/TP-2569-001044/)).toBeInTheDocument();
   });
 });

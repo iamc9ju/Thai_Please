@@ -123,3 +123,74 @@ export type TopUpResponse = {
   personalBalance: number;
   createdAt: string;
 };
+
+export type ConsumerQuest = {
+  id: string;
+  questName?: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED';
+  assignedAt: string;
+  expiresAt: string;
+  completedAt: string | null;
+  type: 'MIN_SPEND' | 'CATEGORY_SPEND' | 'MERCHANT_SPEND' | 'PRODUCT_PURCHASE';
+  targetCategoryId: string | null;
+  targetCategoryName?: string | null;
+  targetProductId: string | null;
+  targetProductName?: string | null;
+  targetMerchantId: string | null;
+  targetMerchantName?: string | null;
+  minimumSpendMinor: string | null;
+  rewardPoints: number;
+};
+
+export type ConsumerQuestListResponse = {
+  items: ConsumerQuest[];
+  nextCursor: string | null;
+};
+
+export type ConsumerQuestLoadState =
+  | { status: 'loading' }
+  | { status: 'success'; data: ConsumerQuestListResponse }
+  | { status: 'permission-denied' }
+  | { status: 'error'; message?: string };
+
+export type OrderPreviewItem = {
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type OrderPreviewResponse = {
+  orderId: string;
+  merchantName: string;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  personalBalance: number;
+  subsidyBalance: number;
+  canAfford: boolean;
+  qrExpiresAt: string;
+  items: OrderPreviewItem[];
+  appliedCoupon: {
+    userCouponId: string;
+    couponName: string;
+    discountType: string;
+    discountValue: number;
+  } | null;
+};
+
+export type PaymentResultResponse = {
+  success: boolean;
+  isIdempotentReplay: boolean;
+  orderId: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  paidAt: string;
+};
+

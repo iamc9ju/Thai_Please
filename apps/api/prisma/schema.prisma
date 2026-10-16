@@ -137,10 +137,10 @@ model PointTransaction {
 }
 
 model ProductCategory {
-  categoryId   BigInt   @id @default(autoincrement()) @map("category_id")
-  categoryName String   @unique @map("category_name") @db.VarChar(100)
+  categoryId   BigInt  @id @default(autoincrement()) @map("category_id")
+  categoryName String  @unique @map("category_name") @db.VarChar(100)
   description  String?
-  status       String   @default("ACTIVE") @db.VarChar(20)
+  status       String  @default("ACTIVE") @db.VarChar(20)
 
   orderItems OrderItem[]
   products   Product[]
@@ -150,15 +150,15 @@ model ProductCategory {
 }
 
 model Product {
-  productId    BigInt   @id @default(autoincrement()) @map("product_id")
-  merchantId   BigInt   @map("merchant_id")
-  categoryId   BigInt   @map("category_id")
-  productName  String   @map("product_name") @db.VarChar(150)
-  description  String?
-  price        Decimal  @db.Decimal(12, 2)
-  status       String   @default("ACTIVE") @db.VarChar(20)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  productId   BigInt   @id @default(autoincrement()) @map("product_id")
+  merchantId  BigInt   @map("merchant_id")
+  categoryId  BigInt   @map("category_id")
+  productName String   @map("product_name") @db.VarChar(150)
+  description String?
+  price       Decimal  @db.Decimal(12, 2)
+  status      String   @default("ACTIVE") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   orderItems OrderItem[]
   category   ProductCategory @relation(fields: [categoryId], references: [categoryId], onDelete: NoAction, onUpdate: NoAction)
@@ -172,16 +172,35 @@ model QuestGenerationLog {
   generationId     BigInt   @id @default(autoincrement()) @map("generation_id")
   userId           BigInt   @map("user_id")
   inputSummary     Json     @map("input_summary")
-  generatedQuestId BigInt   @map("generated_quest_id")
+  generatedQuestId BigInt?  @map("generated_quest_id")
   modelVersion     String?  @map("model_version") @db.VarChar(100)
   generatedAt      DateTime @default(now()) @map("generated_at") @db.Timestamp(6)
   predictionScore  Decimal? @map("prediction_score") @db.Decimal(6, 5)
   candidateScores  Json?    @map("candidate_scores")
   selectionReason  String?  @map("selection_reason")
 
-  quest Quest @relation(fields: [generatedQuestId], references: [questId], onDelete: NoAction, onUpdate: NoAction)
-  user  User  @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  quest Quest? @relation(fields: [generatedQuestId], references: [questId], onDelete: NoAction, onUpdate: NoAction)
+  user  User   @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
+  requestKey           String?    @unique @map("request_key") @db.Uuid
+  requestedBy          BigInt?    @map("requested_by")
+  status               String     @default("LEGACY") @db.VarChar(16)
+  provider             String?    @db.VarChar(30)
+  promptVersion        String?    @map("prompt_version") @db.VarChar(80)
+  policyVersion        String?    @map("policy_version") @db.VarChar(80)
+  policySnapshot       Json?      @map("policy_snapshot")
+  candidates           Json?
+  assignmentId         BigInt?    @unique @map("assignment_id")
+  reservedPoints       Int?       @map("reserved_points")
+  reservationDay       DateTime?  @map("reservation_day") @db.Date
+  leaseExpiresAt       DateTime?  @map("lease_expires_at") @db.Timestamptz(6)
+  reservationExpiresAt DateTime?  @map("reservation_expires_at") @db.Timestamptz(6)
+  finishedAt           DateTime?  @map("finished_at") @db.Timestamptz(6)
+  actor                User?      @relation("quest_log_actor", fields: [requestedBy], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  assignment           UserQuest? @relation(fields: [assignmentId], references: [userQuestId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, generatedAt(sort: Desc)], map: "idx_quest_logs_user_generated")
+  @@index([reservationDay, status], map: "idx_quest_logs_budget")
   @@map("quest_generation_logs")
 }
 
@@ -209,16 +228,16 @@ model Quest {
 }
 
 model SubsidyProgram {
-  programId          BigInt   @id @default(autoincrement()) @map("program_id")
-  programName        String   @map("program_name") @db.VarChar(150)
-  initialGrant       Decimal  @default(0) @map("initial_grant") @db.Decimal(12, 2)
-  subsidyPercentage  Decimal  @map("subsidy_percentage") @db.Decimal(5, 2)
-  userPercentage     Decimal  @map("user_percentage") @db.Decimal(5, 2)
-  dailySubsidyLimit  Decimal  @map("daily_subsidy_limit") @db.Decimal(12, 2)
-  startDate          DateTime @map("start_date") @db.Date
-  endDate            DateTime @map("end_date") @db.Date
-  status             String   @default("ACTIVE") @db.VarChar(20)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  programId         BigInt   @id @default(autoincrement()) @map("program_id")
+  programName       String   @map("program_name") @db.VarChar(150)
+  initialGrant      Decimal  @default(0) @map("initial_grant") @db.Decimal(12, 2)
+  subsidyPercentage Decimal  @map("subsidy_percentage") @db.Decimal(5, 2)
+  userPercentage    Decimal  @map("user_percentage") @db.Decimal(5, 2)
+  dailySubsidyLimit Decimal  @map("daily_subsidy_limit") @db.Decimal(12, 2)
+  startDate         DateTime @map("start_date") @db.Date
+  endDate           DateTime @map("end_date") @db.Date
+  status            String   @default("ACTIVE") @db.VarChar(20)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   orders             Order[]
   walletTransactions WalletTransaction[]
@@ -257,9 +276,10 @@ model UserQuest {
   completedOrderId BigInt?   @map("completed_order_id")
 
   pointTransactions PointTransaction[]
-  completedOrder    Order?             @relation(fields: [completedOrderId], references: [orderId], onDelete: NoAction, onUpdate: NoAction)
-  quest             Quest              @relation(fields: [questId], references: [questId], onDelete: NoAction, onUpdate: NoAction)
-  user              User               @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  generationLog     QuestGenerationLog?
+  completedOrder    Order?              @relation(fields: [completedOrderId], references: [orderId], onDelete: NoAction, onUpdate: NoAction)
+  quest             Quest               @relation(fields: [questId], references: [questId], onDelete: NoAction, onUpdate: NoAction)
+  user              User                @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId, status], map: "idx_user_quests_user_status")
   @@map("user_quests")
@@ -307,18 +327,19 @@ model User {
   privacyAcceptedAt  DateTime? @map("privacy_accepted_at") @db.Timestamptz(3)
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
 
-  authSessions           AuthSession[]
-  merchants              Merchant[]
-  orders                 Order[]
-  pointTransactions      PointTransaction[]
-  questGenerationLogs    QuestGenerationLog[]
-  userCoupons            UserCoupon[]
-  userQuests             UserQuest[]
-  createdAdminRoles      UserRole[]          @relation("created_by_admin")
-  roles                  UserRole[]          @relation("user_roles")
-  initiatedWalletTx      WalletTransaction[] @relation("initiated_wallet_tx")
-  walletTransactions     WalletTransaction[] @relation("user_wallet_tx")
-  wallet                 Wallet?
+  authSessions        AuthSession[]
+  merchants           Merchant[]
+  orders              Order[]
+  pointTransactions   PointTransaction[]
+  questGenerationLogs QuestGenerationLog[]
+  userCoupons         UserCoupon[]
+  userQuests          UserQuest[]
+  createdAdminRoles   UserRole[]           @relation("created_by_admin")
+  roles               UserRole[]           @relation("user_roles")
+  initiatedWalletTx   WalletTransaction[]  @relation("initiated_wallet_tx")
+  walletTransactions  WalletTransaction[]  @relation("user_wallet_tx")
+  wallet              Wallet?
+  requestedQuestLogs  QuestGenerationLog[] @relation("quest_log_actor")
 
   @@map("users")
 }

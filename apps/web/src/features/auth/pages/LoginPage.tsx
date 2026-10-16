@@ -1,11 +1,13 @@
 import {
   ArrowLeft,
+  ArrowRight,
   CreditCard,
   Eye,
   EyeOff,
-  HandHeart,
-  Headphones,
-  LockKeyhole,
+  Lock,
+  ShieldCheck,
+  Store,
+  User,
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { th } from '../../../i18n/th';
@@ -13,20 +15,77 @@ import { RegistrationPage } from '../../registration/pages/RegistrationPage';
 import type { RegistrationRole } from '../../registration/registration.validation';
 import { useAuth } from '../use-auth';
 import type { LoginRole } from '../auth.types';
-import { CommunityBackdrop } from '../components/CommunityBackdrop';
-import { RoleSelector } from '../components/RoleSelector';
 
-export function LoginPage() {
+export interface LoginPageProps {
+  onBack?: () => void;
+}
+
+const REMEMBERED_CREDENTIALS_KEY = 'thai_please_remembered_credentials';
+
+type StoredCredentials = {
+  citizenId: string;
+  password: string;
+};
+
+type RememberedStore = Partial<Record<LoginRole, StoredCredentials>>;
+
+function getStoredCredentials(): RememberedStore {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_CREDENTIALS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as RememberedStore;
+  } catch {
+    return {};
+  }
+}
+
+function saveCredentials(role: LoginRole, creds: StoredCredentials) {
+  try {
+    const current = getStoredCredentials();
+    current[role] = creds;
+    localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore storage issues in restricted environments
+  }
+}
+
+function removeStoredCredentials(role: LoginRole) {
+  try {
+    const current = getStoredCredentials();
+    delete current[role];
+    localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore
+  }
+}
+
+export function LoginPage({ onBack }: LoginPageProps = {}) {
   const { login } = useAuth();
   const [role, setRole] = useState<LoginRole>('consumer');
-  const [citizenId, setCitizenId] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [citizenId, setCitizenId] = useState<string>(() => {
+    const stored = getStoredCredentials();
+    return stored.consumer?.citizenId || '';
+  });
+  const [password, setPassword] = useState<string>(() => {
+    const stored = getStoredCredentials();
+    return stored.consumer?.password || '';
+  });
+  const [rememberCredentials, setRememberCredentials] = useState<boolean>(() => {
+    const stored = getStoredCredentials();
+    return Boolean(stored.consumer?.citizenId);
+  });
+
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationRole, setRegistrationRole] =
     useState<RegistrationRole | null>(null);
+
+  const hasSavedForCurrentRole = useMemo(() => {
+    const stored = getStoredCredentials();
+    return Boolean(stored[role]?.citizenId);
+  }, [role, citizenId, password]);
 
   const citizenIdIsValid = /^\d{13}$/.test(citizenId);
   const canSubmit = citizenIdIsValid && password.length > 0 && !isSubmitting;
@@ -46,6 +105,24 @@ export function LoginPage() {
   const handleRoleChange = (nextRole: LoginRole) => {
     setRole(nextRole);
     setFeedback('');
+    const stored = getStoredCredentials();
+    const creds = stored[nextRole];
+    if (creds && creds.citizenId) {
+      setCitizenId(creds.citizenId);
+      setPassword(creds.password || '');
+      setRememberCredentials(true);
+    } else {
+      setCitizenId('');
+      setPassword('');
+      setRememberCredentials(false);
+    }
+  };
+
+  const handleClearSaved = () => {
+    removeStoredCredentials(role);
+    setCitizenId('');
+    setPassword('');
+    setRememberCredentials(false);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -64,7 +141,12 @@ export function LoginPage() {
         password,
       });
 
-      setPassword('');
+      if (rememberCredentials) {
+        saveCredentials(role, { citizenId, password });
+      } else {
+        removeStoredCredentials(role);
+      }
+
       setFeedback('');
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -77,10 +159,6 @@ export function LoginPage() {
     }
   };
 
-  const handleUnavailableAction = () => {
-    setFeedback(th.login.unavailableFeedback);
-  };
-
   if (registrationRole !== null) {
     return (
       <RegistrationPage
@@ -91,166 +169,246 @@ export function LoginPage() {
   }
 
   return (
-    <main className="login-page">
-      <CommunityBackdrop />
+    <main className="relative min-h-screen w-full flex flex-col justify-center items-center bg-slate-50/60 px-4 py-12 sm:px-6 lg:px-8 font-sans">
+      {/* Top-left Back to Website Button */}
+      <div className="absolute top-5 left-5 sm:top-6 sm:left-6 z-20">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          <span>{th.login.backToWebsite}</span>
+        </button>
+      </div>
 
-      <header className="brand-lockup">
-        <span aria-hidden="true" className="brand-symbol">
-          <HandHeart />
-        </span>
-        <span>
-          <strong>{th.brand}</strong>
-          <small>{th.login.brandEnglish}</small>
-        </span>
-      </header>
-
-      <a className="back-link" href="/">
-        <ArrowLeft aria-hidden="true" />
-        {th.login.backToWebsite}
-      </a>
-
-      <section className="project-summary" aria-labelledby="project-title">
-        <span className="project-badge">{th.login.projectBadge}</span>
-        <h1 id="project-title">
-          {th.login.heroTitle.primary}
-          <br />
-          {th.login.heroTitle.secondary}
-        </h1>
-        <p>{th.login.heroDescription}</p>
-        <div className="benefit-list" aria-label={th.login.benefits.label}>
-          <span>{th.login.benefits.subsidy}</span>
-          <span>{th.login.benefits.community}</span>
+      {/* Centered Login Card */}
+      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-6 sm:p-8 flex flex-col">
+        {/* Brand Logo */}
+        <div className="flex justify-center mb-4">
+          <img
+            src="/images/brand-logo.png"
+            alt={th.brand}
+            className="h-12 w-auto object-contain"
+          />
         </div>
-      </section>
-
-      <aside className="login-card" aria-labelledby="login-title">
-        <div className="thai-flag-stripe" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-
-        <div className="login-card-content">
-          <div className="login-heading">
-            <p>{th.login.welcome}</p>
-            <h2 id="login-title">{th.login.title}</h2>
-            <span>{th.login.subtitle}</span>
+          {/* Header Title Block */}
+          <div className="text-center mb-6">
+            <p className="text-xs sm:text-sm font-semibold text-slate-500 mb-1">
+              {th.login.welcome}
+            </p>
+            <h2
+              id="login-title"
+              className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-1"
+            >
+              {th.login.title}
+            </h2>
+            <p className="text-xs sm:text-sm font-medium text-slate-500">
+              {th.login.subtitle}
+            </p>
           </div>
 
-          <RoleSelector onChange={handleRoleChange} role={role} />
+          {/* Role Selector Tabs */}
+          <div
+            role="group"
+            aria-label={th.login.role.label}
+            className="grid grid-cols-3 gap-1 p-1 rounded-2xl border border-slate-200 bg-white mb-6"
+          >
+            <button
+              type="button"
+              onClick={() => handleRoleChange('consumer')}
+              aria-pressed={role === 'consumer'}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                role === 'consumer'
+                  ? 'bg-[#0056b3] text-white shadow-xs'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <User className="size-4 shrink-0" aria-hidden="true" />
+              <span>{th.login.role.options.consumer}</span>
+            </button>
 
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="citizen-id">
+            <button
+              type="button"
+              onClick={() => handleRoleChange('merchant')}
+              aria-pressed={role === 'merchant'}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                role === 'merchant'
+                  ? 'bg-[#0056b3] text-white shadow-xs'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Store className="size-4 shrink-0" aria-hidden="true" />
+              <span>{th.login.role.options.merchant}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleRoleChange('administrator')}
+              aria-pressed={role === 'administrator'}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                role === 'administrator'
+                  ? 'bg-[#0056b3] text-white shadow-xs'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+              <span>{th.login.role.options.administrator}</span>
+            </button>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col">
+            {/* Citizen ID Field */}
+            <label
+              htmlFor="citizen-id"
+              className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
+            >
               {th.login.fields.citizenId.label}
             </label>
-            <div className="field-shell">
-              <CreditCard aria-hidden="true" className="field-icon" />
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-1">
+              <CreditCard className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
               <input
-                aria-describedby={
-                  citizenIdError ? 'citizen-id-error' : undefined
-                }
-                aria-invalid={citizenIdError.length > 0}
-                autoComplete="username"
                 id="citizen-id"
+                name="username"
+                autoComplete="username"
                 inputMode="numeric"
                 maxLength={13}
+                value={citizenId}
                 onChange={(event) => handleCitizenIdChange(event.target.value)}
                 placeholder={th.login.fields.citizenId.placeholder}
-                value={citizenId}
+                aria-describedby={citizenIdError ? 'citizen-id-error' : undefined}
+                aria-invalid={citizenIdError.length > 0}
+                className="w-full pl-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
               />
-              <span className="field-counter">{citizenId.length}/13</span>
             </div>
-            <p className="field-error" id="citizen-id-error">
-              {citizenIdError}
-            </p>
+            {citizenIdError ? (
+              <p className="text-xs text-red-500 mb-3" id="citizen-id-error">
+                {citizenIdError}
+              </p>
+            ) : (
+              <div className="h-3" />
+            )}
 
-            <label htmlFor="password">{th.login.fields.password.label}</label>
-            <div className="field-shell">
-              <LockKeyhole aria-hidden="true" className="field-icon" />
+            {/* Password Field */}
+            <label
+              htmlFor="password"
+              className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
+            >
+              {th.login.fields.password.label}
+            </label>
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-3">
+              <Lock className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
               <input
-                autoComplete="current-password"
                 id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
                 onChange={(event) => {
                   setPassword(event.target.value);
                   setFeedback('');
                 }}
                 placeholder={th.login.fields.password.placeholder}
-                type={showPassword ? 'text' : 'password'}
-                value={password}
+                className="w-full pl-3 pr-8 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
               />
               <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={
                   showPassword
                     ? th.login.fields.password.hide
                     : th.login.fields.password.show
                 }
-                className="password-visibility"
-                onClick={() => setShowPassword((isVisible) => !isVisible)}
-                type="button"
+                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 {showPassword ? (
-                  <EyeOff aria-hidden="true" />
+                  <EyeOff className="size-4.5" aria-hidden="true" />
                 ) : (
-                  <Eye aria-hidden="true" />
+                  <Eye className="size-4.5" aria-hidden="true" />
                 )}
               </button>
             </div>
 
-            <div className="login-options">
-              <label className="remember-option">
+            {/* Remember Credentials Checkbox & Clear Action */}
+            <div className="flex items-center justify-between mb-3 select-none">
+              <label
+                htmlFor="remember-credentials"
+                className="flex items-center gap-2 cursor-pointer group"
+              >
                 <input
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
+                  id="remember-credentials"
+                  name="rememberCredentials"
                   type="checkbox"
+                  checked={rememberCredentials}
+                  onChange={(event) =>
+                    setRememberCredentials(event.target.checked)
+                  }
+                  className="size-4 rounded border-slate-300 text-[#0056b3] focus:ring-[#0056b3]/30 accent-[#0056b3] cursor-pointer"
                 />
-                {th.login.remember}
+                <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
+                  {th.login.rememberCredentials}
+                </span>
               </label>
-              <button onClick={handleUnavailableAction} type="button">
-                {th.login.forgotPassword}
-              </button>
+
+              {hasSavedForCurrentRole && (
+                <button
+                  type="button"
+                  onClick={handleClearSaved}
+                  className="text-xs text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                  title={th.login.clearSaved}
+                >
+                  {th.login.clearSaved}
+                </button>
+              )}
             </div>
 
-            <p aria-live="polite" className="form-feedback">
-              {feedback}
-            </p>
+            {/* Error or Feedback message */}
+            {feedback && (
+              <p aria-live="polite" className="text-xs text-red-600 mb-3 font-medium">
+                {feedback}
+              </p>
+            )}
 
+            {/* Submit Button */}
             <button
-              className="submit-button"
-              disabled={!canSubmit}
               type="submit"
+              disabled={!canSubmit}
+              className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0056b3] py-3.5 text-sm sm:text-base font-bold text-white shadow-md hover:bg-[#004494] active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
-              {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}
+              <span>{isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}</span>
+              <ArrowRight className="size-4.5" aria-hidden="true" />
             </button>
           </form>
 
-          {role !== 'administrator' ? (
-            <p className="register-prompt">
-              {th.login.registration.prompt}{' '}
+          {/* Registration Navigation Link */}
+          {role !== 'administrator' && (
+            <div className="mt-6 text-center text-xs sm:text-sm text-slate-500">
+              <span>
+                {role === 'consumer'
+                  ? th.login.registration.promptConsumer
+                  : th.login.registration.promptMerchant}
+              </span>{' '}
               <button
+                type="button"
                 onClick={() =>
                   setRegistrationRole(
                     role === 'consumer' ? 'consumer' : 'merchant',
                   )
                 }
-                type="button"
+                className="font-bold text-[#0056b3] hover:underline cursor-pointer ml-1"
               >
                 {th.login.registration.actions[role]}
               </button>
-            </p>
-          ) : null}
+            </div>
+          )}
 
-          <div className="support-note">
-            <Headphones aria-hidden="true" />
-            <p>
-              {th.login.support.description}
-              <br />
-              <strong>{th.login.support.contact}</strong>
-            </p>
+          {/* Security Verification Badge */}
+          <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+            <ShieldCheck className="size-4 text-slate-500" aria-hidden="true" />
+            <span>{th.login.securityNote}</span>
           </div>
         </div>
-      </aside>
     </main>
   );
 }

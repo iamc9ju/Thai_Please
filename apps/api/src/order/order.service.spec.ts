@@ -10,7 +10,7 @@ interface MockPrisma {
     create: Mock;
     findMany: Mock;
   };
-  wallet: { findUnique: Mock; update: Mock };
+  wallet: { findUnique: Mock; findFirst: Mock; update: Mock };
   walletTransaction: { findMany: Mock; create: Mock };
   subsidyProgram: { findFirst: Mock };
   userCoupon: { findUnique: Mock; updateMany: Mock };
@@ -49,6 +49,7 @@ function paymentOrder(overrides: Record<string, unknown> = {}) {
 describe('OrderService payment', () => {
   let service: OrderService;
   let prismaMock: MockPrisma;
+  let questsServiceMock: { evaluateOrder: Mock };
 
   function arrangePayableOrder(
     options: {
@@ -108,6 +109,7 @@ describe('OrderService payment', () => {
       },
       wallet: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         update: vi.fn(),
       },
       walletTransaction: {
@@ -130,9 +132,13 @@ describe('OrderService payment', () => {
           callback(prismaMock),
       ),
     };
+    questsServiceMock = {
+      evaluateOrder: vi.fn().mockResolvedValue(null),
+    };
     service = new OrderService(
       prismaMock as unknown as PrismaService,
       { getOrThrow: vi.fn().mockReturnValue('test-secret') } as never,
+      questsServiceMock as never,
     );
   });
 
@@ -397,5 +403,160 @@ describe('OrderService payment', () => {
     ).rejects.toThrow(ConflictException);
     expect(prismaMock.wallet.update).not.toHaveBeenCalled();
     expect(prismaMock.walletTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('triggers quest evaluation for the paid order outside the payment lock', async () => {
+    const pendingOrder = paymentOrder({
+      subtotal: '100.00',
+      finalAmount: '100.00',
+    });
+    prismaMock.order.findUnique
+      .mockResolvedValueOnce({ orderId: 10n })
+      .mockResolvedValueOnce(pendingOrder);
+    prismaMock.wallet.findUnique
+      .mockResolvedValueOnce({
+        walletId: 30n,
+        userId: 100n,
+        status: 'ACTIVE',
+        personalBalance: '500.00',
+        subsidyBalance: '0.00',
+      })
+      .mockResolvedValueOnce({
+        walletId: 40n,
+        merchantId: 20n,
+        status: 'ACTIVE',
+        merchantBalance: '0.00',
+      });
+    prismaMock.order.update.mockResolvedValueOnce({
+      ...pendingOrder,
+      status: 'PAID',
+      paidAt,
+    });
+
+    const result = await service.payByQr(100n, { qrToken: 'secure-token' });
+
+    expect(result.success).toBe(true);
+    expect(questsServiceMock.evaluateOrder).toHaveBeenCalledTimes(1);
+    expect(questsServiceMock.evaluateOrder).toHaveBeenCalledWith(10n);
+  });
+
+  it('does not fail payment when quest evaluation fails', async () => {
+    const pendingOrder = paymentOrder({
+      subtotal: '100.00',
+      finalAmount: '100.00',
+    });
+    prismaMock.order.findUnique
+      .mockResolvedValueOnce({ orderId: 10n })
+      .mockResolvedValueOnce(pendingOrder);
+    prismaMock.wallet.findUnique
+      .mockResolvedValueOnce({
+        walletId: 30n,
+        userId: 100n,
+        status: 'ACTIVE',
+        personalBalance: '500.00',
+        subsidyBalance: '0.00',
+      })
+      .mockResolvedValueOnce({
+        walletId: 40n,
+        merchantId: 20n,
+        status: 'ACTIVE',
+        merchantBalance: '0.00',
+      });
+    prismaMock.order.update.mockResolvedValueOnce({
+      ...pendingOrder,
+      status: 'PAID',
+      paidAt,
+    });
+    questsServiceMock.evaluateOrder.mockRejectedValueOnce(
+      new Error('Evaluation DB timeout'),
+    );
+
+    const result = await service.payByQr(100n, { qrToken: 'secure-token' });
+
+    expect(result.success).toBe(true);
+    expect(questsServiceMock.evaluateOrder).toHaveBeenCalledWith(10n);
+  });
+
+  it('does not trigger quest evaluation on idempotent replay', async () => {
+    prismaMock.order.findUnique
+      .mockResolvedValueOnce({ orderId: 10n })
+      .mockResolvedValueOnce(
+        paymentOrder({
+          userId: 100n,
+          walletId: 30n,
+          status: 'PAID',
+          subsidyAmount: '0.00',
+          userPaidAmount: '100.00',
+          paidAt,
+        }),
+      );
+
+    const result = await service.payByQr(100n, { qrToken: 'secure-token' });
+
+    expect(result.isIdempotentReplay).toBe(true);
+    expect(questsServiceMock.evaluateOrder).not.toHaveBeenCalled();
+  });
+
+  it('creates order with userPaidAmount equal to finalAmount to satisfy orders_check1 constraint', async () => {
+    prismaMock.merchant.findUnique.mockResolvedValueOnce({
+      merchantId: 1n,
+      status: 'ACTIVE',
+    });
+    prismaMock.wallet.findFirst.mockResolvedValueOnce({
+      walletId: 10n,
+      status: 'ACTIVE',
+    });
+    prismaMock.product.findMany.mockResolvedValueOnce([
+      {
+        productId: 1n,
+        categoryId: 1n,
+        productName: 'ข้าวกะเพราหมูกรอบ',
+        price: '60.00',
+        merchantId: 1n,
+        status: 'ACTIVE',
+      },
+    ]);
+    prismaMock.order.create.mockImplementationOnce(async ({ data }) => ({
+      orderId: 5n,
+      status: data.status,
+      subtotal: data.subtotal,
+      finalAmount: data.finalAmount,
+      subsidyAmount: data.subsidyAmount,
+      userPaidAmount: data.userPaidAmount,
+      qrToken: data.qrToken,
+      qrExpiresAt: data.qrExpiresAt,
+    }));
+
+    const result = await service.createOrder(1n, {
+      items: [{ productId: 1, quantity: 1 }],
+    });
+
+    expect(result.orderId).toBe('5');
+    expect(prismaMock.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subsidyAmount: expect.anything(),
+          userPaidAmount: expect.anything(),
+        }),
+      }),
+    );
+    const createData = prismaMock.order.create.mock.calls[0][0].data;
+    // Check that subsidyAmount + userPaidAmount === finalAmount (orders_check1)
+    expect(
+      Number(createData.subsidyAmount) + Number(createData.userPaidAmount),
+    ).toBe(Number(createData.finalAmount));
+  });
+
+  it('rejects order creation if merchant does not have an active wallet', async () => {
+    prismaMock.merchant.findUnique.mockResolvedValueOnce({
+      merchantId: 1n,
+      status: 'ACTIVE',
+    });
+    prismaMock.wallet.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.createOrder(1n, { items: [{ productId: 1, quantity: 1 }] }),
+    ).rejects.toThrow('ร้านค้ายังไม่มีกระเป๋าเงินที่พร้อมรับเงิน');
+    expect(prismaMock.order.create).not.toHaveBeenCalled();
   });
 });
