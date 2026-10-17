@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { RolesGuard } from './authorization/roles.guard.js';
+import { LoginRateLimiterService } from './login-rate-limiter.service.js';
 import { PasswordService } from './password/password.service.js';
 
 @Module({
@@ -22,7 +23,20 @@ import { PasswordService } from './password/password.service.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, PasswordService, RolesGuard],
-  exports: [AuthService, AuthGuard, PasswordService, RolesGuard, JwtModule],
+  providers: [
+    AuthService,
+    AuthGuard,
+    LoginRateLimiterService,
+    PasswordService,
+    RolesGuard,
+  ],
+  exports: [
+    AuthService,
+    AuthGuard,
+    LoginRateLimiterService,
+    PasswordService,
+    RolesGuard,
+    JwtModule,
+  ],
 })
 export class AuthModule {}

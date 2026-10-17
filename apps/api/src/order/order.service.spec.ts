@@ -1,7 +1,7 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { OrderService } from './order.service.js';
+import { hashQrToken, OrderService } from './order.service.js';
 
 interface MockPrisma {
   order: {
@@ -391,6 +391,24 @@ describe('OrderService payment', () => {
     expect(
       Number(createData.subsidyAmount) + Number(createData.userPaidAmount),
     ).toBe(Number(createData.finalAmount));
+    // FR-M04: Database stores only the SHA-256 hash, while merchant receives the raw token
+    expect(createData.qrToken).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(result.qrToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(hashQrToken(result.qrToken)).toBe(createData.qrToken);
+  });
+
+  it('rejects direct replay of a leaked sha256: database hash in previewOrder and payByQr (FR-M04)', async () => {
+    const leakedDbHash = hashQrToken('secret-raw-qr-token');
+
+    await expect(
+      service.previewOrder(100n, { qrToken: leakedDbHash }),
+    ).rejects.toThrow(NotFoundException);
+
+    await expect(
+      service.payByQr(100n, { qrToken: leakedDbHash }),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prismaMock.order.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects order creation if merchant does not have an active wallet', async () => {

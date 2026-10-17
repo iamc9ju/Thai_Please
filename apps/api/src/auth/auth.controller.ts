@@ -41,9 +41,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async loginConsumer(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(dto, 'CONSUMER');
+    const result = await this.authService.login(dto, 'CONSUMER', req?.ip);
     this.setAuthCookie(res, result.token);
     return { user: result.user };
   }
@@ -52,9 +53,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async loginMerchant(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(dto, 'MERCHANT');
+    const result = await this.authService.login(dto, 'MERCHANT', req?.ip);
     this.setAuthCookie(res, result.token);
     return { user: result.user };
   }
@@ -63,9 +65,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async loginAdmin(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(dto, 'ADMIN');
+    const result = await this.authService.login(dto, 'ADMIN', req?.ip);
     this.setAuthCookie(res, result.token);
     return { user: result.user };
   }

@@ -47,13 +47,14 @@
     ยังไม่ครบตาม requirement
   - Gap Test/Docs: ยังขาด existing-identity integration, rollback/E2E, Postman และ README
 
-- [ ] **FR-AUTH-03 — Password Policy — Partial**
-  - มี: password validation, hash service และ unit tests
-  - Gap Security: ยังไม่มีหลักฐาน rate limit/brute-force protection และ log-redaction verification ครบ
-  - Gap Test: ยังขาด integration/negative security tests
+- [ ] **FR-AUTH-03 — Password Policy & Brute-Force Protection — Partial (Rate Limiter Integrated)**
+  - มี: password validation, hash service, `LoginRateLimiterService` (จำกัดการล็อกอินผิดพลาดสูงสุด 5 ครั้งใน 15 นาทีต่อ `(role, citizenId, clientIp)` พร้อมคืน `429 Too Many Requests / AUTH_RATE_LIMITED`) และ unit tests
+  - Evidence: `apps/api/src/auth/login-rate-limiter.service.ts`, `apps/api/src/auth/auth.service.spec.ts`, `apps/api/src/auth/password/password.service.spec.ts`
+  - Gap Security: distributed rate limit store (เช่น Redis) เมื่อขยายหลาย instance และ log-redaction audit suite
 
 - [ ] **FR-AUTH-04 — Login — Partial**
-  - มี: แยก customer/merchant/admin login routes, session cookie, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
+  - มี: แยก customer/merchant/admin login routes, session cookie, SHA-256 `tokenHash` ใน `auth_sessions`, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
+  - Evidence: `apps/api/src/auth/auth.service.spec.ts`, `apps/web/src/features/auth/pages/LoginPage.test.tsx`
   - Gap UI/API: pending merchant tracking flow และ permission-denied UX ยังไม่ครบ
   - Gap Test: ยังขาด portal/session authorization integration และ E2E ครบสาม portal
 
@@ -180,11 +181,10 @@
   - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/merchant/pages/MerchantPos.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-M04 — QR Generation — Partial (Frontend & Backend Integrated + HTTP E2E)**
-  - มี random QR token และ expiry สำหรับ order พร้อมปุ่มคัดลอกรหัส Token และปุ่มดาวน์โหลดรูปภาพ QR Code ใน `MerchantPos.tsx`
-  - Evidence: `apps/api/test/platform-lifecycle.e2e-spec.ts`
-  - Gap Security: database ยังเก็บ token ที่ค้นด้วยค่าตรง ไม่ใช่ hash-only ตาม requirement
-  - Gap Test: unpredictability, expiry, replay และ one-order/one-payment integration
+- [ ] **FR-M04 — QR Generation — Partial (SHA-256 Hash Storage + Frontend & Backend Integrated + HTTP E2E)**
+  - มี cryptographic random QR token (`randomBytes(32)`), บันทึกเฉพาะค่า SHA-256 hash (`sha256:<hex>`) ลงคอลัมน์ `orders.qr_token` ในฐานข้อมูลโดยคืนค่า raw token ให้ฝั่ง POS แสดงเป็น QR Code, ป้องกันการนำค่า hash จากฐานข้อมูลมายิงซ้ำโดยตรง (`Anti-Hash-Replay`), มีวันหมดอายุ 10 นาที พร้อมปุ่มคัดลอกรหัส Token และปุ่มดาวน์โหลดรูปภาพ QR Code ใน `MerchantPos.tsx`
+  - Evidence: `apps/api/src/order/order.service.ts`, `apps/api/src/order/order.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: database integration บนฐานข้อมูลสดสำหรับ expiry และ concurrent one-order/one-payment
 
 - [ ] **FR-M05 — Payment Status — Partial**
   - มี order status/backend payment commit, merchant order listing และ auto-polling สถานะการชำระเงินในหน้า POS พร้อมแสดงหน้าชำระเงินสำเร็จและเปิดใบเสร็จดิจิทัลได้ทันที

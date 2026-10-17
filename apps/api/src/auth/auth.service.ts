@@ -15,6 +15,7 @@ import type {
 } from './dto/register.dto.js';
 import { PasswordService } from './password/password.service.js';
 import { parseValidBirthDate } from './birth-date.js';
+import { LoginRateLimiterService } from './login-rate-limiter.service.js';
 
 @Injectable()
 export class AuthService {
@@ -23,16 +24,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly passwords: PasswordService,
+    private readonly rateLimiter: LoginRateLimiterService = new LoginRateLimiterService(),
   ) {}
 
   private hashJti(jti: string): string {
     return createHash('sha256').update(jti).digest('hex');
   }
 
-  async login(dto: LoginDto, role: ActiveRole) {
-    const invalidCredentialsError = new UnauthorizedException(
-      'เลขประจำตัวประชาชนหรือรหัสผ่านไม่ถูกต้อง',
-    );
+  async login(dto: LoginDto, role: ActiveRole, clientIp?: string) {
+    // 0. ตรวจสอบ Rate Limit / Brute-force protection (FR-AUTH-03)
+    this.rateLimiter.assertAllowed(role, dto.citizenId, clientIp);
+
+    const failLogin = (): never => {
+      this.rateLimiter.recordFailure(role, dto.citizenId, clientIp);
+      throw new UnauthorizedException(
+        'เลขประจำตัวประชาชนหรือรหัสผ่านไม่ถูกต้อง',
+      );
+    };
 
     // 1. ดึง user พร้อม roles โดยใช้ citizenId (camelCase)
     const user = await this.prisma.user.findUnique({
@@ -42,15 +50,16 @@ export class AuthService {
       },
     });
 
-    if (!user) throw invalidCredentialsError;
+    if (!user) return failLogin();
 
     // 2. ตรวจ password hash
     if (!(await this.passwords.verify(dto.password, user.passwordHash))) {
-      throw invalidCredentialsError;
+      return failLogin();
     }
 
     // 3. ตรวจ user status
     if (user.status !== 'ACTIVE') {
+      this.rateLimiter.recordFailure(role, dto.citizenId, clientIp);
       throw new UnauthorizedException('บัญชีนี้ถูกระงับการใช้งาน');
     }
 
@@ -58,7 +67,7 @@ export class AuthService {
     const hasRole = user.roles.some(
       (r) => r.role === role && r.status === 'ACTIVE',
     );
-    if (!hasRole) throw invalidCredentialsError;
+    if (!hasRole) return failLogin();
 
     // 5. กรณี MERCHANT: ดึง merchant ของ user
     let merchantId: bigint | null = null;
@@ -66,9 +75,12 @@ export class AuthService {
       const merchant = await this.prisma.merchant.findFirst({
         where: { ownerUserId: user.userId },
       });
-      if (!merchant) throw invalidCredentialsError;
+      if (!merchant) return failLogin();
       merchantId = merchant.merchantId;
     }
+
+    // ล้างสถิติการเข้าสู่ระบบผิดพลาดเมื่อยืนยันตัวตนสำเร็จ
+    this.rateLimiter.clearFailures(role, dto.citizenId, clientIp);
 
     // 6. Sign JWT
     const jti = randomUUID();

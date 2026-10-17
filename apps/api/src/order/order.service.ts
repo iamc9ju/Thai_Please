@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  createHash,
   createHmac,
   randomBytes,
   randomUUID,
@@ -28,8 +29,13 @@ import type {
 } from './dto/order.dto.js';
 
 const QR_TTL_MS = 10 * 60 * 1000;
+const QR_HASH_PREFIX = 'sha256:';
 const ZERO = new Prisma.Decimal(0);
 const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
+
+export function hashQrToken(rawQrToken: string): string {
+  return `${QR_HASH_PREFIX}${createHash('sha256').update(rawQrToken).digest('hex')}`;
+}
 
 type MoneyInput = Prisma.Decimal | number | string;
 
@@ -313,7 +319,8 @@ export class OrderService {
       };
     });
 
-    const qrToken = randomBytes(32).toString('hex');
+    const rawQrToken = randomBytes(32).toString('hex');
+    const qrTokenHash = hashQrToken(rawQrToken);
     const qrExpiresAt = new Date(Date.now() + QR_TTL_MS);
     const finalAmount = subtotal;
 
@@ -328,7 +335,7 @@ export class OrderService {
             subsidyAmount: ZERO,
             userPaidAmount: finalAmount,
             status: 'PENDING',
-            qrToken,
+            qrToken: qrTokenHash,
             qrExpiresAt,
             orderItems: {
               createMany: { data: itemsData },
@@ -344,7 +351,7 @@ export class OrderService {
       status: order.status,
       subtotal: Number(order.subtotal),
       finalAmount: Number(order.finalAmount),
-      qrToken: order.qrToken,
+      qrToken: rawQrToken,
       qrExpiresAt: order.qrExpiresAt,
       items: itemsData.map((item) => ({
         productId: item.productId.toString(),
@@ -412,10 +419,19 @@ export class OrderService {
    * Order, wallets, coupon, ledgers, and final status are committed atomically.
    */
   async payByQr(consumerId: bigint, dto: PayByQrDto) {
-    const orderReference = await this.prisma.order.findUnique({
-      where: { qrToken: dto.qrToken },
-      select: { orderId: true },
-    });
+    if (dto.qrToken.startsWith(QR_HASH_PREFIX)) {
+      throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
+    }
+    const qrTokenHash = hashQrToken(dto.qrToken);
+    const orderReference =
+      (await this.prisma.order.findUnique({
+        where: { qrToken: qrTokenHash },
+        select: { orderId: true },
+      })) ??
+      (await this.prisma.order.findUnique({
+        where: { qrToken: dto.qrToken },
+        select: { orderId: true },
+      }));
     if (!orderReference) {
       throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
     }
@@ -1029,14 +1045,24 @@ export class OrderService {
     qrToken: string,
     userCouponId?: string,
   ) {
+    if (qrToken.startsWith(QR_HASH_PREFIX)) {
+      throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
+    }
     const now = new Date();
-    const order = await this.prisma.order.findUnique({
-      where: { qrToken },
-      include: {
-        merchant: { select: { merchantName: true, status: true } },
-        orderItems: true,
-      },
-    });
+    const qrTokenHash = hashQrToken(qrToken);
+    const includeSpec = {
+      merchant: { select: { merchantName: true, status: true } },
+      orderItems: true,
+    };
+    const order =
+      (await this.prisma.order.findUnique({
+        where: { qrToken: qrTokenHash },
+        include: includeSpec,
+      })) ??
+      (await this.prisma.order.findUnique({
+        where: { qrToken },
+        include: includeSpec,
+      }));
 
     if (!order) {
       throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
