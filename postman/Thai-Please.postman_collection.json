@@ -1220,6 +1220,121 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Merchant Wallet & Analytics (FR-M06, FR-M07)",
+      "item": [
+        {
+          "name": "Get Merchant Wallet Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/wallet",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "wallet"]
+            },
+            "description": "MERCHANT เท่านั้น | FR-M06 ดูยอดคงเหลือกระเป๋าร้านค้า รายรับแยกตามบิล (Subsidy/Personal Portion) และสถานะสิทธิ์ถอนเงินเข้ากระเป๋าประชาชนเจ้าของร้าน | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีข้อมูลกระเป๋าร้านค้าและสิทธิ์ถอนเงิน', () => { pm.expect(json).to.have.property('wallet'); pm.expect(json).to.have.property('withdrawalEligibility'); pm.expect(json.orderIncomes).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Merchant Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/wallet/transactions?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "wallet", "transactions"],
+              "query": [{ "key": "limit", "value": "20" }]
+            },
+            "description": "MERCHANT เท่านั้น | FR-M06 ดูประวัติธุรกรรมกระเป๋าเงินร้านค้า (Cursor Pagination + Date Range) | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีรายการธุรกรรม', () => { pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Withdraw Merchant Balance to Consumer Wallet",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50,\n  \"idempotencyKey\": \"postman-mwithdraw-0001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/wallet/withdrawals",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "wallet", "withdrawals"]
+            },
+            "description": "MERCHANT OWNER ที่มีบทบาท CONSUMER เท่านั้น | FR-M06 & BR-WALLET-06 โอนเงินเสมือนจาก Merchant Wallet เข้าสู่ Consumer Personal Balance ของเจ้าของร้านแบบ Atomic Transaction | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('ถอนเงินสำเร็จและคืนยอดคงเหลือทั้งสองกระเป๋า', () => { pm.expect(json.success).to.eql(true); pm.expect(json).to.have.property('merchantBalanceAfter'); pm.expect(json).to.have.property('consumerPersonalBalanceAfter'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Merchant Analytics Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/dashboard?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "merchant", "dashboard"],
+              "query": [{ "key": "days", "value": "7" }]
+            },
+            "description": "MERCHANT เท่านั้น | FR-M07 ดูสรุปยอดขายรวม จำนวนคำสั่งซื้อ สัดส่วนเงินอุดหนุน/เงินส่วนตัว การใช้คูปอง สินค้าขายดี แนวโน้มยอดขายรายวัน และเวลาอัปเดตข้อมูลล่าสุด | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีข้อมูลสรุปยอดขาย สินค้าขายดี และแนวโน้ม', () => { pm.expect(json).to.have.property('summary'); pm.expect(json.topProducts).to.be.an('array'); pm.expect(json.salesTrend).to.be.an('array'); pm.expect(json).to.have.property('dataFreshness'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
     }
   ]
 }

@@ -2,7 +2,11 @@ import { apiClient } from '../../../lib/api-client';
 import type {
   Category,
   CreateOrderResponse,
+  MerchantDashboardData,
   MerchantOrder,
+  MerchantWalletOverview,
+  MerchantWalletTransactionsPage,
+  MerchantWithdrawalResult,
   OrderPreview,
   PaymentResult,
   Product,
@@ -50,6 +54,47 @@ export function getMerchantOrderReceipt(
 ): Promise<ReceiptDetail> {
   return apiClient.get<ReceiptDetail>(
     `${MERCHANT_API}/orders/${encodeURIComponent(orderId)}/receipt`,
+  );
+}
+
+// ── FR-M06: Merchant Wallet & Withdrawal ─────────────────────────────────────
+
+export function getMerchantWalletOverview(): Promise<MerchantWalletOverview> {
+  return apiClient.get<MerchantWalletOverview>(`${MERCHANT_API}/wallet`);
+}
+
+export function getMerchantWalletTransactions(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+  cursor?: string;
+  limit?: number;
+}): Promise<MerchantWalletTransactionsPage> {
+  const searchParams = new URLSearchParams();
+  if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
+  if (params?.cursor) searchParams.set('cursor', params.cursor);
+  if (params?.limit) searchParams.set('limit', String(params.limit));
+  const query = searchParams.toString();
+  return apiClient.get<MerchantWalletTransactionsPage>(
+    `${MERCHANT_API}/wallet/transactions${query ? `?${query}` : ''}`,
+  );
+}
+
+export function withdrawMerchantWallet(data: {
+  amount: number;
+  idempotencyKey: string;
+}): Promise<MerchantWithdrawalResult> {
+  return apiClient.post<MerchantWithdrawalResult>(
+    `${MERCHANT_API}/wallet/withdrawals`,
+    data,
+  );
+}
+
+// ── FR-M07: Merchant Analytics Dashboard ─────────────────────────────────────
+
+export function getMerchantDashboard(days = 7): Promise<MerchantDashboardData> {
+  return apiClient.get<MerchantDashboardData>(
+    `${MERCHANT_API}/dashboard?days=${encodeURIComponent(String(days))}`,
   );
 }
 

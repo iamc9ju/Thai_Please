@@ -299,7 +299,7 @@ async function seed() {
     );
   }
 
-  // 7. Ensure all merchants have a merchant wallet
+  // 7. Ensure all merchants have a merchant wallet, and merchant owners have CONSUMER role + CONSUMER wallet for FR-M06 withdrawal testing
   const merchants = await prisma.merchant.findMany();
   for (const m of merchants) {
     const existing = await prisma.wallet.findFirst({
@@ -317,6 +317,47 @@ async function seed() {
         },
       });
       console.log('Created wallet for merchant:', m.merchantName);
+    }
+
+    // Ensure merchant owner has active CONSUMER role so they can withdraw from Merchant Wallet to Consumer Personal Balance (FR-M06)
+    const ownerConsumerRole = await prisma.userRole.findUnique({
+      where: {
+        userId_role: {
+          userId: m.ownerUserId,
+          role: 'CONSUMER',
+        },
+      },
+    });
+    if (!ownerConsumerRole) {
+      await prisma.userRole.create({
+        data: {
+          userId: m.ownerUserId,
+          role: 'CONSUMER',
+          status: 'ACTIVE',
+        },
+      });
+      console.log(
+        `Granted CONSUMER role to merchant owner userId=${m.ownerUserId}`,
+      );
+    }
+
+    const ownerConsumerWallet = await prisma.wallet.findUnique({
+      where: { userId: m.ownerUserId },
+    });
+    if (!ownerConsumerWallet) {
+      await prisma.wallet.create({
+        data: {
+          userId: m.ownerUserId,
+          walletType: 'CONSUMER',
+          personalBalance: 0,
+          subsidyBalance: activeProgram.initialGrant,
+          subsidyProgramId: activeProgram.programId,
+          status: 'ACTIVE',
+        },
+      });
+      console.log(
+        `Created CONSUMER wallet for merchant owner userId=${m.ownerUserId}`,
+      );
     }
   }
 

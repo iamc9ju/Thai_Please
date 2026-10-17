@@ -37,6 +37,19 @@ export const TOPUP_LIMITS = {
   IDEMPOTENCY_KEY_MAX_LENGTH: 128,
 } as const;
 
+export const WITHDRAWAL_LIMITS = {
+  MIN_AMOUNT: 1,
+  MAX_AMOUNT: 500_000,
+  IDEMPOTENCY_KEY_MIN_LENGTH: 8,
+  IDEMPOTENCY_KEY_MAX_LENGTH: 128,
+} as const;
+
+export const DASHBOARD_TREND_DAYS = {
+  DEFAULT: 7,
+  MIN: 1,
+  MAX: 30,
+} as const;
+
 export const WALLET_TRANSACTION_PAGE_LIMITS = {
   DEFAULT: 20,
   MAX: 100,

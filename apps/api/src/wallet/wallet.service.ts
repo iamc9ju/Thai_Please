@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,15 +9,19 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  BANGKOK_TIMEZONE,
   BANGKOK_TZ_OFFSET_HOURS,
+  DASHBOARD_TREND_DAYS,
   FundType,
   LegacyTransactionType,
   TOPUP_LIMITS,
   TransactionType,
   WALLET_TRANSACTION_PAGE_LIMITS,
+  WITHDRAWAL_LIMITS,
 } from './wallet.constants.js';
 import type { TopUpDto } from './dto/top-up.dto.js';
 import type { WalletTransactionsQueryDto } from './dto/wallet-transactions-query.dto.js';
+import type { WithdrawMerchantWalletDto } from './dto/withdraw-merchant-wallet.dto.js';
 
 const RECENT_PAID_ORDER_LIMIT = 5;
 const PAID_ORDER_STATUS = 'PAID';
@@ -650,5 +655,940 @@ export class WalletService {
         createdAt: transaction.createdAt,
       };
     });
+  }
+
+  // ─── FR-M06 & FR-M07: Merchant Wallet, Withdrawal, and Analytics Dashboard ───
+
+  private resolveAuthorizedMerchantId(
+    activeMerchantId: bigint | null,
+    requestedMerchantId?: bigint,
+  ): bigint {
+    if (!activeMerchantId) {
+      throw new ForbiddenException('MERCHANT_CONTEXT_REQUIRED');
+    }
+    if (
+      requestedMerchantId !== undefined &&
+      requestedMerchantId !== activeMerchantId
+    ) {
+      throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
+    }
+    return activeMerchantId;
+  }
+
+  private assertActiveMerchantWallet(wallet: {
+    status: string;
+    walletType: string;
+  }): void {
+    if (wallet.status !== 'ACTIVE' || wallet.walletType !== 'MERCHANT') {
+      throw new ConflictException('WALLET_NOT_ACTIVE_MERCHANT');
+    }
+  }
+
+  private assertMatchingWithdrawalReplay(
+    transaction: {
+      amount: Prisma.Decimal | number | string;
+      fundType: string;
+      initiatedByUserId: bigint | null;
+      transactionType: string;
+      walletId: bigint;
+    },
+    userId: bigint,
+    merchantWalletId: bigint,
+    amount: number,
+  ): void {
+    const isSamePayload =
+      transaction.walletId === merchantWalletId &&
+      transaction.initiatedByUserId === userId &&
+      transaction.fundType === FundType.MERCHANT &&
+      transaction.transactionType === TransactionType.MERCHANT_WITHDRAWAL &&
+      new Prisma.Decimal(transaction.amount).equals(amount);
+
+    if (!isSamePayload) {
+      throw new ConflictException('WITHDRAWAL_IDEMPOTENCY_KEY_CONFLICT');
+    }
+  }
+
+  private async hasActiveConsumerRole(userId: bigint): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      include: { roles: true },
+    });
+    if (!user || user.status !== 'ACTIVE') {
+      return false;
+    }
+    return (
+      user.role === 'CONSUMER' ||
+      user.roles.some((r) => r.role === 'CONSUMER' && r.status === 'ACTIVE')
+    );
+  }
+
+  private async getOrCreateMerchantWallet(merchantId: bigint) {
+    const existing = await this.prisma.wallet.findUnique({
+      where: { merchantId },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    try {
+      return await this.prisma.wallet.create({
+        data: {
+          merchantId,
+          walletType: 'MERCHANT',
+          personalBalance: 0,
+          subsidyBalance: 0,
+          merchantBalance: 0,
+          status: 'ACTIVE',
+        },
+      });
+    } catch {
+      const fallback = await this.prisma.wallet.findUnique({
+        where: { merchantId },
+      });
+      if (fallback) {
+        return fallback;
+      }
+      throw new ConflictException('MERCHANT_WALLET_CREATE_FAILED');
+    }
+  }
+
+  private formatBangkokDateKey(date: Date): string {
+    const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
+    const bangkokTime = new Date(date.getTime() + offsetMs);
+    const yyyy = String(bangkokTime.getUTCFullYear());
+    const mm = String(bangkokTime.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(bangkokTime.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  /**
+   * FR-M06: ดึงข้อมูลกระเป๋าเงินของร้านค้า รายรับแยกตามบิล และสถานะสิทธิ์ถอนเงินเข้ากระเป๋าประชาชนของเจ้าของร้าน
+   */
+  async getMerchantWalletOverview(
+    userId: bigint,
+    activeMerchantId: bigint | null,
+    requestedMerchantId?: bigint,
+  ) {
+    const merchantId = this.resolveAuthorizedMerchantId(
+      activeMerchantId,
+      requestedMerchantId,
+    );
+
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { merchantId },
+      select: {
+        merchantId: true,
+        merchantName: true,
+        ownerUserId: true,
+        status: true,
+      },
+    });
+    if (!merchant) {
+      throw new NotFoundException('MERCHANT_NOT_FOUND');
+    }
+    if (merchant.ownerUserId !== userId) {
+      throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
+    }
+
+    const merchantWallet = await this.getOrCreateMerchantWallet(merchantId);
+    const isOwner = merchant.ownerUserId === userId;
+    const hasConsumerRole = await this.hasActiveConsumerRole(userId);
+    const consumerWallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    const hasActiveConsumerWallet = Boolean(
+      consumerWallet &&
+      consumerWallet.status === 'ACTIVE' &&
+      consumerWallet.walletType === 'CONSUMER',
+    );
+
+    const paidOrders = await this.prisma.order.findMany({
+      where: {
+        merchantId,
+        status: PAID_ORDER_STATUS,
+      },
+      select: {
+        orderId: true,
+        subtotal: true,
+        discountAmount: true,
+        finalAmount: true,
+        subsidyAmount: true,
+        userPaidAmount: true,
+        paidAt: true,
+        createdAt: true,
+        user: {
+          select: { fullName: true },
+        },
+      },
+      orderBy: [{ paidAt: 'desc' }, { orderId: 'desc' }],
+    });
+
+    const totalSalesIncome = Number(
+      paidOrders
+        .reduce(
+          (sum, order) => sum.plus(order.finalAmount),
+          new Prisma.Decimal(0),
+        )
+        .toDecimalPlaces(2),
+    );
+    const totalSubsidyPortion = Number(
+      paidOrders
+        .reduce(
+          (sum, order) => sum.plus(order.subsidyAmount),
+          new Prisma.Decimal(0),
+        )
+        .toDecimalPlaces(2),
+    );
+    const totalPersonalPortion = Number(
+      paidOrders
+        .reduce(
+          (sum, order) => sum.plus(order.userPaidAmount),
+          new Prisma.Decimal(0),
+        )
+        .toDecimalPlaces(2),
+    );
+
+    const withdrawalTxs = await this.prisma.walletTransaction.findMany({
+      where: {
+        walletId: merchantWallet.walletId,
+        transactionType: TransactionType.MERCHANT_WITHDRAWAL,
+      },
+      select: { amount: true },
+    });
+
+    const totalWithdrawn = Number(
+      withdrawalTxs
+        .reduce((sum, tx) => sum.plus(tx.amount), new Prisma.Decimal(0))
+        .toDecimalPlaces(2),
+    );
+
+    const recentTransactions = await this.prisma.walletTransaction.findMany({
+      where: { walletId: merchantWallet.walletId },
+      include: {
+        order: {
+          select: {
+            orderId: true,
+            subtotal: true,
+            discountAmount: true,
+            finalAmount: true,
+            subsidyAmount: true,
+            userPaidAmount: true,
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { walletTransactionId: 'desc' }],
+      take: 15,
+    });
+
+    return {
+      wallet: {
+        walletId: merchantWallet.walletId.toString(),
+        merchantId: merchant.merchantId.toString(),
+        merchantName: merchant.merchantName,
+        merchantStatus: merchant.status,
+        walletStatus: merchantWallet.status,
+        merchantBalance: Number(merchantWallet.merchantBalance),
+        totalSalesIncome,
+        totalSubsidyPortion,
+        totalPersonalPortion,
+        totalWithdrawn,
+        paidOrderCount: paidOrders.length,
+      },
+      withdrawalEligibility: {
+        isOwner,
+        hasConsumerRole,
+        hasConsumerWallet: hasActiveConsumerWallet,
+        consumerWalletId:
+          hasActiveConsumerWallet && consumerWallet
+            ? consumerWallet.walletId.toString()
+            : null,
+        consumerPersonalBalance:
+          hasActiveConsumerWallet && consumerWallet
+            ? Number(consumerWallet.personalBalance)
+            : null,
+        canWithdraw:
+          isOwner &&
+          merchant.status === 'ACTIVE' &&
+          merchantWallet.status === 'ACTIVE' &&
+          hasConsumerRole &&
+          hasActiveConsumerWallet,
+      },
+      orderIncomes: paidOrders.slice(0, 20).map((order) => ({
+        orderId: order.orderId.toString(),
+        receiptNumber: `TP-${order.orderId.toString().padStart(6, '0')}`,
+        subtotal: Number(order.subtotal),
+        discountAmount: Number(order.discountAmount),
+        finalAmount: Number(order.finalAmount),
+        subsidyAmount: Number(order.subsidyAmount),
+        userPaidAmount: Number(order.userPaidAmount),
+        consumerName: order.user?.fullName ?? null,
+        paidAt: order.paidAt ?? order.createdAt,
+      })),
+      recentTransactions: recentTransactions.map((tx) => ({
+        transactionId: tx.walletTransactionId.toString(),
+        fundType: tx.fundType,
+        transactionType: tx.transactionType,
+        amount: Number(tx.amount),
+        balanceBefore: Number(tx.balanceBefore),
+        balanceAfter: Number(tx.balanceAfter),
+        businessRef: tx.businessRef,
+        transferReference: tx.transferReference,
+        orderId: tx.orderId?.toString() ?? null,
+        receiptNumber: tx.orderId
+          ? `TP-${tx.orderId.toString().padStart(6, '0')}`
+          : null,
+        subsidyAmount: tx.order ? Number(tx.order.subsidyAmount) : null,
+        userPaidAmount: tx.order ? Number(tx.order.userPaidAmount) : null,
+        finalAmount: tx.order ? Number(tx.order.finalAmount) : null,
+        consumerName: tx.order?.user?.fullName ?? null,
+        createdAt: tx.createdAt,
+      })),
+    };
+  }
+
+  /**
+   * FR-M06: ประวัติธุรกรรมกระเป๋าเงินของร้านค้า (Cursor Pagination + Date Range)
+   */
+  async getMerchantTransactions(
+    userId: bigint,
+    activeMerchantId: bigint | null,
+    query: WalletTransactionsQueryDto,
+    requestedMerchantId?: bigint,
+  ) {
+    const merchantId = this.resolveAuthorizedMerchantId(
+      activeMerchantId,
+      requestedMerchantId,
+    );
+
+    if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) {
+      throw new BadRequestException('WALLET_TRANSACTION_DATE_RANGE_INVALID');
+    }
+
+    const limit = query.limit ?? WALLET_TRANSACTION_PAGE_LIMITS.DEFAULT;
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > WALLET_TRANSACTION_PAGE_LIMITS.MAX
+    ) {
+      throw new BadRequestException('WALLET_TRANSACTION_LIMIT_INVALID');
+    }
+
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { merchantId },
+      select: { ownerUserId: true },
+    });
+    if (!merchant) {
+      throw new NotFoundException('MERCHANT_NOT_FOUND');
+    }
+    if (merchant.ownerUserId !== userId) {
+      throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
+    }
+
+    const wallet = await this.getOrCreateMerchantWallet(merchantId);
+    if (wallet.walletType !== 'MERCHANT') {
+      throw new ConflictException('WALLET_NOT_MERCHANT');
+    }
+
+    const dateFilter: { gte?: Date; lt?: Date } = {};
+    if (query.dateFrom) {
+      dateFilter.gte = this.parseBangkokDateBoundary(query.dateFrom, false);
+    }
+    if (query.dateTo) {
+      dateFilter.lt = this.parseBangkokDateBoundary(query.dateTo, true);
+    }
+
+    const cursor = query.cursor
+      ? this.decodeTransactionCursor(query.cursor)
+      : null;
+
+    const transactions = await this.prisma.walletTransaction.findMany({
+      where: {
+        walletId: wallet.walletId,
+        ...(Object.keys(dateFilter).length > 0
+          ? { createdAt: dateFilter }
+          : {}),
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                {
+                  createdAt: cursor.createdAt,
+                  walletTransactionId: { lt: cursor.transactionId },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        order: {
+          select: {
+            orderId: true,
+            subtotal: true,
+            discountAmount: true,
+            finalAmount: true,
+            subsidyAmount: true,
+            userPaidAmount: true,
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { walletTransactionId: 'desc' }],
+      take: limit + 1,
+    });
+
+    const hasNextPage = transactions.length > limit;
+    const page = hasNextPage ? transactions.slice(0, limit) : transactions;
+    const lastTransaction = page.at(-1);
+
+    return {
+      items: page.map((tx) => ({
+        transactionId: tx.walletTransactionId.toString(),
+        fundType: tx.fundType,
+        transactionType: tx.transactionType,
+        amount: Number(tx.amount),
+        balanceBefore: Number(tx.balanceBefore),
+        balanceAfter: Number(tx.balanceAfter),
+        businessRef: tx.businessRef,
+        transferReference: tx.transferReference,
+        orderId: tx.orderId?.toString() ?? null,
+        receiptNumber: tx.orderId
+          ? `TP-${tx.orderId.toString().padStart(6, '0')}`
+          : null,
+        subsidyAmount: tx.order ? Number(tx.order.subsidyAmount) : null,
+        userPaidAmount: tx.order ? Number(tx.order.userPaidAmount) : null,
+        finalAmount: tx.order ? Number(tx.order.finalAmount) : null,
+        consumerName: tx.order?.user?.fullName ?? null,
+        createdAt: tx.createdAt,
+      })),
+      nextCursor:
+        hasNextPage && lastTransaction
+          ? this.encodeTransactionCursor(lastTransaction)
+          : null,
+    };
+  }
+
+  /**
+   * FR-M06 & BR-WALLET-06: ถอนเงินเสมือนจาก Merchant Wallet เข้าสู่ Consumer Wallet.personal_balance ของเจ้าของร้าน
+   * ทำงานแบบ Atomic Transaction พร้อม Row Lock และ Idempotency Key
+   */
+  async withdrawFromMerchantWallet(
+    userId: bigint,
+    activeMerchantId: bigint | null,
+    dto: WithdrawMerchantWalletDto,
+    requestedMerchantId?: bigint,
+  ) {
+    if (
+      !Number.isInteger(dto.amount) ||
+      dto.amount < WITHDRAWAL_LIMITS.MIN_AMOUNT ||
+      dto.amount > WITHDRAWAL_LIMITS.MAX_AMOUNT
+    ) {
+      throw new BadRequestException('WITHDRAWAL_AMOUNT_OUT_OF_RANGE');
+    }
+    if (
+      dto.idempotencyKey.length <
+        WITHDRAWAL_LIMITS.IDEMPOTENCY_KEY_MIN_LENGTH ||
+      dto.idempotencyKey.length > WITHDRAWAL_LIMITS.IDEMPOTENCY_KEY_MAX_LENGTH
+    ) {
+      throw new BadRequestException('WITHDRAWAL_IDEMPOTENCY_KEY_INVALID');
+    }
+
+    const merchantId = this.resolveAuthorizedMerchantId(
+      activeMerchantId,
+      requestedMerchantId,
+    );
+
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { merchantId },
+      select: {
+        merchantId: true,
+        merchantName: true,
+        ownerUserId: true,
+        status: true,
+      },
+    });
+    if (!merchant) {
+      throw new NotFoundException('MERCHANT_NOT_FOUND');
+    }
+    if (merchant.ownerUserId !== userId) {
+      throw new ForbiddenException('WITHDRAWAL_OWNER_ONLY');
+    }
+    if (merchant.status !== 'ACTIVE') {
+      throw new ForbiddenException('MERCHANT_NOT_ACTIVE');
+    }
+
+    const hasConsumerRole = await this.hasActiveConsumerRole(userId);
+    if (!hasConsumerRole) {
+      throw new ForbiddenException('WITHDRAWAL_CONSUMER_ROLE_REQUIRED');
+    }
+
+    const merchantWallet = await this.prisma.wallet.findUnique({
+      where: { merchantId },
+    });
+    if (!merchantWallet) {
+      throw new NotFoundException('MERCHANT_WALLET_NOT_FOUND');
+    }
+    this.assertActiveMerchantWallet(merchantWallet);
+
+    const consumerWallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    if (!consumerWallet) {
+      throw new NotFoundException('CONSUMER_WALLET_NOT_FOUND');
+    }
+    this.assertActiveConsumerWallet(consumerWallet);
+
+    const debitBusinessRef = `withdrawal_debit_${merchantWallet.walletId}_${dto.idempotencyKey}`;
+    const creditBusinessRef = `withdrawal_credit_${merchantWallet.walletId}_${dto.idempotencyKey}`;
+    const transferReference = `transfer_${merchantWallet.walletId}_${dto.idempotencyKey}`;
+
+    // 1. ตรวจสอบ Idempotency ก่อน Lock
+    const existingDebitTx = await this.prisma.walletTransaction.findUnique({
+      where: { businessRef: debitBusinessRef },
+    });
+
+    if (existingDebitTx) {
+      this.assertMatchingWithdrawalReplay(
+        existingDebitTx,
+        userId,
+        merchantWallet.walletId,
+        dto.amount,
+      );
+      const existingCreditTx = await this.prisma.walletTransaction.findUnique({
+        where: { businessRef: creditBusinessRef },
+      });
+      return {
+        success: true,
+        isIdempotentReplay: true,
+        withdrawalId: existingDebitTx.walletTransactionId.toString(),
+        creditTransactionId:
+          existingCreditTx?.walletTransactionId.toString() ?? null,
+        transferReference:
+          existingDebitTx.transferReference ?? transferReference,
+        amount: Number(existingDebitTx.amount),
+        merchantBalanceBefore: Number(existingDebitTx.balanceBefore),
+        merchantBalanceAfter: Number(existingDebitTx.balanceAfter),
+        consumerPersonalBalanceBefore: existingCreditTx
+          ? Number(existingCreditTx.balanceBefore)
+          : Number(consumerWallet.personalBalance),
+        consumerPersonalBalanceAfter: existingCreditTx
+          ? Number(existingCreditTx.balanceAfter)
+          : Number(consumerWallet.personalBalance),
+        createdAt: existingDebitTx.createdAt,
+      };
+    }
+
+    // 2. ดำเนินการโอนเงินภายใน Database Transaction เดียว (BR-WALLET-06)
+    return this.prisma.$transaction(async (tx) => {
+      // Lock wallets in deterministic ID order to prevent deadlocks
+      const orderedWalletIds = [
+        merchantWallet.walletId,
+        consumerWallet.walletId,
+      ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+      for (const walletIdToLock of orderedWalletIds) {
+        await tx.$queryRaw<Array<{ wallet_id: bigint }>>`
+          SELECT "wallet_id"
+          FROM "wallets"
+          WHERE "wallet_id" = ${walletIdToLock}
+          FOR UPDATE
+        `;
+      }
+
+      // ตรวจซ้ำหลัง Lock เพื่อป้องกัน Concurrent Retry
+      const debitAfterLock = await tx.walletTransaction.findUnique({
+        where: { businessRef: debitBusinessRef },
+      });
+      if (debitAfterLock) {
+        this.assertMatchingWithdrawalReplay(
+          debitAfterLock,
+          userId,
+          merchantWallet.walletId,
+          dto.amount,
+        );
+        const creditAfterLock = await tx.walletTransaction.findUnique({
+          where: { businessRef: creditBusinessRef },
+        });
+        return {
+          success: true,
+          isIdempotentReplay: true,
+          withdrawalId: debitAfterLock.walletTransactionId.toString(),
+          creditTransactionId:
+            creditAfterLock?.walletTransactionId.toString() ?? null,
+          transferReference:
+            debitAfterLock.transferReference ?? transferReference,
+          amount: Number(debitAfterLock.amount),
+          merchantBalanceBefore: Number(debitAfterLock.balanceBefore),
+          merchantBalanceAfter: Number(debitAfterLock.balanceAfter),
+          consumerPersonalBalanceBefore: creditAfterLock
+            ? Number(creditAfterLock.balanceBefore)
+            : Number(consumerWallet.personalBalance),
+          consumerPersonalBalanceAfter: creditAfterLock
+            ? Number(creditAfterLock.balanceAfter)
+            : Number(consumerWallet.personalBalance),
+          createdAt: debitAfterLock.createdAt,
+        };
+      }
+
+      const lockedMerchantWallet = await tx.wallet.findUnique({
+        where: { walletId: merchantWallet.walletId },
+      });
+      if (!lockedMerchantWallet) {
+        throw new NotFoundException('MERCHANT_WALLET_NOT_FOUND');
+      }
+      this.assertActiveMerchantWallet(lockedMerchantWallet);
+
+      const lockedConsumerWallet = await tx.wallet.findUnique({
+        where: { walletId: consumerWallet.walletId },
+      });
+      if (!lockedConsumerWallet) {
+        throw new NotFoundException('CONSUMER_WALLET_NOT_FOUND');
+      }
+      this.assertActiveConsumerWallet(lockedConsumerWallet);
+
+      const merchantBefore = new Prisma.Decimal(
+        lockedMerchantWallet.merchantBalance,
+      );
+      if (merchantBefore.lessThan(dto.amount)) {
+        throw new BadRequestException('MERCHANT_WALLET_INSUFFICIENT_BALANCE');
+      }
+
+      const merchantAfter = merchantBefore.minus(dto.amount);
+      const consumerPersonalBefore = new Prisma.Decimal(
+        lockedConsumerWallet.personalBalance,
+      );
+      const consumerPersonalAfter = consumerPersonalBefore.plus(dto.amount);
+      const correlationId = randomUUID();
+      const now = new Date();
+
+      await tx.wallet.update({
+        where: { walletId: lockedMerchantWallet.walletId },
+        data: {
+          merchantBalance: merchantAfter,
+          version: { increment: 1 },
+          updatedAt: now,
+        },
+      });
+
+      await tx.wallet.update({
+        where: { walletId: lockedConsumerWallet.walletId },
+        data: {
+          personalBalance: consumerPersonalAfter,
+          version: { increment: 1 },
+          updatedAt: now,
+        },
+      });
+
+      const debitTx = await tx.walletTransaction.create({
+        data: {
+          walletId: lockedMerchantWallet.walletId,
+          initiatedByUserId: userId,
+          fundType: FundType.MERCHANT,
+          transactionType: TransactionType.MERCHANT_WITHDRAWAL,
+          amount: dto.amount,
+          balanceBefore: merchantBefore,
+          balanceAfter: merchantAfter,
+          businessRef: debitBusinessRef,
+          transferReference,
+          correlationId,
+          walletTypeSnapshot: 'MERCHANT',
+          metadata: {
+            destinationConsumerWalletId:
+              lockedConsumerWallet.walletId.toString(),
+            idempotencyKey: dto.idempotencyKey,
+          },
+        },
+      });
+
+      const creditTx = await tx.walletTransaction.create({
+        data: {
+          walletId: lockedConsumerWallet.walletId,
+          userId,
+          initiatedByUserId: userId,
+          fundType: FundType.PERSONAL,
+          transactionType: TransactionType.MERCHANT_WITHDRAWAL_CREDIT,
+          amount: dto.amount,
+          balanceBefore: consumerPersonalBefore,
+          balanceAfter: consumerPersonalAfter,
+          businessRef: creditBusinessRef,
+          transferReference,
+          correlationId,
+          walletTypeSnapshot: 'CONSUMER',
+          metadata: {
+            sourceMerchantId: merchant.merchantId.toString(),
+            sourceMerchantName: merchant.merchantName,
+            sourceMerchantWalletId: lockedMerchantWallet.walletId.toString(),
+            idempotencyKey: dto.idempotencyKey,
+          },
+        },
+      });
+
+      return {
+        success: true,
+        isIdempotentReplay: false,
+        withdrawalId: debitTx.walletTransactionId.toString(),
+        creditTransactionId: creditTx.walletTransactionId.toString(),
+        transferReference,
+        amount: dto.amount,
+        merchantBalanceBefore: Number(merchantBefore),
+        merchantBalanceAfter: Number(merchantAfter),
+        consumerPersonalBalanceBefore: Number(consumerPersonalBefore),
+        consumerPersonalBalanceAfter: Number(consumerPersonalAfter),
+        createdAt: debitTx.createdAt,
+      };
+    });
+  }
+
+  /**
+   * FR-M07: ดึงข้อมูล Analytics Dashboard ของร้านค้า
+   * แสดง Total Sales, Order Count, Subsidy Received, Personal Payment Received,
+   * Coupon Orders, Top-selling Products, Sales Trend และ Data Freshness
+   */
+  async getMerchantDashboard(
+    userId: bigint,
+    activeMerchantId: bigint | null,
+    days: number = DASHBOARD_TREND_DAYS.DEFAULT,
+    requestedMerchantId?: bigint,
+  ) {
+    const merchantId = this.resolveAuthorizedMerchantId(
+      activeMerchantId,
+      requestedMerchantId,
+    );
+
+    const trendDays = Math.min(
+      DASHBOARD_TREND_DAYS.MAX,
+      Math.max(
+        DASHBOARD_TREND_DAYS.MIN,
+        Number.isInteger(days) ? days : DASHBOARD_TREND_DAYS.DEFAULT,
+      ),
+    );
+
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { merchantId },
+      select: {
+        merchantId: true,
+        merchantName: true,
+        ownerUserId: true,
+        status: true,
+      },
+    });
+    if (!merchant) {
+      throw new NotFoundException('MERCHANT_NOT_FOUND');
+    }
+    if (merchant.ownerUserId !== userId) {
+      throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
+    }
+
+    const merchantWallet = await this.getOrCreateMerchantWallet(merchantId);
+
+    const orders = await this.prisma.order.findMany({
+      where: { merchantId },
+      include: {
+        orderItems: {
+          include: {
+            category: {
+              select: { categoryName: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const paidOrders = orders.filter(
+      (order) => order.status === PAID_ORDER_STATUS,
+    );
+    const pendingOrders = orders.filter(
+      (order) => order.status !== PAID_ORDER_STATUS,
+    );
+
+    const zero = new Prisma.Decimal(0);
+    const totalSalesDec = paidOrders.reduce(
+      (sum, order) => sum.plus(order.finalAmount),
+      zero,
+    );
+    const totalSubtotalDec = paidOrders.reduce(
+      (sum, order) => sum.plus(order.subtotal),
+      zero,
+    );
+    const totalDiscountDec = paidOrders.reduce(
+      (sum, order) => sum.plus(order.discountAmount),
+      zero,
+    );
+    const subsidyReceivedDec = paidOrders.reduce(
+      (sum, order) => sum.plus(order.subsidyAmount),
+      zero,
+    );
+    const personalReceivedDec = paidOrders.reduce(
+      (sum, order) => sum.plus(order.userPaidAmount),
+      zero,
+    );
+
+    const totalSales = Number(totalSalesDec.toDecimalPlaces(2));
+    const totalSubtotal = Number(totalSubtotalDec.toDecimalPlaces(2));
+    const totalDiscountAmount = Number(totalDiscountDec.toDecimalPlaces(2));
+    const subsidyReceived = Number(subsidyReceivedDec.toDecimalPlaces(2));
+    const personalPaymentReceived = Number(
+      personalReceivedDec.toDecimalPlaces(2),
+    );
+
+    const paidCount = paidOrders.length;
+    const averageOrderValue =
+      paidCount > 0 ? Math.round((totalSales / paidCount) * 100) / 100 : 0;
+
+    const subsidySharePercent =
+      totalSales > 0 ? Math.round((subsidyReceived / totalSales) * 100) : 0;
+    const personalSharePercent =
+      totalSales > 0 ? Math.max(0, 100 - subsidySharePercent) : 0;
+
+    const couponPaidOrders = paidOrders.filter(
+      (order) =>
+        order.userCouponId !== null ||
+        new Prisma.Decimal(order.discountAmount).greaterThan(0),
+    );
+    const couponOrderCount = couponPaidOrders.length;
+    const couponUsageRatePercent =
+      paidCount > 0 ? Math.round((couponOrderCount / paidCount) * 100) : 0;
+
+    // Aggregate top-selling products from paid order items
+    const productStatsMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        categoryName: string;
+        totalQuantity: number;
+        totalRevenueDec: Prisma.Decimal;
+        orderIds: Set<string>;
+      }
+    >();
+
+    for (const order of paidOrders) {
+      const orderIdStr = order.orderId.toString();
+      for (const item of order.orderItems) {
+        const key = item.productId.toString();
+        const existing = productStatsMap.get(key);
+        if (existing) {
+          existing.totalQuantity += item.quantity;
+          existing.totalRevenueDec = existing.totalRevenueDec.plus(
+            item.lineTotal,
+          );
+          existing.orderIds.add(orderIdStr);
+        } else {
+          productStatsMap.set(key, {
+            productId: key,
+            productName: item.productNameSnapshot,
+            categoryName: item.category.categoryName,
+            totalQuantity: item.quantity,
+            totalRevenueDec: new Prisma.Decimal(item.lineTotal),
+            orderIds: new Set([orderIdStr]),
+          });
+        }
+      }
+    }
+
+    const topProducts = [...productStatsMap.values()]
+      .map((entry) => ({
+        productId: entry.productId,
+        productName: entry.productName,
+        categoryName: entry.categoryName,
+        totalQuantity: entry.totalQuantity,
+        totalRevenue: Number(entry.totalRevenueDec.toDecimalPlaces(2)),
+        orderCount: entry.orderIds.size,
+      }))
+      .sort((a, b) =>
+        b.totalQuantity !== a.totalQuantity
+          ? b.totalQuantity - a.totalQuantity
+          : b.totalRevenue - a.totalRevenue,
+      )
+      .slice(0, 5);
+
+    // Build daily sales trend in Asia/Bangkok timezone
+    const now = new Date();
+    const { startOfDayUtc: todayStartUtc } = this.getBangkokDayBoundaries(now);
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    const trendMap = new Map<
+      string,
+      {
+        date: string;
+        totalSalesDec: Prisma.Decimal;
+        subsidyDec: Prisma.Decimal;
+        personalDec: Prisma.Decimal;
+        discountDec: Prisma.Decimal;
+        orderCount: number;
+      }
+    >();
+
+    for (let i = trendDays - 1; i >= 0; i--) {
+      const dayUtc = new Date(todayStartUtc.getTime() - i * dayMs);
+      const dateKey = this.formatBangkokDateKey(dayUtc);
+      trendMap.set(dateKey, {
+        date: dateKey,
+        totalSalesDec: zero,
+        subsidyDec: zero,
+        personalDec: zero,
+        discountDec: zero,
+        orderCount: 0,
+      });
+    }
+
+    for (const order of paidOrders) {
+      const occurredAt = order.paidAt ?? order.createdAt;
+      const dateKey = this.formatBangkokDateKey(occurredAt);
+      const bucket = trendMap.get(dateKey);
+      if (bucket) {
+        bucket.totalSalesDec = bucket.totalSalesDec.plus(order.finalAmount);
+        bucket.subsidyDec = bucket.subsidyDec.plus(order.subsidyAmount);
+        bucket.personalDec = bucket.personalDec.plus(order.userPaidAmount);
+        bucket.discountDec = bucket.discountDec.plus(order.discountAmount);
+        bucket.orderCount += 1;
+      }
+    }
+
+    const salesTrend = [...trendMap.values()].map((bucket) => ({
+      date: bucket.date,
+      totalSales: Number(bucket.totalSalesDec.toDecimalPlaces(2)),
+      subsidyAmount: Number(bucket.subsidyDec.toDecimalPlaces(2)),
+      personalAmount: Number(bucket.personalDec.toDecimalPlaces(2)),
+      discountAmount: Number(bucket.discountDec.toDecimalPlaces(2)),
+      orderCount: bucket.orderCount,
+    }));
+
+    return {
+      merchant: {
+        merchantId: merchant.merchantId.toString(),
+        merchantName: merchant.merchantName,
+        status: merchant.status,
+        merchantBalance: Number(merchantWallet.merchantBalance),
+      },
+      summary: {
+        totalSales,
+        totalSubtotal,
+        totalDiscountAmount,
+        orderCount: {
+          paid: paidCount,
+          pending: pendingOrders.length,
+          total: orders.length,
+          averageOrderValue,
+        },
+        subsidyReceived,
+        personalPaymentReceived,
+        subsidySharePercent,
+        personalSharePercent,
+        couponOrders: {
+          count: couponOrderCount,
+          totalDiscount: totalDiscountAmount,
+          usageRatePercent: couponUsageRatePercent,
+        },
+      },
+      topProducts,
+      salesTrend,
+      dataFreshness: {
+        asOf: now.toISOString(),
+        timezone: BANGKOK_TIMEZONE,
+        trendDays,
+      },
+    };
   }
 }

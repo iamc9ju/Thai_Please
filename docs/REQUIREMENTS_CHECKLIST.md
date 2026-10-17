@@ -180,19 +180,21 @@
   - Gap UI/API: `DRAFT/CHECKED_OUT/PAID/EXPIRED` lifecycle เต็มรูปแบบและ E2E ยังไม่ครบ
   - Gap Test: ห้ามแสดง PAID ก่อน commit และ failure/retry E2E
 
-- [ ] **FR-M06 — Merchant Wallet — Partial**
-  - มี merchant wallet และเครดิต `finalAmount` ตอน payment
-  - Gap API/UI: ไม่มี wallet/history/withdrawal endpoints และ owner withdrawal flow
-  - Gap Test: atomic debit-credit, membership, insufficient balance, duplicate/concurrent withdrawal
+- [ ] **FR-M06 — Merchant Wallet — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/merchant/wallet` (และ `/api/v1/merchants/:id/wallet`), `GET /api/v1/merchant/wallet/transactions`, และ `POST /api/v1/merchant/wallet/withdrawals` โอนเงินเสมือนจาก `Merchant Wallet` เข้าสู่ `Consumer Wallet.personal_balance` ของเจ้าของร้านแบบ Atomic Transaction พร้อม Row Lock, Idempotency Key และบันทึก `MERCHANT_WITHDRAWAL` / `MERCHANT_WITHDRAWAL_CREDIT`
+  - UI: `MerchantWalletView.tsx` (Blue Theme) แสดงยอดคงเหลือร้านค้า รายรับแยกตามบิล (Subsidy/Personal Portion) ประวัติธุรกรรมกระเป๋าเงิน และฟอร์มถอนเงินเข้ากระเป๋าประชาชนของเจ้าของร้านพร้อมอัปเดตยอดทันที
+  - Evidence: `apps/api/src/wallet/merchant-wallet.service.spec.ts`, `apps/web/src/features/merchant/views/MerchantWalletView.test.tsx`
+  - Gap Test: real PostgreSQL concurrent integration สำหรับ duplicate/concurrent withdrawal
 
-- [ ] **FR-M07 — Merchant Dashboard — Not started**
-  - Gap API/UI: ไม่มี production aggregate สำหรับ sales, subsidy/personal split, coupon,
-    top products, trend และ freshness
-  - Gap Test: ownership, aggregation correctness และ UI states
+- [ ] **FR-M07 — Merchant Dashboard — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/merchant/dashboard` (และ `/api/v1/merchants/:id/dashboard`) คำนวณ `totalSales`, `orderCount`, `subsidyReceived`, `personalPaymentReceived`, `couponOrders`, `topProducts`, `salesTrend` (ตามวันใน `Asia/Bangkok` 7/14/30 วัน) และ `dataFreshness`
+  - UI: `MerchantDashboardView.tsx` (Blue Theme) แสดง KPI 5 การ์ด แถบสัดส่วนเงินสนับสนุนรัฐเทียบเงินส่วนตัว กราฟแนวโน้มยอดขายรายวัน และตารางอันดับสินค้าขายดี
+  - Evidence: `apps/api/src/wallet/merchant-wallet.service.spec.ts`, `apps/web/src/features/merchant/views/MerchantDashboardView.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-M08 — Order and Receipt History — Partial (Backend Receipt API & POS History Integrated)**
   - API: `GET /api/v1/merchant/orders` และ `GET /api/v1/merchant/orders/:id/receipt` ตรวจสอบสิทธิ์ร้านค้าและแสดงใบเสร็จฉบับเต็ม
-  - UI: `MerchantPos.tsx` รองรับดูประวัติรายการขาย ค้นหา/กรองตามสถานะและวันที่ และเปิด `DigitalReceiptModal` ดูใบเสร็จย้อนหลังได้
+  - UI: `MerchantPos.tsx` (Blue Theme) รองรับดูประวัติรายการขาย ค้นหา/กรองตามสถานะและวันที่ และเปิด `DigitalReceiptModal` ดูใบเสร็จย้อนหลังได้
   - Gap Test: merchant ownership integration และ E2E
 
 ## System and AI Requirements
