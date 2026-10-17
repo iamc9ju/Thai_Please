@@ -102,3 +102,16 @@ export class UpdateSubsidyProgramDto {
   @IsIn(PROGRAM_STATUSES)
   status?: ProgramStatus;
 }
+
+export class AdminGenerateQuestDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(19)
+  userId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @MaxLength(128)
+  idempotencyKey!: string;
+}

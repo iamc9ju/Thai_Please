@@ -20,7 +20,7 @@ export const ADMIN_API_ROUTES = {
   merchants: `${ADMIN_API_BASE}/merchants`,
   admins: `${ADMIN_API_BASE}/users/admins`,
   subsidyPrograms: `${ADMIN_API_BASE}/subsidy-programs`,
-  generateQuest: `${ADMIN_API_BASE}/quests/generate`,
+  generateQuest: `${ADMIN_API_BASE}/quests/generate-personalized`,
   questGenerationLogs: `${ADMIN_API_BASE}/quest-generation-logs`,
   rewardMonitoring: `${ADMIN_API_BASE}/rewards/monitoring`,
   socialImpact: `${ADMIN_API_BASE}/dashboard/social-impact`,

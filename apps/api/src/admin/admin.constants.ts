@@ -9,6 +9,7 @@ export const ADMIN_ROUTES = {
   grantAdminRole: 'admin/users/:userId/roles/admin',
   subsidyPrograms: 'admin/subsidy-programs',
   updateSubsidyProgram: 'admin/subsidy-programs/:id',
+  generatePersonalizedQuest: 'admin/quests/generate-personalized',
   questGenerationLogs: 'admin/quest-generation-logs',
   rewardMonitoring: 'admin/rewards/monitoring',
   socialImpact: 'admin/dashboard/social-impact',

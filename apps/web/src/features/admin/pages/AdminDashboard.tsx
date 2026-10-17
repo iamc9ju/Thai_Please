@@ -307,9 +307,13 @@ export function AdminDashboard({
         selectedConsumerId,
         createUuidV4(),
       );
+      const questTitle = result.title || 'ภารกิจเฉพาะบุคคล';
+      const points =
+        typeof result.rewardPoints === 'number' ? result.rewardPoints : 0;
+      const genRef = result.generationId ?? 'สำเร็จ';
       setActionBanner({
         type: 'success',
-        message: `สร้างและมอบหมายภารกิจ "${result.title}" (+${result.rewardPoints} พอยต์) สำเร็จ (Generation #${result.generationId})`,
+        message: `สร้างและมอบหมายภารกิจ "${questTitle}" (+${points} พอยต์) สำเร็จ (Generation #${genRef})`,
       });
       const refreshed = await getQuestGenerationLogs();
       setQuestLogsData(refreshed);

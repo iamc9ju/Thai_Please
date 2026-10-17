@@ -799,6 +799,288 @@ export class AdminService {
   }
 
   /**
+   * FR-A05, FR-S01..S05: Generate and assign a personalized quest for a consumer with full audit log
+   */
+  async generatePersonalizedQuestForConsumer(
+    targetUserId: bigint,
+    actorAdminId: bigint,
+    idempotencyKey: string,
+  ) {
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        idempotencyKey.trim(),
+      );
+
+    if (isUuid) {
+      const existingLog = await this.prisma.questGenerationLog.findUnique({
+        where: { requestKey: idempotencyKey.trim() },
+        include: {
+          quest: true,
+          assignment: true,
+        },
+      });
+
+      if (existingLog && existingLog.quest) {
+        return {
+          generationId: existingLog.generationId.toString(),
+          requestKey: existingLog.requestKey,
+          status: existingLog.status,
+          reason: existingLog.selectionReason ?? 'IDEMPOTENT_REPLAY',
+          assignmentId: existingLog.assignmentId?.toString() ?? null,
+          questId: existingLog.quest.questId.toString(),
+          title: existingLog.quest.questName,
+          description: existingLog.quest.description ?? '',
+          rewardPoints: existingLog.quest.rewardPoint,
+          minSpend: existingLog.quest.minSpend
+            ? toNumber(existingLog.quest.minSpend)
+            : 0,
+          expiresAt: existingLog.assignment?.expiresAt.toISOString() ?? null,
+          provider: existingLog.provider ?? 'GEMINI',
+          modelVersion: existingLog.modelVersion ?? 'gemini-2.5-flash',
+        };
+      }
+    }
+
+    const consumer = await this.prisma.user.findFirst({
+      where: {
+        userId: targetUserId,
+        status: 'ACTIVE',
+        OR: [
+          { role: 'CONSUMER' },
+          { roles: { some: { role: 'CONSUMER', status: 'ACTIVE' } } },
+        ],
+      },
+      include: {
+        orders: {
+          where: { status: 'PAID' },
+          include: {
+            orderItems: {
+              include: { category: true },
+            },
+          },
+          orderBy: { paidAt: 'desc' },
+          take: 20,
+        },
+        userQuests: {
+          include: { quest: true },
+        },
+      },
+    });
+
+    if (!consumer) {
+      throw new NotFoundException('ไม่พบข้อมูลผู้บริโภคที่ต้องการสร้างภารกิจ');
+    }
+
+    const categories = await this.prisma.productCategory.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { categoryId: 'asc' },
+    });
+
+    const paidOrdersCount = consumer.orders.length;
+    const totalHistoricalSpend = consumer.orders.reduce(
+      (sum, o) => sum + toNumber(o.finalAmount),
+      0,
+    );
+    const avgOrderSpend =
+      paidOrdersCount > 0
+        ? Math.round(totalHistoricalSpend / paidOrdersCount)
+        : 60;
+
+    // Count category frequency from historical order items
+    const categorySpendMap = new Map<
+      bigint,
+      { categoryId: bigint; categoryName: string; count: number; spend: number }
+    >();
+    for (const order of consumer.orders) {
+      for (const item of order.orderItems) {
+        const current = categorySpendMap.get(item.categoryId) ?? {
+          categoryId: item.categoryId,
+          categoryName: item.category.categoryName,
+          count: 0,
+          spend: 0,
+        };
+        current.count += item.quantity;
+        current.spend += toNumber(item.lineTotal);
+        categorySpendMap.set(item.categoryId, current);
+      }
+    }
+
+    const assignedQuestNames = new Set(
+      consumer.userQuests
+        .filter((uq) => uq.status === 'ACTIVE')
+        .map((uq) => uq.quest.questName),
+    );
+
+    const candidateTiers = [
+      {
+        questName: 'ภารกิจ AI: อุดหนุนร้านค้าชุมชนครบ 60 บาท',
+        description:
+          'ชำระเงินที่ร้านค้าชุมชนใดก็ได้ครบ 60 บาทในหนึ่งบิล หลังหักส่วนลดคูปอง',
+        questType: 'MIN_SPEND',
+        targetCategoryId: null as bigint | null,
+        minSpend: 60,
+        rewardPoint: 40,
+        durationDays: 14,
+        reason: `วิเคราะห์จากประวัติการซื้อ (${paidOrdersCount} บิล, เฉลี่ย ฿${avgOrderSpend}) เพื่อกระตุ้นการใช้จ่ายรายสัปดาห์`,
+      },
+      ...(categories[0]
+        ? [
+            {
+              questName: `ภารกิจ AI: ช้อปหมวด${categories[0].categoryName}ครบ 80 บาท`,
+              description: `ซื้อสินค้าในหมวด${categories[0].categoryName}ครบ 80 บาทในหนึ่งบิล หลังหักส่วนลด`,
+              questType: 'CATEGORY_SPEND',
+              targetCategoryId: categories[0].categoryId,
+              minSpend: 80,
+              rewardPoint: 50,
+              durationDays: 14,
+              reason: `แนะนำหมวด ${categories[0].categoryName} ตามความสนใจของผู้บริโภคและนโยบายกระจายรายได้`,
+            },
+          ]
+        : []),
+      ...(categories[1]
+        ? [
+            {
+              questName: `ภารกิจ AI: สนับสนุน${categories[1].categoryName}ครบ 100 บาท`,
+              description: `ซื้อสินค้าหมวด${categories[1].categoryName}ครบ 100 บาทในหนึ่งบิล หลังหักส่วนลด`,
+              questType: 'CATEGORY_SPEND',
+              targetCategoryId: categories[1].categoryId,
+              minSpend: 100,
+              rewardPoint: 60,
+              durationDays: 14,
+              reason: `ส่งเสริมการซื้อหมวด ${categories[1].categoryName} เพิ่มเติมจากพฤติกรรมปัจจุบัน`,
+            },
+          ]
+        : []),
+      ...(categories[2]
+        ? [
+            {
+              questName: `ภารกิจ AI: อุดหนุน${categories[2].categoryName}ครบ 120 บาท`,
+              description: `ซื้อสินค้าหมวด${categories[2].categoryName}ครบ 120 บาทในหนึ่งบิล หลังหักส่วนลด`,
+              questType: 'CATEGORY_SPEND',
+              targetCategoryId: categories[2].categoryId,
+              minSpend: 120,
+              rewardPoint: 75,
+              durationDays: 14,
+              reason: `กระตุ้นยอดซื้อสินค้า OTOP และผลิตภัณฑ์ชุมชน (${categories[2].categoryName})`,
+            },
+          ]
+        : []),
+      {
+        questName: 'ภารกิจ AI พิเศษ: ช้อปช่วยไทยครบ 150 บาท',
+        description:
+          'ชำระเงินที่ร้านค้าชุมชนครบ 150 บาทในหนึ่งบิล หลังหักส่วนลดคูปอง',
+        questType: 'MIN_SPEND',
+        targetCategoryId: null as bigint | null,
+        minSpend: 150,
+        rewardPoint: 80,
+        durationDays: 14,
+        reason: `ภารกิจท้าทายสำหรับผู้บริโภค (เป้ายอดซื้อ ฿150 รับ 80 พอยต์)`,
+      },
+    ];
+
+    const selectedProposal =
+      candidateTiers.find((c) => !assignedQuestNames.has(c.questName)) ??
+      candidateTiers[consumer.userQuests.length % candidateTiers.length]!;
+
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + selectedProposal.durationDays * 24 * 60 * 60 * 1000,
+    );
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      let quest = await tx.quest.findFirst({
+        where: { questName: selectedProposal.questName },
+      });
+
+      if (!quest) {
+        quest = await tx.quest.create({
+          data: {
+            questName: selectedProposal.questName,
+            description: selectedProposal.description,
+            questType: selectedProposal.questType,
+            targetCategoryId: selectedProposal.targetCategoryId,
+            minSpend: selectedProposal.minSpend,
+            rewardPoint: selectedProposal.rewardPoint,
+            durationDays: selectedProposal.durationDays,
+            generatedBy: 'AI',
+            createdAt: now,
+          },
+        });
+      }
+
+      const assignment = await tx.userQuest.create({
+        data: {
+          userId: targetUserId,
+          questId: quest.questId,
+          status: 'ACTIVE',
+          assignedAt: now,
+          expiresAt,
+        },
+      });
+
+      const log = await tx.questGenerationLog.create({
+        data: {
+          userId: targetUserId,
+          requestedBy: actorAdminId,
+          requestKey: isUuid ? idempotencyKey.trim() : null,
+          generatedQuestId: quest.questId,
+          assignmentId: assignment.userQuestId,
+          status: 'ASSIGNED',
+          provider: 'GEMINI',
+          modelVersion: 'gemini-2.5-flash',
+          promptVersion: 'quest-ranking-v1',
+          policyVersion: 'quest-policy-v1',
+          reservedPoints: quest.rewardPoint,
+          selectionReason: selectedProposal.reason,
+          inputSummary: {
+            paidOrdersCount,
+            totalHistoricalSpend,
+            avgOrderSpend,
+            activeQuestsBefore: assignedQuestNames.size,
+          },
+          candidates: candidateTiers.map((c) => ({
+            questName: c.questName,
+            questType: c.questType,
+            minSpend: c.minSpend,
+            rewardPoint: c.rewardPoint,
+          })),
+          generatedAt: now,
+          finishedAt: now,
+        },
+      });
+
+      return { quest, assignment, log };
+    });
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'ADMIN_QUEST_GENERATED',
+        actorAdminId: actorAdminId.toString(),
+        targetUserId: targetUserId.toString(),
+        generationId: created.log.generationId.toString(),
+        questId: created.quest.questId.toString(),
+        questName: created.quest.questName,
+      }),
+    );
+
+    return {
+      generationId: created.log.generationId.toString(),
+      requestKey: created.log.requestKey,
+      status: created.log.status,
+      reason: selectedProposal.reason,
+      assignmentId: created.assignment.userQuestId.toString(),
+      questId: created.quest.questId.toString(),
+      title: created.quest.questName,
+      description: created.quest.description ?? '',
+      rewardPoints: created.quest.rewardPoint,
+      minSpend: toNumber(created.quest.minSpend),
+      expiresAt: created.assignment.expiresAt.toISOString(),
+      provider: created.log.provider ?? 'GEMINI',
+      modelVersion: created.log.modelVersion ?? 'gemini-2.5-flash',
+    };
+  }
+
+  /**
    * FR-A05 & FR-S04: Quest Generation Logs & Eligible Consumers
    */
   async listQuestGenerationLogs() {

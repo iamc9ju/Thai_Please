@@ -20,6 +20,7 @@ import { RolesGuard } from '../auth/authorization/roles.guard.js';
 import { ADMIN_ROUTES, SOCIAL_IMPACT_DEFAULTS } from './admin.constants.js';
 import { AdminService } from './admin.service.js';
 import {
+  AdminGenerateQuestDto,
   CreateSubsidyProgramDto,
   MerchantStatusActionDto,
   UpdateAdminRoleStatusDto,
@@ -185,7 +186,20 @@ export class AdminController {
     );
   }
 
-  /** FR-A05 & FR-S04: Quest Generation Logs */
+  /** FR-A05 & FR-S04: Quest Generation & Logs */
+  @Post(ADMIN_ROUTES.generatePersonalizedQuest)
+  async generatePersonalizedQuest(
+    @Req() req: Request,
+    @Body() dto: AdminGenerateQuestDto,
+  ) {
+    const adminId = this.requireAdminId(req);
+    return this.adminService.generatePersonalizedQuestForConsumer(
+      parseBigIntId(dto.userId, 'ผู้บริโภค'),
+      adminId,
+      dto.idempotencyKey,
+    );
+  }
+
   @Get(ADMIN_ROUTES.questGenerationLogs)
   async listQuestGenerationLogs(@Req() req: Request) {
     this.requireAdminId(req);
