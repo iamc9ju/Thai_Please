@@ -1,9 +1,22 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import { payByQr, previewOrder } from '../api/consumer.api';
-import type { OrderPreviewResponse, PaymentResultResponse } from '../consumer.types';
+import type {
+  OrderPreviewResponse,
+  PaymentResultResponse,
+} from '../consumer.types';
+import {
+  decodeQrFromImageFile,
+  decodeQrFromVideoElement,
+} from '../utils/qr-decoder';
 import { PaymentView } from './PaymentView';
 
 vi.mock('../api/consumer.api', () => ({
@@ -11,8 +24,15 @@ vi.mock('../api/consumer.api', () => ({
   payByQr: vi.fn(),
 }));
 
+vi.mock('../utils/qr-decoder', () => ({
+  decodeQrFromImageFile: vi.fn(),
+  decodeQrFromVideoElement: vi.fn(),
+}));
+
 const mockedPreviewOrder = vi.mocked(previewOrder);
 const mockedPayByQr = vi.mocked(payByQr);
+const mockedDecodeQrFromImageFile = vi.mocked(decodeQrFromImageFile);
+const mockedDecodeQrFromVideoElement = vi.mocked(decodeQrFromVideoElement);
 
 const mockPreviewData: OrderPreviewResponse = {
   orderId: 'order-101',
@@ -66,17 +86,29 @@ describe('PaymentView', () => {
     vi.clearAllMocks();
     mockedPreviewOrder.mockResolvedValue(mockPreviewData);
     mockedPayByQr.mockResolvedValue(mockPaymentSuccess);
+    mockedDecodeQrFromImageFile.mockResolvedValue('qr-from-image-999');
+    mockedDecodeQrFromVideoElement.mockResolvedValue(null);
   });
 
   afterEach(cleanup);
 
-  it('renders initial scan screen with QR input and actions', () => {
+  it('renders initial scan screen with QR input, camera button, image upload button, and demo action', () => {
     render(<PaymentView onNavigate={vi.fn()} />);
 
     expect(
       screen.getByRole('heading', {
         level: 2,
         name: th.consumerPortal.payment.scanTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: th.consumerPortal.payment.cameraAction,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: th.consumerPortal.payment.uploadQrImageAction,
       }),
     ).toBeInTheDocument();
     expect(
@@ -92,6 +124,45 @@ describe('PaymentView', () => {
         name: th.consumerPortal.payment.demoAction,
       }),
     ).toBeInTheDocument();
+  });
+
+  it('decodes QR from uploaded image file and navigates to order review (FR-C04)', async () => {
+    render(<PaymentView onNavigate={vi.fn()} />);
+
+    const fileInput = screen.getByTestId('qr-image-input');
+    const mockFile = new File(['dummy-qr-png'], 'order-qr.png', {
+      type: 'image/png',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [mockFile] } });
+
+    await waitFor(() => {
+      expect(mockedDecodeQrFromImageFile).toHaveBeenCalledWith(mockFile);
+    });
+    expect(mockedPreviewOrder).toHaveBeenCalledWith({
+      qrToken: 'qr-from-image-999',
+      userCouponId: undefined,
+    });
+    expect(
+      await screen.findByText('ร้านป้าสมร ของดีชุมชน'),
+    ).toBeInTheDocument();
+  });
+
+  it('displays error message when uploaded image contains no readable QR code', async () => {
+    mockedDecodeQrFromImageFile.mockResolvedValueOnce(null);
+
+    render(<PaymentView onNavigate={vi.fn()} />);
+
+    const fileInput = screen.getByTestId('qr-image-input');
+    const badFile = new File(['not-a-qr'], 'landscape.jpg', {
+      type: 'image/jpeg',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [badFile] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      th.consumerPortal.payment.qrImageReadError,
+    );
   });
 
   it('submits QR token and displays order review details from API', async () => {
@@ -113,7 +184,9 @@ describe('PaymentView', () => {
       userCouponId: undefined,
     });
 
-    expect(await screen.findByText('ร้านป้าสมร ของดีชุมชน')).toBeInTheDocument();
+    expect(
+      await screen.findByText('ร้านป้าสมร ของดีชุมชน'),
+    ).toBeInTheDocument();
     expect(screen.getByText('กะเพราหมูกรอบ')).toBeInTheDocument();
     expect(screen.getByText('ชาดำเย็น')).toBeInTheDocument();
     expect(screen.getAllByText('฿170.00')).toHaveLength(2);
@@ -197,7 +270,9 @@ describe('PaymentView', () => {
       }),
     );
 
-    expect(await screen.findByText('ร้านป้าสมร ของดีชุมชน')).toBeInTheDocument();
+    expect(
+      await screen.findByText('ร้านป้าสมร ของดีชุมชน'),
+    ).toBeInTheDocument();
 
     const confirmBtn = screen.getByRole('button', {
       name: th.consumerPortal.payment.confirm,

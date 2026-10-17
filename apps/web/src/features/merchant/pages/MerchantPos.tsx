@@ -4,12 +4,16 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  Download,
+  Edit3,
   Eye,
   FileText,
   LogOut,
+  Power,
   Plus,
   QrCode,
   Search,
+  Settings2,
   ShoppingCart,
   Store,
   TrendingUp,
@@ -26,6 +30,8 @@ import {
   getMerchantOrderReceipt,
   getMerchantOrders,
   getMyProducts,
+  updateProduct,
+  updateProductStatus,
 } from '../api/merchant.api';
 import type {
   CartItem,
@@ -38,6 +44,7 @@ import { MerchantDashboardView } from '../views/MerchantDashboardView';
 import { MerchantWalletView } from '../views/MerchantWalletView';
 
 type PosView = 'pos' | 'qr' | 'orders' | 'wallet' | 'dashboard';
+type ProductStatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 
 interface MerchantPosProps {
   merchantName?: string;
@@ -49,18 +56,25 @@ export function MerchantPos({
   onLogout,
 }: MerchantPosProps) {
   const navCopy = th.merchantPortal.nav;
+  const posCopy = th.merchantPortal.pos;
   const [view, setView] = useState<PosView>('pos');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdOrder, setCreatedOrder] = useState<CreateOrderResponse | null>(
     null,
   );
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [productStatusFilter, setProductStatusFilter] =
+    useState<ProductStatusFilter>('ACTIVE');
+  const [isManageMode, setIsManageMode] = useState(false);
+
+  // Add Product Modal state
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
     productName: '',
@@ -69,6 +83,27 @@ export function MerchantPos({
     description: '',
   });
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+
+  // Edit Product Modal state (FR-M02)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editForm, setEditForm] = useState<{
+    productName: string;
+    price: string;
+    categoryId: string;
+    description: string;
+    status: 'ACTIVE' | 'INACTIVE';
+  }>({
+    productName: '',
+    price: '',
+    categoryId: '',
+    description: '',
+    status: 'ACTIVE',
+  });
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(
+    null,
+  );
+
   const [qrCountdown, setQrCountdown] = useState<number>(0);
   const [copiedToken, setCopiedToken] = useState(false);
   const [paidOrderNotification, setPaidOrderNotification] =
@@ -81,7 +116,7 @@ export function MerchantPos({
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([getMyProducts(), getCategories()])
+    Promise.all([getMyProducts(true), getCategories()])
       .then(([loadedProducts, loadedCategories]) => {
         if (!isMounted) return;
         setProducts(loadedProducts);
@@ -151,9 +186,35 @@ export function MerchantPos({
     };
   }, [view, createdOrder, paidOrderNotification]);
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.categoryId === selectedCategory)
-    : products;
+  const productCounts = useMemo(() => {
+    const activeCount = products.filter((p) => p.status === 'ACTIVE').length;
+    const inactiveCount = products.filter(
+      (p) => p.status === 'INACTIVE',
+    ).length;
+    return {
+      active: activeCount,
+      inactive: inactiveCount,
+      all: products.length,
+    };
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (
+        selectedCategory &&
+        String(p.categoryId) !== String(selectedCategory)
+      ) {
+        return false;
+      }
+      if (productStatusFilter === 'ACTIVE' && p.status !== 'ACTIVE') {
+        return false;
+      }
+      if (productStatusFilter === 'INACTIVE' && p.status !== 'INACTIVE') {
+        return false;
+      }
+      return true;
+    });
+  }, [products, selectedCategory, productStatusFilter]);
 
   const cartTotal = cart.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
@@ -161,6 +222,7 @@ export function MerchantPos({
   );
 
   const addToCart = (product: Product) => {
+    if (product.status !== 'ACTIVE') return;
     setCart((prev) => {
       const existing = prev.find(
         (i) => i.product.productId === product.productId,
@@ -240,6 +302,7 @@ export function MerchantPos({
     if (!newProduct.productName || !newProduct.price || !newProduct.categoryId)
       return;
     setIsSavingProduct(true);
+    setError(null);
     try {
       const productInput = {
         productName: newProduct.productName,
@@ -258,10 +321,90 @@ export function MerchantPos({
         description: '',
       });
       setShowAddProduct(false);
+      setSuccessMessage(posCopy.productSavedMessage(saved.productName));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'ไม่สามารถบันทึกสินค้าได้');
     } finally {
       setIsSavingProduct(false);
+    }
+  };
+
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setEditForm({
+      productName: product.productName,
+      price: String(product.price),
+      categoryId: String(product.categoryId),
+      description: product.description ?? '',
+      status: product.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+    });
+  };
+
+  const syncProductInStateAndCart = (updated: Product) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.productId === updated.productId ? updated : p)),
+    );
+    setCart((prev) =>
+      updated.status === 'ACTIVE'
+        ? prev.map((item) =>
+            item.product.productId === updated.productId
+              ? { ...item, product: updated }
+              : item,
+          )
+        : prev.filter((item) => item.product.productId !== updated.productId),
+    );
+  };
+
+  const handleUpdateProduct = async () => {
+    if (
+      !editingProduct ||
+      !editForm.productName.trim() ||
+      !editForm.price ||
+      !editForm.categoryId
+    ) {
+      return;
+    }
+    setIsUpdatingProduct(true);
+    setError(null);
+    try {
+      const updated = await updateProduct(editingProduct.productId, {
+        productName: editForm.productName.trim(),
+        price: parseFloat(editForm.price),
+        categoryId: parseInt(editForm.categoryId, 10),
+        description: editForm.description.trim(),
+        status: editForm.status,
+      });
+      syncProductInStateAndCart(updated);
+      setEditingProduct(null);
+      setSuccessMessage(posCopy.productSavedMessage(updated.productName));
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'ไม่สามารถอัปเดตข้อมูลสินค้าได้',
+      );
+    } finally {
+      setIsUpdatingProduct(false);
+    }
+  };
+
+  const handleToggleProductStatus = async (product: Product) => {
+    const nextStatus = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setTogglingProductId(product.productId);
+    setError(null);
+    try {
+      const updated = await updateProductStatus(product.productId, nextStatus);
+      syncProductInStateAndCart(updated);
+      setSuccessMessage(
+        posCopy.productStatusChangedMessage(
+          updated.productName,
+          updated.status === 'ACTIVE',
+        ),
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'ไม่สามารถเปลี่ยนสถานะสินค้าได้',
+      );
+    } finally {
+      setTogglingProductId(null);
     }
   };
 
@@ -345,7 +488,10 @@ export function MerchantPos({
 
       {error && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
-          <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 shadow-sm">
+          <div
+            role="alert"
+            className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 shadow-sm"
+          >
             <span>⚠️</span> {error}
             <button
               type="button"
@@ -358,14 +504,33 @@ export function MerchantPos({
         </div>
       )}
 
+      {successMessage && (
+        <div className="mx-auto max-w-7xl px-4 pt-4">
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm"
+          >
+            <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage(null)}
+              className="ml-auto text-emerald-500 hover:text-emerald-800 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto max-w-7xl px-4 py-6">
-        {/* ── POS VIEW ── */}
+        {/* ── POS VIEW (FR-M02, FR-M03) ── */}
         {view === 'pos' && (
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Product Panel */}
             <div className="flex-1">
-              {/* Category filter & Add Product */}
-              <div className="mb-4 flex flex-wrap items-center gap-2">
+              {/* Top Toolbar: Category filter + Manage Mode & Add Product */}
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedCategory(null)}
@@ -391,14 +556,85 @@ export function MerchantPos({
                     {c.categoryName}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => setShowAddProduct(true)}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3.5 py-1.5 text-xs font-bold text-[#0056b3] hover:bg-blue-100 transition-colors cursor-pointer"
-                >
-                  <Plus className="size-3.5" />
-                  <span>เพิ่มสินค้า</span>
-                </button>
+
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextMode = !isManageMode;
+                      setIsManageMode(nextMode);
+                      if (nextMode) {
+                        setProductStatusFilter('ALL');
+                      } else {
+                        setProductStatusFilter('ACTIVE');
+                      }
+                    }}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      isManageMode
+                        ? 'bg-[#003d82] text-white shadow-sm'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:border-[#0056b3] hover:text-[#0056b3]'
+                    }`}
+                  >
+                    <Settings2 className="size-3.5" />
+                    <span>
+                      {isManageMode
+                        ? posCopy.exitManageProducts
+                        : posCopy.manageProductsToggle}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddProduct(true)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3.5 py-1.5 text-xs font-bold text-[#0056b3] hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>{posCopy.addProductButton}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Bar (FR-M02) */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-white px-3.5 py-2.5 shadow-xs">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-[11px] font-bold text-slate-500">
+                    สถานะสินค้า:
+                  </span>
+                  {(
+                    [
+                      {
+                        id: 'ACTIVE',
+                        label: `${posCopy.filterActive} (${productCounts.active})`,
+                      },
+                      {
+                        id: 'INACTIVE',
+                        label: `${posCopy.filterInactive} (${productCounts.inactive})`,
+                      },
+                      {
+                        id: 'ALL',
+                        label: `${posCopy.filterAll} (${productCounts.all})`,
+                      },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setProductStatusFilter(tab.id)}
+                      className={`rounded-xl px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
+                        productStatusFilter === tab.id
+                          ? 'bg-[#0056b3] text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  💡 กดปุ่ม <strong>แก้ไข</strong> หรือ{' '}
+                  <strong>ปิดการขาย</strong>{' '}
+                  บนการ์ดสินค้าได้ทันทีโดยไม่กระทบใบเสร็จย้อนหลัง
+                </span>
               </div>
 
               {/* Add Product Modal */}
@@ -406,7 +642,7 @@ export function MerchantPos({
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
                   <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
                     <h3 className="mb-4 text-base font-extrabold text-slate-900">
-                      เพิ่มสินค้าใหม่เข้าหน้าร้าน
+                      {posCopy.addModalTitle}
                     </h3>
                     <div className="space-y-3">
                       <input
@@ -492,6 +728,169 @@ export function MerchantPos({
                 </div>
               )}
 
+              {/* Edit Product Modal (FR-M02) */}
+              {editingProduct && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+                    <h3 className="mb-1 text-base font-extrabold text-slate-900">
+                      {posCopy.editModalTitle}
+                    </h3>
+                    <p className="mb-4 text-xs text-slate-500">
+                      {posCopy.immutableSnapshotNote}
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label
+                          htmlFor="edit-product-name"
+                          className="mb-1 block text-xs font-bold text-slate-700"
+                        >
+                          ชื่อสินค้า *
+                        </label>
+                        <input
+                          id="edit-product-name"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0056b3] focus:bg-white focus:outline-none"
+                          value={editForm.productName}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              productName: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="edit-product-price"
+                          className="mb-1 block text-xs font-bold text-slate-700"
+                        >
+                          ราคา (บาท) *
+                        </label>
+                        <input
+                          id="edit-product-price"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0056b3] focus:bg-white focus:outline-none"
+                          value={editForm.price}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              price: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="edit-product-category"
+                          className="mb-1 block text-xs font-bold text-slate-700"
+                        >
+                          หมวดหมู่สินค้า *
+                        </label>
+                        <select
+                          id="edit-product-category"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0056b3] focus:bg-white focus:outline-none"
+                          value={editForm.categoryId}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              categoryId: e.target.value,
+                            }))
+                          }
+                        >
+                          {categories.map((c) => (
+                            <option
+                              key={String(c.categoryId)}
+                              value={String(c.categoryId)}
+                            >
+                              {c.categoryName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="edit-product-description"
+                          className="mb-1 block text-xs font-bold text-slate-700"
+                        >
+                          รายละเอียดสินค้า
+                        </label>
+                        <input
+                          id="edit-product-description"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0056b3] focus:bg-white focus:outline-none"
+                          placeholder="รายละเอียด (ไม่บังคับ)"
+                          value={editForm.description}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              description: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="edit-product-status"
+                          className="mb-1 block text-xs font-bold text-slate-700"
+                        >
+                          สถานะการจำหน่าย
+                        </label>
+                        <select
+                          id="edit-product-status"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0056b3] focus:bg-white focus:outline-none"
+                          value={editForm.status}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              status:
+                                e.target.value === 'INACTIVE'
+                                  ? 'INACTIVE'
+                                  : 'ACTIVE',
+                            }))
+                          }
+                        >
+                          <option value="ACTIVE">
+                            พร้อมขายหน้าร้าน (ACTIVE)
+                          </option>
+                          <option value="INACTIVE">
+                            ปิดการขายชั่วคราว (INACTIVE)
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct(null)}
+                        className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleUpdateProduct()}
+                        disabled={
+                          isUpdatingProduct ||
+                          !editForm.productName.trim() ||
+                          !editForm.price ||
+                          !editForm.categoryId
+                        }
+                        className="flex-1 rounded-xl bg-[#0056b3] py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#004494] disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {isUpdatingProduct
+                          ? 'กำลังบันทึก...'
+                          : 'บันทึกการแก้ไข'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {isLoading ? (
                 <div className="flex h-48 items-center justify-center rounded-3xl border border-slate-200/80 bg-white">
                   <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
@@ -500,40 +899,117 @@ export function MerchantPos({
                 <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white text-slate-500">
                   <span className="text-3xl">📦</span>
                   <p className="text-sm font-medium">
-                    ยังไม่มีสินค้า กดปุ่ม &quot;+ เพิ่มสินค้า&quot;
+                    ไม่พบสินค้าในตัวกรองนี้ หรือกดปุ่ม &quot;+ เพิ่มสินค้า&quot;
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredProducts.map((product) => {
                     const inCart = cart.find(
                       (i) => i.product.productId === product.productId,
                     );
+                    const isInactive = product.status === 'INACTIVE';
+                    const isToggling = togglingProductId === product.productId;
+
                     return (
-                      <button
+                      <div
                         key={product.productId}
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        className="group relative flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-[#0056b3] hover:shadow-md active:scale-95 cursor-pointer"
+                        className={`group relative flex flex-col justify-between rounded-2xl border p-4 text-left shadow-sm transition-all ${
+                          isInactive
+                            ? 'border-slate-200 bg-slate-100/80 opacity-85'
+                            : 'border-slate-200/80 bg-white hover:border-[#0056b3] hover:shadow-md'
+                        }`}
                       >
-                        {inCart && (
-                          <span className="absolute right-3 top-3 flex size-6 items-center justify-center rounded-full bg-[#0056b3] text-xs font-extrabold text-white shadow-sm">
-                            {inCart.quantity}
-                          </span>
-                        )}
-                        <div className="mb-3 flex size-11 items-center justify-center rounded-2xl bg-blue-50 text-xl">
-                          🍽️
+                        {/* Clickable area to add to POS cart */}
+                        <button
+                          type="button"
+                          disabled={isInactive}
+                          onClick={() => addToCart(product)}
+                          className={`flex flex-1 flex-col text-left ${
+                            isInactive
+                              ? 'cursor-not-allowed'
+                              : 'cursor-pointer active:scale-98'
+                          }`}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-2">
+                            <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-50 text-xl">
+                              🍽️
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                  isInactive
+                                    ? 'bg-slate-200 text-slate-700'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}
+                              >
+                                {isInactive
+                                  ? posCopy.statusInactiveBadge
+                                  : posCopy.statusActiveBadge}
+                              </span>
+                              {inCart && (
+                                <span className="flex size-6 items-center justify-center rounded-full bg-[#0056b3] text-xs font-extrabold text-white shadow-sm">
+                                  {inCart.quantity}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <p className="text-sm font-bold text-slate-900 line-clamp-2">
+                            {product.productName}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {product.categoryName}
+                          </p>
+                          {product.description && (
+                            <p className="mt-1 text-[11px] text-slate-400 line-clamp-1">
+                              {product.description}
+                            </p>
+                          )}
+                          <p className="mt-auto pt-3 font-mono text-base font-extrabold text-[#0056b3]">
+                            {formatCurrency(product.price)}
+                          </p>
+                        </button>
+
+                        {/* Product Management Actions (FR-M02: Edit & Activate/Deactivate) */}
+                        <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditProduct(product)}
+                            aria-label={`แก้ไข ${product.productName}`}
+                            className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:border-[#0056b3] hover:bg-blue-50 hover:text-[#0056b3] transition-colors cursor-pointer"
+                          >
+                            <Edit3 className="size-3" />
+                            <span>{posCopy.editProductButton}</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isToggling}
+                            onClick={() =>
+                              void handleToggleProductStatus(product)
+                            }
+                            aria-label={
+                              isInactive
+                                ? `เปิดขาย ${product.productName}`
+                                : `ปิดการขาย ${product.productName}`
+                            }
+                            className={`inline-flex flex-1 items-center justify-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                              isInactive
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                            }`}
+                          >
+                            <Power className="size-3" />
+                            <span>
+                              {isToggling
+                                ? '...'
+                                : isInactive
+                                  ? posCopy.activateButton
+                                  : posCopy.deactivateButton}
+                            </span>
+                          </button>
                         </div>
-                        <p className="text-sm font-bold text-slate-900 line-clamp-2">
-                          {product.productName}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {product.categoryName}
-                        </p>
-                        <p className="mt-auto pt-3 font-mono text-base font-extrabold text-[#0056b3]">
-                          {formatCurrency(product.price)}
-                        </p>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -638,7 +1114,7 @@ export function MerchantPos({
           </div>
         )}
 
-        {/* ── QR VIEW ── */}
+        {/* ── QR VIEW (FR-M04, FR-M05) ── */}
         {view === 'qr' && (
           <div className="flex flex-col items-center py-4">
             {createdOrder && qrDataUrl ? (
@@ -720,7 +1196,7 @@ export function MerchantPos({
                       </p>
                     </div>
 
-                    <div className="flex justify-center">
+                    <div className="flex flex-col items-center gap-3">
                       <div className="rounded-2xl border-2 border-blue-100 bg-white p-4 shadow-md">
                         <img
                           src={qrDataUrl}
@@ -728,6 +1204,15 @@ export function MerchantPos({
                           className="size-56"
                         />
                       </div>
+
+                      <a
+                        href={qrDataUrl}
+                        download={`thai-please-order-${createdOrder.orderId}.png`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-[#0056b3] hover:bg-blue-100 transition-colors"
+                      >
+                        <Download className="size-3.5" />
+                        <span>{posCopy.downloadQrImage}</span>
+                      </a>
                     </div>
 
                     {/* QR Token copy box for desktop testing & manual input */}
@@ -763,7 +1248,8 @@ export function MerchantPos({
                           {createdOrder.qrToken}
                         </p>
                         <p className="mt-2 text-[11px] text-slate-600">
-                          💡 คัดลอกรหัสนี้ไปวางในเมนู{' '}
+                          💡 สแกนด้วยกล้อง อัปโหลดไฟล์รูป QR
+                          หรือคัดลอกรหัสนี้ไปวางในเมนู{' '}
                           <strong>&quot;สแกนจ่าย&quot;</strong>{' '}
                           ฝั่งประชาชนเพื่อทดสอบชำระเงิน
                         </p>

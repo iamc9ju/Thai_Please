@@ -247,8 +247,16 @@ export const th = {
       description: 'ตรวจสอบข้อมูลจาก QR ให้ครบก่อนยืนยันทุกครั้ง',
       scanTitle: 'พร้อมสแกน QR ร้านค้า',
       scanDescription:
-        'อนุญาตการเข้าถึงกล้องเพื่อสแกน กรอกรหัส QR Token หรือใช้รายการจำลองสำหรับทดสอบ',
-      cameraAction: 'เปิดกล้อง',
+        'เปิดกล้องสแกน อัปโหลดรูปภาพ QR Code หรือวางรหัส QR Token เพื่อตรวจสอบรายการและชำระเงิน',
+      cameraAction: 'เปิดกล้องสแกน QR',
+      stopCameraAction: 'ปิดกล้อง',
+      uploadQrImageAction: 'อัปโหลดรูป QR Code',
+      cameraHint:
+        'หันกล้องไปที่ QR Code บนหน้าจอ POS ของร้านค้า ระบบจะอ่านรหัสและพาไปหน้าตรวจสอบรายการอัตโนมัติ',
+      cameraPermissionError:
+        'ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ หรือใช้วิธีอัปโหลดรูป QR / วางรหัส Token แทน',
+      qrImageReadError:
+        'ไม่พบ QR Code ในรูปภาพที่เลือก กรุณาเลือกไฟล์รูปภาพ QR Code ที่ชัดเจน หรือวางรหัส QR Token',
       demoAction: 'ใช้ QR ตัวอย่าง',
       scanning: 'กำลังอ่านข้อมูล QR…',
       qrInputLabel: 'กรอกหรือวาง QR Token',
@@ -799,6 +807,30 @@ export const th = {
       orders: 'ประวัติคำสั่งซื้อ',
       wallet: 'กระเป๋าเงินร้านค้า',
       dashboard: 'แดชบอร์ดยอดขาย',
+    },
+    pos: {
+      manageProductsToggle: 'จัดการสินค้า',
+      exitManageProducts: 'เสร็จสิ้นการจัดการ',
+      addProductButton: 'เพิ่มสินค้า',
+      editProductButton: 'แก้ไข',
+      deactivateButton: 'ปิดการขาย',
+      activateButton: 'เปิดขายอีกครั้ง',
+      statusActiveBadge: 'พร้อมขาย',
+      statusInactiveBadge: 'ปิดการขายชั่วคราว',
+      filterActive: 'พร้อมขาย',
+      filterInactive: 'ปิดการขาย',
+      filterAll: 'ทุกสถานะ',
+      editModalTitle: 'แก้ไขข้อมูลสินค้า (FR-M02)',
+      addModalTitle: 'เพิ่มสินค้าใหม่เข้าหน้าร้าน (FR-M02)',
+      immutableSnapshotNote:
+        'การแก้ไขชื่อ ราคา หรือปิดการขายสินค้า จะมีผลเฉพาะคำสั่งซื้อใหม่เท่านั้น ไม่เปลี่ยนแปลงใบเสร็จย้อนหลัง (Immutable Snapshot)',
+      downloadQrImage: 'ดาวน์โหลดรูป QR Code',
+      productSavedMessage: (name: string) =>
+        `บันทึกข้อมูลสินค้า "${name}" เรียบร้อยแล้ว`,
+      productStatusChangedMessage: (name: string, active: boolean) =>
+        active
+          ? `เปิดการขายสินค้า "${name}" อีกครั้งเรียบร้อยแล้ว`
+          : `ปิดการขายสินค้า "${name}" ชั่วคราวเรียบร้อยแล้ว (ไม่กระทบใบเสร็จย้อนหลัง)`,
     },
     wallet: {
       eyebrow: 'FR-M06 · กระเป๋าเงินร้านค้าและการถอนเงิน',

@@ -1,7 +1,10 @@
 import {
   AlertCircle,
+  Camera,
+  CameraOff,
   CheckCircle2,
   Clock,
+  ImageUp,
   QrCode,
   ReceiptText,
   RotateCcw,
@@ -9,7 +12,14 @@ import {
   Tag,
   Wallet,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import { payByQr, previewOrder } from '../api/consumer.api';
@@ -21,6 +31,10 @@ import type {
   PaymentStep,
 } from '../consumer.types';
 import { PortalPageHeader } from '../components/PortalPageHeader';
+import {
+  decodeQrFromImageFile,
+  decodeQrFromVideoElement,
+} from '../utils/qr-decoder';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('th-TH', {
@@ -92,7 +106,39 @@ export function PaymentView({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
 
+  // Camera & Image QR scanner states (FR-C04)
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isDecodingImage, setIsDecodingImage] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const copy = th.consumerPortal.payment;
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  // Ensure camera is stopped when leaving scan step or unmounting
+  useEffect(() => {
+    if (step !== 'scan') {
+      stopCamera();
+    }
+  }, [step, stopCamera]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
   // Countdown timer for previewed QR
   useEffect(() => {
@@ -113,36 +159,112 @@ export function PaymentView({
   }, [step, preview]);
 
   // Request order preview by token
-  const handleFetchPreview = async (
-    token: string,
-    couponId?: string,
-  ): Promise<void> => {
-    if (!token.trim()) {
-      setErrorMessage(copy.invalidQrMessage);
+  const handleFetchPreview = useCallback(
+    async (token: string, couponId?: string): Promise<void> => {
+      if (!token.trim()) {
+        setErrorMessage(copy.invalidQrMessage);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const data = await previewOrder({
+          qrToken: token.trim(),
+          userCouponId: couponId || undefined,
+        });
+        setPreview(data);
+        setActiveQrToken(token.trim());
+        setStep('review');
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setErrorMessage(err.message || copy.invalidQrMessage);
+        } else {
+          setErrorMessage(
+            err instanceof Error ? err.message : copy.invalidQrMessage,
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [copy.invalidQrMessage],
+  );
+
+  // Live camera frame scanning loop
+  useEffect(() => {
+    if (!isCameraActive || step !== 'scan') return;
+    let active = true;
+
+    const intervalId = setInterval(() => {
+      if (!active || !videoRef.current || !canvasRef.current) return;
+      void decodeQrFromVideoElement(videoRef.current, canvasRef.current).then(
+        (decodedToken) => {
+          if (!active || !decodedToken) return;
+          active = false;
+          stopCamera();
+          setQrTokenInput(decodedToken);
+          void handleFetchPreview(decodedToken);
+        },
+      );
+    }, 250);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [isCameraActive, step, stopCamera, handleFetchPreview]);
+
+  const handleStartCamera = async () => {
+    setErrorMessage(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMessage(copy.cameraPermissionError);
       return;
     }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
     try {
-      const data = await previewOrder({
-        qrToken: token.trim(),
-        userCouponId: couponId || undefined,
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
       });
-      setPreview(data);
-      setActiveQrToken(token.trim());
-      setStep('review');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setErrorMessage(err.message || copy.invalidQrMessage);
-      } else {
-        setErrorMessage(
-          err instanceof Error ? err.message : copy.invalidQrMessage,
-        );
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      // Attach stream after video element renders
+      setTimeout(() => {
+        if (videoRef.current && streamRef.current) {
+          videoRef.current.srcObject = streamRef.current;
+          void videoRef.current.play().catch(() => {});
+        }
+      }, 50);
+    } catch {
+      stopCamera();
+      setErrorMessage(copy.cameraPermissionError);
+    }
+  };
+
+  const handleQrImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setIsDecodingImage(true);
+    setErrorMessage(null);
+    try {
+      const decodedToken = await decodeQrFromImageFile(file);
+      if (!decodedToken) {
+        setErrorMessage(copy.qrImageReadError);
+        return;
       }
+      setQrTokenInput(decodedToken);
+      await handleFetchPreview(decodedToken);
+    } catch {
+      setErrorMessage(copy.qrImageReadError);
     } finally {
-      setIsLoading(false);
+      setIsDecodingImage(false);
     }
   };
 
@@ -154,7 +276,7 @@ export function PaymentView({
 
   // Fast demo preview action
   const handleDemoAction = () => {
-    // Attempt real preview with demo token or fallback immediately for test suite
+    stopCamera();
     setPreview(DEMO_PREVIEW_FALLBACK);
     setActiveQrToken('demo-qr-token');
     setSelectedCouponId('demo-coupon-1');
@@ -271,7 +393,7 @@ export function PaymentView({
         description={copy.description}
       />
 
-      {/* ── STEP 1: SCAN OR INPUT QR ── */}
+      {/* ── STEP 1: SCAN OR INPUT QR (FR-C04) ── */}
       {step === 'scan' && (
         <article className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs max-w-xl mx-auto text-center">
           <div className="flex justify-center mb-5">
@@ -305,6 +427,72 @@ export function PaymentView({
               >
                 ✕
               </button>
+            </div>
+          )}
+
+          {/* Camera & QR Image Upload Action Buttons (FR-C04) */}
+          <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {isCameraActive ? (
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <CameraOff className="size-4" />
+                <span>{copy.stopCameraAction}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handleStartCamera()}
+                disabled={isLoading || isDecodingImage}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                <Camera className="size-4" />
+                <span>{copy.cameraAction}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || isDecodingImage}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <ImageUp className="size-4" />
+              <span>
+                {isDecodingImage ? copy.scanning : copy.uploadQrImageAction}
+              </span>
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              data-testid="qr-image-input"
+              onChange={(e) => void handleQrImageFileChange(e)}
+              className="hidden"
+            />
+          </div>
+
+          {/* Live Camera Viewfinder */}
+          {isCameraActive && (
+            <div className="mb-6 overflow-hidden rounded-2xl border-2 border-[#0056b3] bg-slate-950 p-3 text-white shadow-md">
+              <div className="relative mx-auto aspect-video max-h-64 overflow-hidden rounded-xl bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  data-testid="qr-camera-video"
+                  className="h-full w-full object-cover"
+                />
+                <div className="pointer-events-none absolute inset-6 rounded-2xl border-2 border-dashed border-sky-400/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+              </div>
+              <canvas ref={canvasRef} className="hidden" />
+              <p className="mt-2.5 text-[11px] font-medium text-blue-100">
+                {copy.cameraHint}
+              </p>
             </div>
           )}
 

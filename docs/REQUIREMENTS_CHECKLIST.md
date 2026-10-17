@@ -119,11 +119,11 @@
   - มี API/UI จริงบน Overview และ Wallet: balance, cap, used, remaining, percentage และ program
   - Gap Test: ต้องเพิ่ม Bangkok boundary/database integration และ E2E ของข้อมูลรายวัน
 
-- [ ] **FR-C04 — Scan and Review QR — Partial (Frontend Integrated with API)**
+- [ ] **FR-C04 — Scan and Review QR — Partial (Frontend & Backend Integrated)**
   - มี backend preview/order context (`POST /api/v1/consumer/orders/preview`)
-  - UI: `PaymentView.tsx` เชื่อมต่อ API จริง รองรับทั้งการกรอก QR Token, demo preview, ตรวจสอบรายการสินค้า, นับถอยหลังวันหมดอายุ (Expiry Countdown), ส่วนลดคูปอง และคำนวณสัดส่วนเงินสนับสนุน/เงินส่วนตัว Authoritative จาก Server
-  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/web/src/features/consumer/api/consumer.api.ts`
-  - Gap Test: E2E ทดสอบสแกนกล้องร่วมกับฐานข้อมูลสด
+  - UI: `PaymentView.tsx` และ `qr-decoder.ts` เชื่อมต่อ API จริง รองรับทั้งการเปิดกล้องสแกน QR จริง (`getUserMedia` + `BarcodeDetector`/`jsQR`), การอัปโหลดไฟล์รูปภาพ QR Code, การวางรหัส QR Token, demo preview, ตรวจสอบรายการสินค้า, นับถอยหลังวันหมดอายุ (Expiry Countdown), ส่วนลดคูปอง และคำนวณสัดส่วนเงินสนับสนุน/เงินส่วนตัว Authoritative จาก Server
+  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/web/src/features/consumer/utils/qr-decoder.ts`, `apps/web/src/features/consumer/api/consumer.api.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-C05 — Payment — Partial (Frontend Integrated with API)**
   - มี backend atomic payment (`POST /api/v1/consumer/orders/pay`), wallet debit, merchant credit, coupon checks, quest completion evaluation และ unit tests
@@ -163,18 +163,20 @@
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
   - Gap Test: E2E approval flow ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-M02 — Product Management — Partial**
-  - มี catalog/product API และ merchant UI บางส่วน
-  - Gap API/UI: contract/path ยังไม่ตรง requirement ทุกเส้น และ edit/deactivate flow ยังไม่ครบ
-  - Gap Test: merchant ownership, validation, history preservation และ E2E
+- [ ] **FR-M02 — Product Management — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/merchant/products?includeInactive=true`, `POST /api/v1/merchant/products`, `PUT /api/v1/merchant/products/:productId`, `PATCH /api/v1/merchant/products/:productId/status`, และ `DELETE /api/v1/merchant/products/:productId` ตรวจสอบสิทธิ์เจ้าของร้านและหมวดหมู่ พร้อมคง Immutable Snapshot บน `order_items` ย้อนหลัง
+  - UI: `MerchantPos.tsx` (Blue Theme) รองรับการเพิ่มสินค้า แก้ไขชื่อ/ราคา/หมวดหมู่/รายละเอียด เปิด-ปิดการขายสินค้า (`ACTIVE`/`INACTIVE`) กรองตามสถานะ และซิงก์ตะกร้าสินค้าอัตโนมัติ
+  - Evidence: `apps/api/src/catalog/catalog.service.spec.ts`, `apps/web/src/features/merchant/pages/MerchantPos.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-M03 — POS — Partial**
-  - มีการสร้าง order จากสินค้าและ backend คำนวณราคา
-  - Gap UI/API: cart lifecycle และหลายรายการยังต้องตรวจ integration ให้ครบ
-  - Gap Test: server-side repricing, invalid/inactive product และ E2E
+- [ ] **FR-M03 — POS — Partial (Frontend & Backend Integrated)**
+  - API: `POST /api/v1/merchant/orders` ตรวจสอบสถานะร้านค้า `ACTIVE` และคำนวณราคาสินค้า (`unitPrice`, `lineTotal`, `subtotal`, `finalAmount`) จากฐานข้อมูลพร้อมบันทึก `productNameSnapshot`
+  - UI: `MerchantPos.tsx` รองรับเลือกสินค้าหลายรายการ ปรับจำนวน คำนวณยอดรวม และสร้าง QR ชำระเงิน
+  - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/merchant/pages/MerchantPos.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-M04 — QR Generation — Partial**
-  - มี random QR token และ expiry สำหรับ order พร้อมปุ่มคัดลอกใน POS
+- [ ] **FR-M04 — QR Generation — Partial (Frontend & Backend Integrated)**
+  - มี random QR token และ expiry สำหรับ order พร้อมปุ่มคัดลอกรหัส Token และปุ่มดาวน์โหลดรูปภาพ QR Code ใน `MerchantPos.tsx`
   - Gap Security: database ยังเก็บ token ที่ค้นด้วยค่าตรง ไม่ใช่ hash-only ตาม requirement
   - Gap Test: unpredictability, expiry, replay และ one-order/one-payment integration
 

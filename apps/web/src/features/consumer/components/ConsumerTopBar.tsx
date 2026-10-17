@@ -1,10 +1,4 @@
-import {
-  Bell,
-  CircleUserRound,
-  LogOut,
-  Menu,
-  QrCode,
-} from 'lucide-react';
+import { Bell, CircleUserRound, LogOut, Menu, QrCode } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { ConsumerView } from '../consumer.types';
 
@@ -108,7 +102,10 @@ export function ConsumerTopBar({
           onClick={onOpenProfile}
           className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
         >
-          <CircleUserRound className="size-5 text-[#0056b3]" aria-hidden="true" />
+          <CircleUserRound
+            className="size-5 text-[#0056b3]"
+            aria-hidden="true"
+          />
           <span className="text-xs font-bold text-slate-800 max-w-[120px] truncate">
             {displayName}
           </span>

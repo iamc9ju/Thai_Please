@@ -191,11 +191,9 @@ function OverviewContent({
                   <span>{th.consumerDashboard.wallet.personal}</span>
                 </div>
                 <div className="text-lg sm:text-xl font-bold text-slate-900">
-                  {showBalance ? (
-                    `฿${formatBaht(wallet.personalBalance)}`
-                  ) : (
-                    '••••••'
-                  )}
+                  {showBalance
+                    ? `฿${formatBaht(wallet.personalBalance)}`
+                    : '••••••'}
                 </div>
               </div>
 
@@ -206,11 +204,9 @@ function OverviewContent({
                   <span>{th.consumerDashboard.wallet.subsidy}</span>
                 </div>
                 <div className="text-lg sm:text-xl font-bold text-slate-900">
-                  {showBalance ? (
-                    `฿${formatBaht(wallet.subsidyBalance)}`
-                  ) : (
-                    '••••••'
-                  )}
+                  {showBalance
+                    ? `฿${formatBaht(wallet.subsidyBalance)}`
+                    : '••••••'}
                 </div>
               </div>
             </div>
@@ -539,9 +535,7 @@ function OverviewContent({
                         className="size-3 shrink-0"
                         aria-hidden="true"
                       />
-                      <span>
-                        {th.consumerDashboard.activity.statusSuccess}
-                      </span>
+                      <span>{th.consumerDashboard.activity.statusSuccess}</span>
                     </span>
                   </div>
                 </div>

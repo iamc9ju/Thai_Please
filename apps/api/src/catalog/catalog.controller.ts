@@ -7,8 +7,10 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +23,7 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   UpdateProductDto,
+  UpdateProductStatusDto,
 } from './dto/product.dto.js';
 
 @Controller()
@@ -42,13 +45,19 @@ export class CatalogController {
     return this.catalogService.createCategory(dto);
   }
 
-  // ─── Products ─────────────────────────────────────────────────────────────
+  // ─── Products (FR-M02) ────────────────────────────────────────────────────
 
   @Get('merchant/products')
   @Roles('MERCHANT')
-  async listMyProducts(@Req() req: Request) {
+  async listMyProducts(
+    @Req() req: Request,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
     const merchantId = req.user!.activeMerchantId!;
-    return this.catalogService.listProducts(merchantId);
+    return this.catalogService.listProducts(
+      merchantId,
+      includeInactive === 'true',
+    );
   }
 
   @Post('merchant/products')
@@ -70,6 +79,21 @@ export class CatalogController {
       merchantId,
       BigInt(productId),
       dto,
+    );
+  }
+
+  @Patch('merchant/products/:productId/status')
+  @Roles('MERCHANT')
+  async updateProductStatus(
+    @Req() req: Request,
+    @Param('productId', ParseIntPipe) productId: number,
+    @Body() dto: UpdateProductStatusDto,
+  ) {
+    const merchantId = req.user!.activeMerchantId!;
+    return this.catalogService.updateProductStatus(
+      merchantId,
+      BigInt(productId),
+      dto.status,
     );
   }
 

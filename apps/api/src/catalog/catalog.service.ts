@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   CreateCategoryDto,
   CreateProductDto,
+  ProductStatusValue,
   UpdateProductDto,
 } from './dto/product.dto.js';
 
@@ -51,16 +52,18 @@ export class CatalogService {
     };
   }
 
-  // ─── Products ─────────────────────────────────────────────────────────────────
+  // ─── Products (FR-M02) ────────────────────────────────────────────────────────
 
   /**
-   * FR-M01: ดึงรายการสินค้าของร้านค้า
+   * FR-M02: ดึงรายการสินค้าของร้านค้า (รองรับทั้งเฉพาะ ACTIVE หรือรวม INACTIVE สำหรับโหมดจัดการสินค้า)
    */
-  async listProducts(merchantId: bigint) {
+  async listProducts(merchantId: bigint, includeInactive = false) {
     const products = await this.prisma.product.findMany({
-      where: { merchantId, status: 'ACTIVE' },
+      where: includeInactive
+        ? { merchantId }
+        : { merchantId, status: 'ACTIVE' },
       include: { category: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
 
     return products.map((p) => ({
@@ -75,7 +78,7 @@ export class CatalogService {
   }
 
   /**
-   * FR-M01: Merchant สร้างสินค้าใหม่
+   * FR-M02: Merchant สร้างสินค้าใหม่
    */
   async createProduct(merchantId: bigint, dto: CreateProductDto) {
     const category = await this.prisma.productCategory.findUnique({
@@ -89,8 +92,8 @@ export class CatalogService {
       data: {
         merchantId,
         categoryId: BigInt(dto.categoryId),
-        productName: dto.productName,
-        description: dto.description,
+        productName: dto.productName.trim(),
+        description: dto.description?.trim() || null,
         price: dto.price,
         status: 'ACTIVE',
       },
@@ -109,7 +112,7 @@ export class CatalogService {
   }
 
   /**
-   * FR-M01: Merchant อัปเดตสินค้า
+   * FR-M02: Merchant อัปเดตสินค้า (ไม่แก้ไข order_items ย้อนหลัง เพื่อรักษา Immutable Snapshot)
    */
   async updateProduct(
     merchantId: bigint,
@@ -119,7 +122,7 @@ export class CatalogService {
     const product = await this.prisma.product.findUnique({
       where: { productId },
     });
-    if (!product || product.status !== 'ACTIVE') {
+    if (!product) {
       throw new NotFoundException('ไม่พบสินค้า');
     }
     if (product.merchantId !== merchantId) {
@@ -140,11 +143,17 @@ export class CatalogService {
     const updated = await this.prisma.product.update({
       where: { productId },
       data: {
-        productName: dto.productName ?? product.productName,
+        productName:
+          dto.productName !== undefined
+            ? dto.productName.trim()
+            : product.productName,
         description:
-          dto.description !== undefined ? dto.description : product.description,
+          dto.description !== undefined
+            ? dto.description.trim() || null
+            : product.description,
         price: dto.price !== undefined ? dto.price : product.price,
         categoryId,
+        status: dto.status ?? product.status,
         updatedAt: new Date(),
       },
       include: { category: true },
@@ -162,13 +171,48 @@ export class CatalogService {
   }
 
   /**
-   * FR-M01: Merchant ลบสินค้า (soft delete)
+   * FR-M02: Merchant เปิด/ปิดการขายสินค้า (ACTIVE / INACTIVE) โดยไม่ลบประวัติ
+   */
+  async updateProductStatus(
+    merchantId: bigint,
+    productId: bigint,
+    status: ProductStatusValue,
+  ) {
+    const product = await this.prisma.product.findUnique({
+      where: { productId },
+    });
+    if (!product) {
+      throw new NotFoundException('ไม่พบสินค้า');
+    }
+    if (product.merchantId !== merchantId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์แก้ไขสถานะสินค้าของร้านอื่น');
+    }
+
+    const updated = await this.prisma.product.update({
+      where: { productId },
+      data: { status, updatedAt: new Date() },
+      include: { category: true },
+    });
+
+    return {
+      productId: updated.productId.toString(),
+      productName: updated.productName,
+      description: updated.description,
+      price: Number(updated.price),
+      status: updated.status,
+      categoryId: updated.categoryId.toString(),
+      categoryName: updated.category.categoryName,
+    };
+  }
+
+  /**
+   * FR-M02: Merchant ปิดการใช้งานสินค้า (soft delete -> INACTIVE)
    */
   async deleteProduct(merchantId: bigint, productId: bigint) {
     const product = await this.prisma.product.findUnique({
       where: { productId },
     });
-    if (!product || product.status !== 'ACTIVE') {
+    if (!product) {
       throw new NotFoundException('ไม่พบสินค้า');
     }
     if (product.merchantId !== merchantId) {
@@ -180,6 +224,10 @@ export class CatalogService {
       data: { status: 'INACTIVE', updatedAt: new Date() },
     });
 
-    return { success: true };
+    return {
+      success: true,
+      productId: productId.toString(),
+      status: 'INACTIVE',
+    };
   }
 }

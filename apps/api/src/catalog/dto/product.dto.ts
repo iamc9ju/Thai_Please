@@ -5,8 +5,12 @@ import {
   Min,
   MaxLength,
   IsPositive,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
+export type ProductStatusValue = (typeof PRODUCT_STATUSES)[number];
 
 export class CreateCategoryDto {
   @IsString()
@@ -61,4 +65,15 @@ export class UpdateProductDto {
   @IsPositive()
   @Type(() => Number)
   categoryId?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(PRODUCT_STATUSES)
+  status?: ProductStatusValue;
+}
+
+export class UpdateProductStatusDto {
+  @IsString()
+  @IsIn(PRODUCT_STATUSES)
+  status!: ProductStatusValue;
 }

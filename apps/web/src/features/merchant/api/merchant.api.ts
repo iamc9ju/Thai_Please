@@ -23,8 +23,9 @@ export function getCategories(): Promise<Category[]> {
   return apiClient.get<Category[]>(`${CATALOG_API}/categories`);
 }
 
-export function getMyProducts(): Promise<Product[]> {
-  return apiClient.get<Product[]>(`${MERCHANT_API}/products`);
+export function getMyProducts(includeInactive = true): Promise<Product[]> {
+  const query = includeInactive ? '?includeInactive=true' : '';
+  return apiClient.get<Product[]>(`${MERCHANT_API}/products${query}`);
 }
 
 export function createProduct(data: {
@@ -34,6 +35,32 @@ export function createProduct(data: {
   description?: string;
 }): Promise<Product> {
   return apiClient.post<Product>(`${MERCHANT_API}/products`, data);
+}
+
+export function updateProduct(
+  productId: string,
+  data: {
+    productName?: string;
+    price?: number;
+    categoryId?: number;
+    description?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+  },
+): Promise<Product> {
+  return apiClient.put<Product>(
+    `${MERCHANT_API}/products/${encodeURIComponent(productId)}`,
+    data,
+  );
+}
+
+export function updateProductStatus(
+  productId: string,
+  status: 'ACTIVE' | 'INACTIVE',
+): Promise<Product> {
+  return apiClient.patch<Product>(
+    `${MERCHANT_API}/products/${encodeURIComponent(productId)}/status`,
+    { status },
+  );
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
