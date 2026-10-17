@@ -361,6 +361,87 @@ async function seed() {
     }
   }
 
+  // 8. FR-AUTH-06: Ensure Initial Admin Role exists on primary users so Admin Portal can be tested immediately
+  const activeAdminRole = await prisma.userRole.findFirst({
+    where: { role: 'ADMIN', status: 'ACTIVE' },
+    include: { user: true },
+    orderBy: { userRoleId: 'asc' },
+  });
+
+  if (activeAdminRole) {
+    console.log(
+      `Found active ADMIN userId=${activeAdminRole.userId} (${activeAdminRole.user.fullName}, citizenId=${activeAdminRole.user.citizenId})`,
+    );
+  }
+
+  const firstUsers = await prisma.user.findMany({
+    where: { status: 'ACTIVE' },
+    orderBy: { userId: 'asc' },
+    take: 2,
+  });
+
+  for (const adminCandidate of firstUsers) {
+    const existingAdminRole = await prisma.userRole.findUnique({
+      where: {
+        userId_role: {
+          userId: adminCandidate.userId,
+          role: 'ADMIN',
+        },
+      },
+    });
+    if (!existingAdminRole && activeAdminRole) {
+      await prisma.userRole.create({
+        data: {
+          userId: adminCandidate.userId,
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          createdByAdminId: activeAdminRole.userId,
+        },
+      });
+      console.log(
+        `Granted ADMIN role to userId=${adminCandidate.userId} (${adminCandidate.fullName}, citizenId=${adminCandidate.citizenId})`,
+      );
+    }
+  }
+
+  // 9. FR-S04: Seed initial QuestGenerationLog if empty
+  const logCount = await prisma.questGenerationLog.count();
+  if (logCount === 0 && consumers.length > 0 && seededQuests.length > 0) {
+    const firstConsumer = consumers[0];
+    const firstQuest = seededQuests[0];
+    const firstAssignment = await prisma.userQuest.findFirst({
+      where: {
+        userId: firstConsumer.userId,
+        questId: firstQuest.questId,
+      },
+    });
+    await prisma.questGenerationLog.create({
+      data: {
+        userId: firstConsumer.userId,
+        requestedBy: firstUsers[0]?.userId ?? firstConsumer.userId,
+        generatedQuestId: firstQuest.questId,
+        assignmentId: firstAssignment?.userQuestId ?? null,
+        status: 'ASSIGNED',
+        provider: 'GEMINI',
+        modelVersion: 'gemini-2.5-flash',
+        promptVersion: 'v1.0',
+        policyVersion: '2026-10-01',
+        reservedPoints: firstQuest.rewardPoint,
+        selectionReason:
+          'คัดเลือกภารกิจเริ่มต้นตามพฤติกรรมการใช้จ่ายหมวดร้านค้าชุมชน',
+        inputSummary: {
+          paidOrderCount: 1,
+          preferredCategory: 'อาหารและเครื่องดื่ม',
+        },
+        generatedAt: now,
+        finishedAt: now,
+      },
+    });
+    console.log(
+      `Seeded sample QuestGenerationLog for consumer userId=${firstConsumer.userId}`,
+    );
+  }
+
   console.log('Seeding completed successfully!');
 }
 

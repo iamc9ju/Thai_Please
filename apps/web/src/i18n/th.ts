@@ -913,4 +913,121 @@ export const th = {
       },
     },
   },
+  adminPortal: {
+    brandSubtitle:
+      'ระบบบริหารจัดการกลางและติดตามผลกระทบทางสังคม (Admin Portal)',
+    roleBadge: 'ผู้ดูแลระบบ (ADMIN)',
+    logout: 'ออกจากระบบ',
+    refresh: 'รีเฟรชข้อมูล',
+    loading: 'กำลังโหลดข้อมูลระบบผู้ดูแล...',
+    errorTitle: 'ไม่สามารถโหลดข้อมูลได้',
+    retry: 'ลองใหม่อีกครั้ง',
+    nav: {
+      overview: 'ภาพรวมแพลตฟอร์ม (FR-A01)',
+      merchants: 'อนุมัติร้านค้า (FR-A02)',
+      programs: 'โครงการเงินอุดหนุน (FR-A04)',
+      quests: 'AI สร้างภารกิจ (FR-A05)',
+      rewards: 'ติดตามแต้ม/คูปอง (FR-A06)',
+      socialImpact: 'ผลกระทบทางสังคม (FR-A07)',
+      admins: 'จัดการผู้ดูแล (FR-A03)',
+    },
+    overview: {
+      eyebrow: 'FR-A01 · ภาพรวมการดำเนินงานทั้งแพลตฟอร์ม',
+      title: 'ศูนย์ควบคุมแพลตฟอร์มไทยช่วยไทยพลีส (Platform Overview)',
+      description:
+        'ติดตามจำนวนผู้ใช้งาน ร้านค้า คำสั่งซื้อที่ชำระสำเร็จ ยอดใช้จ่าย เงินอุดหนุน พอยต์ คูปอง และภารกิจแบบเรียลไทม์',
+      usersCard: 'ผู้ใช้งานทั้งหมดในระบบ',
+      merchantsCard: 'ร้านค้าในโครงการ',
+      paidOrdersCard: 'คำสั่งซื้อที่ชำระสำเร็จ',
+      totalSpendCard: 'มูลค่าการใช้จ่ายสุทธิรวม',
+      subsidyUsedCard: 'วงเงินอุดหนุนรัฐที่ใช้ไป',
+      pointsCard: 'พอยต์สะสมที่แจกแล้ว',
+      couponsCard: 'คูปองที่ถูกแลกและใช้งาน',
+      questsCard: 'ภารกิจที่มอบหมายและสำเร็จ',
+      activeProgramTitle: 'โครงการเงินอุดหนุนที่เปิดใช้งานอยู่',
+    },
+    merchants: {
+      eyebrow: 'FR-A02 & FR-M01 · การตรวจสอบและอนุมัติร้านค้า',
+      title: 'จัดการสถานะและอนุมัติร้านค้าชุมชน (Merchant Approval)',
+      description:
+        'ตรวจสอบร้านค้าที่ลงทะเบียนใหม่ อนุมัติให้เปิดใช้งาน POS ปฏิเสธ หรือระงับสิทธิ์ชั่วคราวพร้อมบันทึก Audit Trail',
+      filterAll: 'ทั้งหมด',
+      filterPending: 'รออนุมัติ (PENDING)',
+      filterActive: 'เปิดใช้งาน (ACTIVE)',
+      filterSuspended: 'ระงับชั่วคราว (SUSPENDED)',
+      filterRejected: 'ไม่อนุมัติ (REJECTED)',
+      approveBtn: 'อนุมัติร้านค้า',
+      rejectBtn: 'ปฏิเสธ',
+      suspendBtn: 'ระงับสิทธิ์',
+      activateBtn: 'เปิดใช้งานอีกครั้ง',
+      empty: 'ไม่พบร้านค้าตามเงื่อนไขที่เลือก',
+    },
+    admins: {
+      eyebrow: 'FR-A03 & FR-AUTH-05 · การจัดการสิทธิ์ผู้ดูแลระบบ',
+      title: 'จัดการผู้ดูแลระบบและสิทธิ์การใช้งาน (Admin Management)',
+      description:
+        'แต่งตั้งผู้ดูแลระบบเพิ่มเติมจากบัญชีที่มีอยู่ ระงับหรือเปิดใช้งานสิทธิ์ พร้อมระบบป้องกันการระงับผู้ดูแลคนสุดท้าย (Last-Active-Admin Protection)',
+      currentAdminsTitle: 'รายชื่อผู้ดูแลระบบปัจจุบัน',
+      allUsersTitle: 'รายชื่อผู้ใช้งานทั้งหมด (เลือกเพื่อมอบสิทธิ์ ADMIN)',
+      grantAdminBtn: 'มอบสิทธิ์ ADMIN',
+      suspendAdminBtn: 'ระงับสิทธิ์ ADMIN',
+      activateAdminBtn: 'คืนสิทธิ์ ADMIN',
+    },
+    programs: {
+      eyebrow: 'FR-A04 · การบริหารนโยบายและโครงการร่วมจ่าย',
+      title: 'จัดการโครงการเงินอุดหนุนภาครัฐ (Subsidy Program Management)',
+      description:
+        'กำหนดวงเงินตั้งต้น อัตราส่วนร่วมจ่าย เพดานรายวัน และช่วงเวลาโครงการ โดยไม่กระทบข้อเท็จจริงของธุรกรรมย้อนหลัง',
+      createTitle: 'สร้างโครงการเงินอุดหนุนใหม่',
+      listTitle: 'รายการโครงการเงินอุดหนุนทั้งหมด',
+      programNameLabel: 'ชื่อโครงการ',
+      initialGrantLabel: 'วงเงินอุดหนุนตั้งต้น (บาท)',
+      subsidyPercentLabel: 'สัดส่วนรัฐร่วมจ่าย (%)',
+      dailyCapLabel: 'เพดานใช้สิทธิ์ต่อวัน (บาท)',
+      startDateLabel: 'วันเริ่มต้นโครงการ',
+      endDateLabel: 'วันสิ้นสุดโครงการ',
+      createBtn: 'สร้างโครงการใหม่',
+      activateBtn: 'เปิดใช้งาน',
+      pauseBtn: 'หยุดชั่วคราว',
+      archiveBtn: 'เก็บเข้าคลัง',
+    },
+    quests: {
+      eyebrow: 'FR-A05 & FR-S04 · ระบบ AI วิเคราะห์และสร้างภารกิจเฉพาะบุคคล',
+      title:
+        'สั่งการ AI สร้างภารกิจและตรวจสอบบันทึก (Quest Generation & Audit Log)',
+      description:
+        'เลือกผู้บริโภคเพื่อสั่ง AI สร้างภารกิจอัตโนมัติตามพฤติกรรมการซื้อ พร้อมตรวจสอบ Provider, Model Version, Policy Validation และ Generation Log',
+      generateCardTitle:
+        'สั่ง AI สร้างภารกิจให้ผู้บริโภค (Trigger Quest Generation)',
+      selectConsumerLabel: 'เลือกผู้บริโภคเป้าหมาย',
+      generateBtn: 'สั่ง AI สร้างและมอบหมายภารกิจทันที',
+      generatingBtn: 'กำลังประมวลผลและตรวจสอบด้วย Policy Engine...',
+      logsTitle: 'บันทึกการสร้างภารกิจ (Quest Generation Logs — FR-S04)',
+      emptyLogs: 'ยังไม่มีประวัติการสร้างภารกิจในระบบ',
+    },
+    rewards: {
+      eyebrow: 'FR-A06 · การติดตามระบบแรงจูงใจ พอยต์ และคูปองส่วนลด',
+      title: 'ศูนย์ติดตามภารกิจ พอยต์สะสม และคูปอง (Reward Monitoring)',
+      description:
+        'ตรวจสอบยอดการมอบหมายภารกิจ อัตราการทำภารกิจสำเร็จ การออกพอยต์ การแลกคูปอง การใช้คูปอง และสถานะวันหมดอายุ',
+      questsTab: 'การมอบหมายภารกิจล่าสุด',
+      pointsTab: 'ธุรกรรมพอยต์ล่าสุด',
+      couponsTab: 'การแลกและใช้คูปองล่าสุด',
+    },
+    socialImpact: {
+      eyebrow: 'FR-A07 · รายงานผลลัพธ์ทางเศรษฐกิจและสังคมระดับชุมชน',
+      title:
+        'แดชบอร์ดผลกระทบทางสังคมและเศรษฐกิจชุมชน (Social Impact Dashboard)',
+      description:
+        'วัดผลการกระจายรายได้สู่ร้านค้าชุมชน อัตราการมีส่วนร่วมของประชาชน ประสิทธิผลของภารกิจ AI และการใช้จ่ายแยกตามหมวดหมู่และร้านค้า',
+      days7: '7 วันล่าสุด',
+      days14: '14 วันล่าสุด',
+      days30: '30 วันล่าสุด',
+      salesByMerchantTitle: 'ยอดขายแยกตามร้านค้าชุมชน (Sales by Merchant)',
+      salesByCategoryTitle:
+        'สัดส่วนยอดขายแยกตามหมวดหมู่สินค้า (Sales by Category)',
+      dailyTrendTitle:
+        'แนวโน้มการใช้จ่ายและเงินอุดหนุนรายวัน (Daily Spend & Subsidy Trend)',
+    },
+  },
 } as const;

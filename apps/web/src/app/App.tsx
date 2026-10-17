@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
 import { LoginPage } from '../features/auth/pages/LoginPage';
-import { RolePreview } from '../features/auth/pages/RolePreview';
+import { AdminDashboard } from '../features/admin/pages/AdminDashboard';
 import { ConsumerDashboard } from '../features/consumer/pages/ConsumerDashboard';
 import { MerchantPos } from '../features/merchant/pages/MerchantPos';
 import { LandingPage } from '../features/landing/pages/LandingPage';
@@ -44,7 +44,12 @@ function MainContent() {
     }
 
     if (user.role === 'ADMIN') {
-      return <RolePreview role="administrator" onBack={() => void logout()} />;
+      return (
+        <AdminDashboard
+          adminName={user.fullName ?? 'ผู้ดูแลระบบกลาง'}
+          onLogout={() => void logout()}
+        />
+      );
     }
   }
 

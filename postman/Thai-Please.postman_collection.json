@@ -1335,6 +1335,224 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Admin Portal & Social Impact (FR-A01..FR-A07)",
+      "item": [
+        {
+          "name": "Get Platform Overview (FR-A01)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "overview"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A01 ดูภาพรวมผู้ใช้งาน ร้านค้า คำสั่งซื้อที่ชำระสำเร็จ ยอดใช้จ่าย เงินอุดหนุน พอยต์ คูปอง และภารกิจ | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีข้อมูลภาพรวมแพลตฟอร์มครบถ้วน', () => { pm.expect(json).to.have.property('users'); pm.expect(json).to.have.property('merchants'); pm.expect(json).to.have.property('orders'); pm.expect(json).to.have.property('points'); pm.expect(json).to.have.property('coupons'); pm.expect(json).to.have.property('quests'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Merchants for Approval (FR-A02)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/merchants",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "merchants"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A02 ดูรายการร้านค้าทั้งหมดพร้อมสถานะการอนุมัติและยอดขาย | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีรายการร้านค้า', () => { pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Approve Merchant (FR-A02 & FR-M01)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"ตรวจสอบเอกสารครบถ้วน\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/merchants/1/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "merchants", "1", "approve"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A02 & FR-M01 อนุมัติร้านค้าให้เป็น ACTIVE พร้อมบันทึก Audit Event | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('เปลี่ยนสถานะเป็น ACTIVE และมี Audit Event', () => { pm.expect(json.status).to.eql('ACTIVE'); pm.expect(json).to.have.property('audit'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Admins and Users (FR-A03)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/users/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "users", "admins"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A03 ดูรายชื่อผู้ดูแลระบบและผู้ใช้งานทั้งหมด | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีรายชื่อผู้ดูแลระบบ', () => { pm.expect(json.admins).to.be.an('array'); pm.expect(json).to.have.property('activeAdminCount'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Subsidy Programs (FR-A04)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/subsidy-programs",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "subsidy-programs"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A04 ดูรายการโครงการเงินอุดหนุนทั้งหมด | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีรายการโครงการเงินอุดหนุน', () => { pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Quest Generation Logs (FR-A05 & FR-S04)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/quest-generation-logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "quest-generation-logs"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A05 & FR-S04 ดูบันทึกการสร้างภารกิจด้วย AI และรายชื่อผู้บริโภคที่มีสิทธิ์ | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีรายการ logs และ eligibleConsumers', () => { pm.expect(json.logs).to.be.an('array'); pm.expect(json.eligibleConsumers).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Reward Monitoring (FR-A06)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/rewards/monitoring",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "rewards", "monitoring"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A06 ติดตามการมอบหมายภารกิจ พอยต์สะสม การแลกคูปอง และวันหมดอายุ | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีข้อมูลสรุปรางวัลและประวัติล่าสุด', () => { pm.expect(json).to.have.property('summary'); pm.expect(json.recentQuestAssignments).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Social Impact Dashboard (FR-A07)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/dashboard/social-impact?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "dashboard", "social-impact"],
+              "query": [{ "key": "days", "value": "7" }]
+            },
+            "description": "ADMIN เท่านั้น | FR-A07 ดูแดชบอร์ดผลกระทบทางสังคมและเศรษฐกิจชุมชน ยอดขายแยกตามร้านค้าและหมวดหมู่ แนวโน้มรายวัน และ Metric Version | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มีข้อมูล Social Impact ครบถ้วน', () => { pm.expect(json).to.have.property('activeConsumers'); pm.expect(json).to.have.property('totalFinalSpend'); pm.expect(json.salesByMerchant).to.be.an('array'); pm.expect(json.salesByCategory).to.be.an('array'); pm.expect(json.dailyTrend).to.be.an('array'); pm.expect(json).to.have.property('metricVersion'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
     }
   ]
 }

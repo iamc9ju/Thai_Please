@@ -56,13 +56,15 @@
   - Gap UI/API: pending merchant tracking flow และ permission-denied UX ยังไม่ครบ
   - Gap Test: ยังขาด portal/session authorization integration และ E2E ครบสาม portal
 
-- [ ] **FR-AUTH-05 — Admin Creation — Not started**
-  - Gap API/UI: ไม่มี admin-role grant/admin management flow และ last-active-admin protection
-  - Gap Test/Audit: ไม่มี permission, temporary-password, audit และ E2E coverage
+- [ ] **FR-AUTH-05 — Admin Creation — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/users/admins`, `POST /api/v1/admin/users/:userId/roles/admin`, `PATCH /api/v1/admin/users/:userId/roles/admin` พร้อมระบบป้องกันการระงับผู้ดูแลคนสุดท้าย (Last-Active-Admin Protection) และเพิกถอน Session อัตโนมัติเมื่อถูกระงับ
+  - UI: `AdminDashboard.tsx` (แท็บจัดการผู้ดูแล) รองรับการมอบสิทธิ์ `ADMIN` ให้ผู้ใช้งานที่มีอยู่ และระงับ/คืนสิทธิ์พร้อมบันทึก Audit Event
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-AUTH-06 — Initial Admin — Not started**
-  - Gap Ops/API: ไม่มี secure idempotent bootstrap/provisioning workflow ที่ยืนยันได้
-  - Gap Test/Audit: ไม่มี bootstrap repeatability, forced password change และ audit tests
+- [ ] **FR-AUTH-06 — Initial Admin — Partial (Seed & Trigger Verified)**
+  - มี idempotent provisioning ใน `apps/api/prisma/seed.js` ร่วมกับ PostgreSQL trigger ตรวจสอบ `created_by_admin_id`
+  - Gap Test: forced password change E2E
 
 ## Consumer Requirements
 
@@ -155,10 +157,11 @@
 
 ## Merchant Requirements
 
-- [ ] **FR-M01 — Merchant Approval — Partial**
-  - มีสถานะเริ่มต้น `PENDING` และ merchant login checks บางส่วน
-  - Gap API/UI: ไม่มี admin approve/reject workflow และ status-tracking UI ที่ครบ
-  - Gap Test: POS/payment denial ทุก non-active state และ approval audit/E2E
+- [ ] **FR-M01 — Merchant Approval — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/merchants` และ `POST /api/v1/admin/merchants/:id/approve|reject|suspend|activate` พร้อมการเปิดใช้งาน `MERCHANT` role และ `MERCHANT` wallet อัตโนมัติเมื่ออนุมัติ และบังคับตรวจสถานะ `ACTIVE` ก่อนสร้าง Order บน POS
+  - UI: `AdminDashboard.tsx` (แท็บอนุมัติร้านค้า) แสดงรายการร้านค้า ตัวกรองสถานะ และปุ่มอนุมัติ/ปฏิเสธ/ระงับพร้อม Audit Event
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E approval flow ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-M02 — Product Management — Partial**
   - มี catalog/product API และ merchant UI บางส่วน
@@ -209,9 +212,11 @@
 - [ ] **FR-S03 — Output Validation — Partial**
   - มี schema/allow-list/policy validation สำหรับ AI output และ negative tests
 
-- [ ] **FR-S04 — Generation Log — Partial**
-  - มี `quest_generation_logs` schema และการบันทึก log ใน generation service
-  - Gap API: admin query endpoint และ replay traceability E2E
+- [ ] **FR-S04 — Generation Log — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/quest-generation-logs` คืนรายการ `quest_generation_logs` พร้อมข้อมูล Provider, Model Version, Prompt Version, Policy Version, Selection Reason และภารกิจที่สร้าง
+  - UI: `AdminDashboard.tsx` (แท็บ AI สร้างภารกิจ) แสดงรายการบันทึกการสร้างภารกิจย้อนหลังครบถ้วน
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: replay traceability E2E
 
 - [ ] **FR-S05 — Automatic Assignment — Partial**
   - มี user quest schema/query และ assignment behavior จาก generation workflow
@@ -223,26 +228,47 @@
 
 ## Administrator Requirements
 
-- [ ] **FR-A01 — Platform Overview — Not started**
-  - Gap API/UI/Test: ไม่มี admin platform overview aggregate, portal page หรือ authorization tests
+- [ ] **FR-A01 — Platform Overview — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/overview` สรุปจำนวนผู้ใช้แยกตามบทบาท ร้านค้า คำสั่งซื้อที่ชำระสำเร็จ ยอดใช้จ่าย เงินอุดหนุน พอยต์ คูปอง ภารกิจ และโครงการเงินอุดหนุนที่เปิดใช้งานอยู่
+  - UI: `AdminDashboard.tsx` (Blue Theme) แท็บภาพรวมแพลตฟอร์ม
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A02 — Merchant Approval — Not started**
-  - Gap API/UI/Test: ไม่มี approve/reject endpoints, audit, admin UI และ E2E
+- [ ] **FR-A02 — Merchant Approval — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/merchants`, `POST /api/v1/admin/merchants/:id/approve|reject|suspend|activate` พร้อมบันทึก Audit Event
+  - UI: `AdminDashboard.tsx` แท็บอนุมัติร้านค้า
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A03 — Admin Management — Not started**
-  - Gap API/UI/Test: ไม่มี admin grant/suspend/revoke, permission model และ last-admin protection
+- [ ] **FR-A03 — Admin Management — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/users/admins`, `POST /api/v1/admin/users/:userId/roles/admin`, `PATCH /api/v1/admin/users/:userId/roles/admin` พร้อม Last-Active-Admin Protection
+  - UI: `AdminDashboard.tsx` แท็บจัดการผู้ดูแล
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A04 — Subsidy Program Management — Not started**
-  - Gap API/UI/Test: มี schema/program read บางส่วน แต่ไม่มี admin CRUD, policy validation และ audit
+- [ ] **FR-A04 — Subsidy Program Management — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/subsidy-programs`, `POST /api/v1/admin/subsidy-programs`, `PATCH /api/v1/admin/subsidy-programs/:id` โดยไม่เขียนทับธุรกรรมเดิม
+  - UI: `AdminDashboard.tsx` แท็บโครงการเงินอุดหนุน
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A05 — Quest Generation — Not started**
-  - Gap API/UI/Test: ไม่มี admin trigger/review generation และ provider/output controls
+- [ ] **FR-A05 — Quest Generation — Partial (Frontend & Backend Integrated)**
+  - API: `POST /api/v1/admin/quests/generate` และ `GET /api/v1/admin/quest-generation-logs`
+  - UI: `AdminDashboard.tsx` แท็บ AI สร้างภารกิจ รองรับการเลือกผู้บริโภคและสั่ง AI สร้างภารกิจพร้อมแสดงผลทันที
+  - Evidence: `apps/api/src/quests/quests.controller.spec.ts`, `apps/api/src/admin/admin.service.spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A06 — Reward Monitoring — Not started**
-  - Gap API/UI/Test: ไม่มี reward metrics/reconciliation API, dashboard หรือ audit tests
+- [ ] **FR-A06 — Reward Monitoring — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/rewards/monitoring` ติดตามการมอบหมายภารกิจ อัตราทำภารกิจสำเร็จ การออกพอยต์ การแลกคูปอง การใช้คูปอง และวันหมดอายุ
+  - UI: `AdminDashboard.tsx` แท็บติดตามแต้ม/คูปอง
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-A07 — Social Impact Dashboard — Not started**
-  - Gap API/UI/Test: ไม่มี verified social-impact aggregate, admin UI, freshness หรือ correctness tests
+- [ ] **FR-A07 — Social Impact Dashboard — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/dashboard/social-impact` คำนวณ Active Consumers, Participating Merchants, Successful Orders, Total Final Spend, Total Subsidy Used, Average Sales per Merchant, Quest/Point/Coupon rates, Sales by Merchant & Category, Daily Trend (`Asia/Bangkok`) พร้อม `metricVersion`, `reportingTimezone`, และ `asOf`
+  - UI: `AdminDashboard.tsx` แท็บผลกระทบทางสังคม
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 ## Non-functional Requirements
 
