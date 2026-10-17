@@ -22,7 +22,12 @@ export const MERCHANT_STATUSES = [
 ] as const;
 export type MerchantStatus = (typeof MERCHANT_STATUSES)[number];
 
-export const PROGRAM_STATUSES = ['ACTIVE', 'PAUSED', 'ARCHIVED'] as const;
+export const PROGRAM_STATUSES = [
+  'ACTIVE',
+  'INACTIVE',
+  'PAUSED',
+  'ARCHIVED',
+] as const;
 export type ProgramStatus = (typeof PROGRAM_STATUSES)[number];
 
 export const ADMIN_ROLE_STATUSES = ['ACTIVE', 'SUSPENDED'] as const;

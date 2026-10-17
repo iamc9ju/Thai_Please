@@ -670,7 +670,12 @@ export class AdminService {
     }
 
     const userPercentage = 100 - dto.subsidyPercentage;
-    const status = dto.status ?? 'ACTIVE';
+    const status =
+      dto.status === 'INACTIVE' ||
+      dto.status === 'PAUSED' ||
+      dto.status === 'ARCHIVED'
+        ? 'INACTIVE'
+        : 'ACTIVE';
 
     const created = await this.prisma.subsidyProgram.create({
       data: {
@@ -737,6 +742,12 @@ export class AdminService {
     const nextSubsidyPercentage =
       dto.subsidyPercentage ?? toNumber(existing.subsidyPercentage);
     const nextUserPercentage = 100 - nextSubsidyPercentage;
+    const normalizedStatus =
+      dto.status !== undefined
+        ? dto.status === 'ACTIVE'
+          ? 'ACTIVE'
+          : 'INACTIVE'
+        : undefined;
 
     const updated = await this.prisma.subsidyProgram.update({
       where: { programId },
@@ -758,7 +769,7 @@ export class AdminService {
           : {}),
         ...(dto.startDate !== undefined ? { startDate: nextStartDate } : {}),
         ...(dto.endDate !== undefined ? { endDate: nextEndDate } : {}),
-        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(normalizedStatus !== undefined ? { status: normalizedStatus } : {}),
       },
     });
 

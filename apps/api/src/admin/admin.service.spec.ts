@@ -392,6 +392,46 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
         ),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('normalizes non-ACTIVE subsidy program status to INACTIVE to satisfy subsidy_programs_status_check', async () => {
+      prismaMock.subsidyProgram.findUnique.mockResolvedValue({
+        programId: 1n,
+        programName: 'โครงการไทยช่วยไทยพลีส (ระยะที่ 1)',
+        initialGrant: new Prisma.Decimal(1000),
+        subsidyPercentage: new Prisma.Decimal(50),
+        userPercentage: new Prisma.Decimal(50),
+        dailySubsidyLimit: new Prisma.Decimal(200),
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-31T00:00:00.000Z'),
+        status: 'ACTIVE',
+      });
+      prismaMock.subsidyProgram.update.mockResolvedValue({
+        programId: 1n,
+        programName: 'โครงการไทยช่วยไทยพลีส (ระยะที่ 1)',
+        initialGrant: new Prisma.Decimal(1000),
+        subsidyPercentage: new Prisma.Decimal(50),
+        userPercentage: new Prisma.Decimal(50),
+        dailySubsidyLimit: new Prisma.Decimal(200),
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-31T00:00:00.000Z'),
+        status: 'INACTIVE',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+
+      const result = await service.updateSubsidyProgram(
+        1n,
+        { status: 'PAUSED' },
+        1n,
+      );
+
+      expect(prismaMock.subsidyProgram.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { programId: 1n },
+          data: expect.objectContaining({ status: 'INACTIVE' }),
+        }),
+      );
+      expect(result.status).toBe('INACTIVE');
+    });
   });
 
   describe('getSocialImpactDashboard (FR-A07)', () => {

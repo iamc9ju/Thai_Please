@@ -1,6 +1,6 @@
 export type MerchantStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
 export type AdminRoleStatus = 'ACTIVE' | 'SUSPENDED';
-export type ProgramStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type ProgramStatus = 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'ARCHIVED';
 
 export interface PlatformOverviewResponse {
   users: {
