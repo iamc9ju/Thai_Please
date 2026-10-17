@@ -1,11 +1,11 @@
-import { Bell, CircleUserRound, LogOut, Menu, QrCode } from 'lucide-react';
+import { Bell, CircleUserRound, LogOut, QrCode } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { ConsumerView } from '../consumer.types';
 
 export interface ConsumerTopBarProps {
   activeView: ConsumerView;
   displayName: string;
-  onOpenMobile: () => void;
+  onOpenMobile?: () => void;
   onNavigate: (view: ConsumerView) => void;
   onNotification: () => void;
   onOpenProfile: () => void;
@@ -25,37 +25,27 @@ const viewTitles: Record<ConsumerView, string> = {
 export function ConsumerTopBar({
   activeView,
   displayName,
-  onOpenMobile,
+  onOpenMobile: _onOpenMobile,
   onNavigate,
   onNotification,
   onOpenProfile,
   onLogout,
 }: ConsumerTopBarProps) {
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
-      {/* Left: Mobile Menu Toggle & Page Title */}
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between select-none">
+      {/* Left: Mobile/Tablet Brand Logo & Desktop Page Title */}
       <div className="flex items-center gap-3">
-        {/* Mobile Hamburger Button */}
-        <button
-          type="button"
-          onClick={onOpenMobile}
-          aria-label="Open navigation menu"
-          className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <Menu className="size-5" />
-        </button>
-
-        {/* Brand logo for mobile screen */}
-        <div className="lg:hidden flex items-center gap-1.5">
+        {/* Brand logo for mobile and tablet */}
+        <div className="lg:hidden flex items-center">
           <img
             src="/images/brand-logo.png"
             alt={th.brand}
-            className="h-9 sm:h-10 w-auto object-contain"
+            className="h-8 sm:h-9 w-auto object-contain"
           />
         </div>
 
-        {/* Active View Title */}
-        <div className="hidden sm:flex items-center gap-2">
+        {/* Desktop Breadcrumbs and Title */}
+        <div className="hidden lg:flex items-center gap-2">
           <span className="text-xs font-semibold text-slate-400">
             {th.consumerDashboard.brand}
           </span>
@@ -66,19 +56,17 @@ export function ConsumerTopBar({
         </div>
       </div>
 
-      {/* Right: Quick Actions & Profile */}
+      {/* Right: Quick Actions, Notifications & Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Fast QR Payment CTA */}
+        {/* Fast QR Payment CTA (Desktop only - mobile has bottom center bar) */}
         {activeView !== 'payment' && (
           <button
             type="button"
             onClick={() => onNavigate('payment')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#0056b3] text-xs font-bold hover:bg-blue-100 transition-colors cursor-pointer"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#0056b3] text-xs font-bold hover:bg-blue-100 transition-colors cursor-pointer"
           >
             <QrCode className="size-4" aria-hidden="true" />
-            <span className="hidden md:inline">
-              {th.consumerDashboard.payment.action}
-            </span>
+            <span>{th.consumerDashboard.payment.action}</span>
           </button>
         )}
 
@@ -96,11 +84,21 @@ export function ConsumerTopBar({
           />
         </button>
 
-        {/* Profile Summary Button */}
+        {/* Profile Avatar Button (Mobile/Tablet circular avatar matching mockup) */}
         <button
           type="button"
           onClick={onOpenProfile}
-          className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+          aria-label={th.consumerDashboard.identityLabel}
+          className="lg:hidden size-9 rounded-full bg-blue-100 text-[#0056b3] flex items-center justify-center font-bold text-sm hover:ring-2 hover:ring-[#0056b3]/30 transition-all cursor-pointer"
+        >
+          {displayName.slice(0, 1)}
+        </button>
+
+        {/* Profile Summary Button (Desktop) */}
+        <button
+          type="button"
+          onClick={onOpenProfile}
+          className="hidden lg:flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
         >
           <CircleUserRound
             className="size-5 text-[#0056b3]"
@@ -111,12 +109,12 @@ export function ConsumerTopBar({
           </span>
         </button>
 
-        {/* Quick Logout Button */}
+        {/* Quick Logout Button (Desktop) */}
         <button
           type="button"
           onClick={onLogout}
           aria-label={th.consumerDashboard.logout}
-          className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+          className="hidden lg:flex p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
           title={th.consumerDashboard.logout}
         >
           <LogOut className="size-5" aria-hidden="true" />

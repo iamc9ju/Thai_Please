@@ -76,10 +76,23 @@ export const th = {
     overviewTitle: 'ภาพรวมบัญชี',
     prototype: 'ระบบต้นแบบ',
     greeting: 'สวัสดีตอนเช้า',
+    greetingUser: (name: string) => `สวัสดี ${name}`,
+    prototypeSubtitle: 'ระบบต้นแบบ • เงินเสมือน',
     displayName: 'สมชาย ใจดี',
     identityLabel: 'บัญชีประชาชน',
     logout: 'ออกจากระบบ',
     notification: 'การแจ้งเตือน',
+    todaySubsidy: 'สิทธิ์วันนี้',
+    todaySubsidyUsedOf: (used: string, limit: string) =>
+      `ใช้แล้ว ฿${used} จาก ฿${limit}`,
+    viewPoints: 'ดูคะแนน',
+    mobileNav: {
+      home: 'หน้าหลัก',
+      wallet: 'กระเป๋าเงิน',
+      scan: 'สแกน',
+      quests: 'ภารกิจ',
+      coupons: 'คูปอง',
+    },
     wallet: {
       eyebrow: 'กระเป๋าเงินของฉัน',
       title: 'Virtual Wallet',
@@ -94,7 +107,7 @@ export const th = {
       programDetail: (percentage: number, startDate: string, endDate: string) =>
         `สนับสนุน ${percentage}% · ${startDate} – ${endDate}`,
       topUp: 'เติมเงิน',
-      history: 'ประวัติกระเป๋าเงิน',
+      history: 'ดูประวัติ',
     },
     payment: {
       title: 'สแกนเพื่อชำระเงิน',
@@ -122,7 +135,7 @@ export const th = {
       viewAll: 'ดูทั้งหมด',
     },
     activity: {
-      title: 'รายการซื้อล่าสุด',
+      title: 'รายการล่าสุด',
       viewAll: 'ดูทั้งหมด',
       paidAt: 'ชำระด้วย Wallet ·',
       paidAmount: (amount: string) => `-${amount} บาท`,
