@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import {
+  getConsumerOrders,
   getConsumerOverview,
   getConsumerQuests,
   getWalletTransactions,
@@ -23,6 +24,8 @@ vi.mock('../api/consumer.api', () => ({
   topUpPersonalWallet: vi.fn(),
   previewOrder: vi.fn(),
   payByQr: vi.fn(),
+  getConsumerOrders: vi.fn(),
+  getOrderReceipt: vi.fn(),
 }));
 
 const overviewFixture: ConsumerOverviewResponse = {
@@ -103,12 +106,34 @@ const overviewFixture: ConsumerOverviewResponse = {
 const mockedGetConsumerOverview = vi.mocked(getConsumerOverview);
 const mockedGetWalletTransactions = vi.mocked(getWalletTransactions);
 const mockedGetConsumerQuests = vi.mocked(getConsumerQuests);
+const mockedGetConsumerOrders = vi.mocked(getConsumerOrders);
 
 beforeEach(() => {
   mockedGetConsumerOverview.mockReset();
   mockedGetConsumerOverview.mockResolvedValue(overviewFixture);
   mockedGetConsumerQuests.mockReset();
   mockedGetConsumerQuests.mockResolvedValue({ items: [], nextCursor: null });
+  mockedGetConsumerOrders.mockReset();
+  mockedGetConsumerOrders.mockResolvedValue([
+    {
+      orderId: '10',
+      receiptNumber: 'TP-000010',
+      status: 'PAID',
+      merchantId: '1',
+      merchantName: 'ร้านครัวบ้านเรา',
+      merchantAddress: 'ตลาดบางรัก',
+      subtotal: 150,
+      discountAmount: 0,
+      finalAmount: 150,
+      subsidyAmount: 75,
+      userPaidAmount: 75,
+      createdAt: '2026-10-15T00:00:00.000Z',
+      paidAt: '2026-10-15T00:05:00.000Z',
+      itemCount: 1,
+      items: [],
+      appliedCoupon: null,
+    },
+  ]);
   mockedGetWalletTransactions.mockReset();
   mockedGetWalletTransactions.mockImplementation(async (query) => ({
     items: overviewFixture.recentTransactions.filter((item) => {
@@ -316,16 +341,19 @@ describe('ConsumerDashboard', () => {
         name: th.consumerPortal.orders.title,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(th.consumerPortal.orders.immutableNote),
-    ).toBeInTheDocument();
   });
 
-  it('filters purchase history by a selected date range', () => {
+  it('filters purchase history by a selected date range', async () => {
     renderDashboard();
     clickFirstNavigation(th.consumerPortal.navigation.orders);
 
-    expect(screen.getByText('ตลาดสดบางรัก')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.consumerPortal.orders.title,
+      }),
+    ).toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText(th.consumerPortal.orders.dateFrom), {
       target: { value: '2026-10-01' },
     });
@@ -333,8 +361,14 @@ describe('ConsumerDashboard', () => {
       target: { value: '2026-10-31' },
     });
 
-    expect(screen.queryByText('ตลาดสดบางรัก')).not.toBeInTheDocument();
-    expect(screen.getByText('พบ 3 รายการ')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockedGetConsumerOrders).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dateFrom: '2026-10-01',
+          dateTo: '2026-10-31',
+        }),
+      );
+    });
   });
 
   it('shows completed quest history with its receipt reference', async () => {

@@ -4,7 +4,9 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -42,6 +44,43 @@ export class OrderController {
   async listMerchantOrders(@Req() req: Request) {
     const merchantId = req.user!.activeMerchantId!;
     return this.orderService.listMerchantOrders(merchantId);
+  }
+
+  /**
+   * FR-M08: Merchant ดูใบเสร็จรับเงินฉบับเต็มของ Order
+   */
+  @Get('merchant/orders/:id/receipt')
+  @Roles('MERCHANT')
+  async getMerchantReceipt(@Req() req: Request, @Param('id') id: string) {
+    const merchantId = req.user!.activeMerchantId!;
+    return this.orderService.getMerchantReceipt(merchantId, BigInt(id));
+  }
+
+  /**
+   * FR-C06: Consumer ดูประวัติคำสั่งซื้อของตนเอง
+   */
+  @Get('consumer/orders')
+  @Roles('CONSUMER')
+  async listConsumerOrders(
+    @Req() req: Request,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    const consumerId = req.user!.userId;
+    return this.orderService.listConsumerOrders(consumerId, {
+      dateFrom,
+      dateTo,
+    });
+  }
+
+  /**
+   * FR-C06: Consumer ดูใบเสร็จรับเงินฉบับเต็มของ Order
+   */
+  @Get('consumer/orders/:id/receipt')
+  @Roles('CONSUMER')
+  async getConsumerReceipt(@Req() req: Request, @Param('id') id: string) {
+    const consumerId = req.user!.userId;
+    return this.orderService.getConsumerReceipt(consumerId, BigInt(id));
   }
 
   /**

@@ -753,6 +753,277 @@ export class OrderService {
     }));
   }
 
+  /** FR-C06: Consumer ดูรายการคำสั่งซื้อของตนเอง */
+  async listConsumerOrders(
+    consumerId: bigint,
+    filter?: { dateFrom?: string; dateTo?: string },
+  ) {
+    const where: Prisma.OrderWhereInput = {
+      userId: consumerId,
+    };
+
+    if (filter?.dateFrom || filter?.dateTo) {
+      const createdAtFilter: Prisma.DateTimeFilter = {};
+      if (filter.dateFrom) {
+        createdAtFilter.gte = new Date(filter.dateFrom);
+      }
+      if (filter.dateTo) {
+        const to = new Date(filter.dateTo);
+        to.setHours(23, 59, 59, 999);
+        createdAtFilter.lte = to;
+      }
+      where.createdAt = createdAtFilter;
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        merchant: {
+          select: {
+            merchantId: true,
+            merchantName: true,
+            address: true,
+            phone: true,
+          },
+        },
+        orderItems: {
+          include: {
+            category: { select: { categoryName: true } },
+          },
+        },
+        appliedUserCoupon: {
+          include: {
+            coupon: {
+              select: {
+                couponName: true,
+                discountValue: true,
+                discountType: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return orders.map((order) => ({
+      orderId: order.orderId.toString(),
+      receiptNumber: `TP-${order.orderId.toString().padStart(6, '0')}`,
+      status: order.status,
+      merchantId: order.merchant.merchantId.toString(),
+      merchantName: order.merchant.merchantName,
+      merchantAddress: order.merchant.address ?? null,
+      subtotal: Number(order.subtotal),
+      discountAmount: Number(order.discountAmount),
+      finalAmount: Number(order.finalAmount),
+      subsidyAmount: Number(order.subsidyAmount),
+      userPaidAmount: Number(order.userPaidAmount),
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      itemCount: order.orderItems.length,
+      items: order.orderItems.map((item) => ({
+        orderItemId: item.orderItemId.toString(),
+        productId: item.productId.toString(),
+        productName: item.productNameSnapshot,
+        categoryName: item.category?.categoryName ?? '',
+        unitPrice: Number(item.unitPrice),
+        quantity: item.quantity,
+        lineTotal: Number(item.lineTotal),
+      })),
+      appliedCoupon: order.appliedUserCoupon?.coupon
+        ? {
+            couponName: order.appliedUserCoupon.coupon.couponName,
+            discountValue: Number(order.appliedUserCoupon.coupon.discountValue),
+            discountType: order.appliedUserCoupon.coupon.discountType,
+          }
+        : null,
+    }));
+  }
+
+  /** FR-C06: Consumer ดูใบเสร็จรับเงินฉบับเต็ม */
+  async getConsumerReceipt(consumerId: bigint, orderId: bigint) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        orderId,
+        userId: consumerId,
+      },
+      include: {
+        merchant: {
+          select: {
+            merchantId: true,
+            merchantName: true,
+            address: true,
+            phone: true,
+          },
+        },
+        orderItems: {
+          include: {
+            category: { select: { categoryName: true } },
+          },
+        },
+        appliedUserCoupon: {
+          include: {
+            coupon: {
+              select: {
+                couponName: true,
+                discountValue: true,
+                discountType: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            fullName: true,
+            citizenId: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(
+        'ไม่พบคำสั่งซื้อหรือไม่มีสิทธิ์เข้าถึงใบเสร็จนี้',
+      );
+    }
+
+    return this.mapOrderReceipt(order);
+  }
+
+  /** FR-M08: Merchant ดูใบเสร็จรับเงินฉบับเต็ม */
+  async getMerchantReceipt(merchantId: bigint, orderId: bigint) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        orderId,
+        merchantId,
+      },
+      include: {
+        merchant: {
+          select: {
+            merchantId: true,
+            merchantName: true,
+            address: true,
+            phone: true,
+          },
+        },
+        orderItems: {
+          include: {
+            category: { select: { categoryName: true } },
+          },
+        },
+        appliedUserCoupon: {
+          include: {
+            coupon: {
+              select: {
+                couponName: true,
+                discountValue: true,
+                discountType: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            fullName: true,
+            citizenId: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(
+        'ไม่พบคำสั่งซื้อหรือไม่มีสิทธิ์เข้าถึงใบเสร็จนี้',
+      );
+    }
+
+    return this.mapOrderReceipt(order);
+  }
+
+  private mapOrderReceipt(order: {
+    orderId: bigint;
+    status: string;
+    createdAt: Date;
+    paidAt: Date | null;
+    subtotal: Prisma.Decimal;
+    discountAmount: Prisma.Decimal;
+    finalAmount: Prisma.Decimal;
+    subsidyAmount: Prisma.Decimal;
+    userPaidAmount: Prisma.Decimal;
+    merchant: {
+      merchantId: bigint;
+      merchantName: string;
+      address: string | null;
+      phone: string | null;
+    };
+    user: {
+      fullName: string | null;
+      citizenId: string;
+    } | null;
+    orderItems: Array<{
+      orderItemId: bigint;
+      productId: bigint;
+      productNameSnapshot: string;
+      category?: { categoryName: string } | null;
+      unitPrice: Prisma.Decimal;
+      quantity: number;
+      lineTotal: Prisma.Decimal;
+    }>;
+    appliedUserCoupon?: {
+      coupon: {
+        couponName: string;
+        discountValue: Prisma.Decimal;
+        discountType: string;
+      };
+    } | null;
+  }) {
+    const citizenId = order.user?.citizenId ?? '';
+    const maskedCitizenId =
+      citizenId.length === 13
+        ? `${citizenId.slice(0, 1)}-XXXX-XXXXX-${citizenId.slice(10, 12)}-${citizenId.slice(12)}`
+        : 'X-XXXX-XXXX';
+
+    return {
+      orderId: order.orderId.toString(),
+      receiptNumber: `TP-${order.orderId.toString().padStart(6, '0')}`,
+      status: order.status,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      subtotal: Number(order.subtotal),
+      discountAmount: Number(order.discountAmount),
+      finalAmount: Number(order.finalAmount),
+      subsidyAmount: Number(order.subsidyAmount),
+      userPaidAmount: Number(order.userPaidAmount),
+      merchant: {
+        merchantId: order.merchant.merchantId.toString(),
+        merchantName: order.merchant.merchantName,
+        address: order.merchant.address ?? 'ตลาดชุมชน',
+        phone: order.merchant.phone ?? null,
+      },
+      consumer: {
+        fullName: order.user?.fullName ?? 'ประชาชนผู้รับสิทธิ์',
+        maskedCitizenId,
+      },
+      items: order.orderItems.map((item) => ({
+        orderItemId: item.orderItemId.toString(),
+        productId: item.productId.toString(),
+        productName: item.productNameSnapshot,
+        categoryName: item.category?.categoryName ?? '',
+        unitPrice: Number(item.unitPrice),
+        quantity: item.quantity,
+        lineTotal: Number(item.lineTotal),
+      })),
+      appliedCoupon: order.appliedUserCoupon?.coupon
+        ? {
+            couponName: order.appliedUserCoupon.coupon.couponName,
+            discountValue: Number(order.appliedUserCoupon.coupon.discountValue),
+            discountType: order.appliedUserCoupon.coupon.discountType,
+          }
+        : null,
+    };
+  }
+
   private async resolveOrderContext(
     consumerId: bigint,
     qrToken: string,

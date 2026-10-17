@@ -1,196 +1,437 @@
 import {
   CalendarDays,
-  LockKeyhole,
-  ReceiptText,
+  CheckCircle2,
+  ChevronRight,
+  Receipt,
   RotateCcw,
+  Search,
+  ShoppingBag,
+  Sparkles,
+  Store,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { th } from '../../../i18n/th';
+import { getConsumerOrders } from '../api/consumer.api';
+import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
+import type { ConsumerOrder, ReceiptDetail } from '../consumer.types';
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+  }).format(amount);
+}
+
+function formatThaiDate(isoString: string): string {
+  const date = new Date(isoString);
+  return new Intl.DateTimeFormat('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
 
 export function OrdersView() {
   const copy = th.consumerPortal.orders;
+
+  const [orders, setOrders] = useState<ConsumerOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState<string>(
-    copy.list[0].id,
+  const [preset, setPreset] = useState<'all' | 'month' | '7days'>('all');
+
+  // Selected receipt modal
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptDetail | null>(
+    null,
   );
 
-  const filteredOrders = copy.list.filter(
-    (item) =>
-      (!dateFrom || item.isoDate >= dateFrom) &&
-      (!dateTo || item.isoDate <= dateTo),
-  );
-  const order =
-    filteredOrders.find((item) => item.id === selectedOrderId) ??
-    filteredOrders[0];
-  const isPrimaryReceipt = order?.id === copy.list[0].id;
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getConsumerOrders({
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      });
+      setOrders(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : copy.error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dateFrom, dateTo, copy.error]);
 
-  const showAll = () => {
+  useEffect(() => {
+    void fetchOrders();
+  }, [fetchOrders]);
+
+  // Preset handlers
+  const handlePresetAll = () => {
+    setPreset('all');
     setDateFrom('');
     setDateTo('');
-    setSelectedOrderId(copy.list[0].id);
   };
 
-  const showCurrentMonth = () => {
-    setDateFrom('2026-10-01');
-    setDateTo('2026-10-31');
-    setSelectedOrderId(copy.list[0].id);
+  const handlePresetMonth = () => {
+    setPreset('month');
+    const now = new Date();
+    const firstDay =
+      new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0] ?? '';
+    const lastDay =
+      new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        .toISOString()
+        .split('T')[0] ?? '';
+    setDateFrom(firstDay);
+    setDateTo(lastDay);
+  };
+
+  const handlePreset7Days = () => {
+    setPreset('7days');
+    const now = new Date();
+    const sevenDaysAgo =
+      new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0] ?? '';
+    const today = now.toISOString().split('T')[0] ?? '';
+    setDateFrom(sevenDaysAgo);
+    setDateTo(today);
+  };
+
+  // Filtered orders by search query
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery.trim()) return orders;
+    const query = searchQuery.toLowerCase().trim();
+    return orders.filter(
+      (order) =>
+        order.merchantName.toLowerCase().includes(query) ||
+        order.orderId.toLowerCase().includes(query) ||
+        order.receiptNumber.toLowerCase().includes(query),
+    );
+  }, [orders, searchQuery]);
+
+  // Aggregate stats
+  const stats = useMemo(() => {
+    const totalSpent = orders.reduce((sum, o) => sum + o.finalAmount, 0);
+    const totalSubsidy = orders.reduce((sum, o) => sum + o.subsidyAmount, 0);
+    const totalOrders = orders.length;
+    return { totalSpent, totalSubsidy, totalOrders };
+  }, [orders]);
+
+  // Open modal from ConsumerOrder
+  const handleOpenReceipt = (order: ConsumerOrder) => {
+    const detail: ReceiptDetail = {
+      orderId: order.orderId,
+      receiptNumber: order.receiptNumber,
+      status: order.status,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      finalAmount: order.finalAmount,
+      subsidyAmount: order.subsidyAmount,
+      userPaidAmount: order.userPaidAmount,
+      merchant: {
+        merchantId: order.merchantId,
+        merchantName: order.merchantName,
+        address: order.merchantAddress ?? 'ร้านค้าในระบบ',
+        phone: null,
+      },
+      consumer: {
+        fullName: 'ประชาชนผู้รับสิทธิ์',
+        maskedCitizenId: 'X-XXXX-XXXX',
+      },
+      items: order.items.map((i) => ({
+        orderItemId: i.orderItemId,
+        productId: i.productId,
+        productName: i.productName,
+        categoryName: i.categoryName ?? '',
+        unitPrice: i.unitPrice,
+        quantity: i.quantity,
+        lineTotal: i.lineTotal,
+      })),
+      appliedCoupon: order.appliedCoupon,
+    };
+    setSelectedReceipt(detail);
   };
 
   return (
-    <section className="consumer-view">
+    <div className="space-y-6 animate-fade-in font-sans">
+      {/* Header */}
       <PortalPageHeader
         eyebrow={copy.eyebrow}
         title={copy.title}
         description={copy.description}
       />
 
-      <article className="portal-card order-filter-card">
-        <div className="order-filter-heading">
-          <span>
-            <CalendarDays aria-hidden="true" />
-            <strong>{copy.filterTitle}</strong>
-          </span>
-          <small>
-            {copy.resultPrefix} {filteredOrders.length} {copy.resultSuffix}
-          </small>
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Total Spent */}
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500">
+              {copy.totalSpent}
+            </span>
+            <div className="flex size-9 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <ShoppingBag className="size-4.5" />
+            </div>
+          </div>
+          <p className="mt-3 text-2xl font-extrabold text-slate-900 tracking-tight">
+            {formatCurrency(stats.totalSpent)}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            ยอดสุทธิจากกระเป๋าและสิทธิ์ร่วมจ่าย
+          </p>
         </div>
-        <div className="order-filter-controls">
-          <div className="order-filter-presets">
+
+        {/* Subsidy Saved */}
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500">
+              {copy.totalSubsidy}
+            </span>
+            <div className="flex size-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <Sparkles className="size-4.5" />
+            </div>
+          </div>
+          <p className="mt-3 text-2xl font-extrabold text-emerald-600 tracking-tight">
+            {formatCurrency(stats.totalSubsidy)}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            เงินสนับสนุน 50% จากโครงการ
+          </p>
+        </div>
+
+        {/* Total Orders */}
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500">
+              {copy.totalOrders}
+            </span>
+            <div className="flex size-9 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <Receipt className="size-4.5" />
+            </div>
+          </div>
+          <p className="mt-3 text-2xl font-extrabold text-slate-900 tracking-tight">
+            {stats.totalOrders}{' '}
+            <span className="text-sm font-semibold text-slate-500">รายการ</span>
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            ใบเสร็จดิจิทัลตรวจสอบย้อนหลังได้
+          </p>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          {/* Search Box */}
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={copy.searchPlaceholder}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 transition-all"
+            />
+          </div>
+
+          {/* Quick Preset Pills */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <button
-              aria-pressed={!dateFrom && !dateTo}
-              className={!dateFrom && !dateTo ? 'is-active' : undefined}
-              onClick={showAll}
               type="button"
+              onClick={handlePresetAll}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                preset === 'all'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+              }`}
             >
               {copy.filterAll}
             </button>
             <button
-              aria-pressed={
-                dateFrom === '2026-10-01' && dateTo === '2026-10-31'
-              }
-              className={
-                dateFrom === '2026-10-01' && dateTo === '2026-10-31'
-                  ? 'is-active'
-                  : undefined
-              }
-              onClick={showCurrentMonth}
               type="button"
+              onClick={handlePresetMonth}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                preset === 'month'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+              }`}
             >
               {copy.filterMonth}
             </button>
-          </div>
-          <div className="order-date-fields">
-            <label>
-              {copy.dateFrom}
-              <input
-                max={dateTo || undefined}
-                onChange={(event) => setDateFrom(event.target.value)}
-                type="date"
-                value={dateFrom}
-              />
-            </label>
-            <label>
-              {copy.dateTo}
-              <input
-                min={dateFrom || undefined}
-                onChange={(event) => setDateTo(event.target.value)}
-                type="date"
-                value={dateTo}
-              />
-            </label>
-            <button onClick={showAll} type="button">
-              <RotateCcw aria-hidden="true" />
-              {copy.clearFilter}
+            <button
+              type="button"
+              onClick={handlePreset7Days}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                preset === '7days'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+              }`}
+            >
+              {copy.filter7Days}
             </button>
           </div>
         </div>
-      </article>
 
-      {order ? (
-        <div className="orders-layout">
-          <div className="order-list" aria-label={copy.title}>
-            {filteredOrders.map((item) => (
+        {/* Date Pickers */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span className="flex items-center gap-1 font-semibold text-slate-700">
+              <CalendarDays className="size-3.5 text-blue-600" />
+              <span>ช่วงวันที่:</span>
+            </span>
+            <input
+              type="date"
+              aria-label={copy.dateFrom}
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPreset('all');
+              }}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+            />
+            <span>ถึง</span>
+            <input
+              type="date"
+              aria-label={copy.dateTo}
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPreset('all');
+              }}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+            />
+            {(dateFrom || dateTo) && (
               <button
-                aria-current={order.id === item.id ? 'true' : undefined}
-                className={order.id === item.id ? 'is-active' : undefined}
-                key={item.id}
-                onClick={() => setSelectedOrderId(item.id)}
                 type="button"
+                onClick={handlePresetAll}
+                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors ml-1 cursor-pointer"
               >
-                <span className="activity-icon">
-                  <ReceiptText aria-hidden="true" />
-                </span>
-                <span>
-                  <strong>{item.merchant}</strong>
-                  <small>{item.date}</small>
-                  <small>{item.id}</small>
-                </span>
-                <strong>{item.amount}</strong>
+                <RotateCcw className="size-3" />
+                <span>{copy.clearFilter}</span>
               </button>
-            ))}
+            )}
           </div>
 
-          <article className="portal-card receipt-card">
-            <div className="receipt-heading">
-              <div>
-                <small>{copy.receiptTitle}</small>
-                <h2>{order.id}</h2>
-              </div>
-              <span className="portal-status">{copy.paid}</span>
-            </div>
-            <div className="receipt-merchant">
-              <strong>
-                {isPrimaryReceipt ? copy.merchantSnapshot : order.merchant}
-              </strong>
-              <small>{order.date}</small>
-            </div>
-            <div className="receipt-items">
-              {copy.itemSnapshots.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-            <dl>
-              <div>
-                <dt>{th.consumerPortal.payment.subtotal}</dt>
-                <dd>{isPrimaryReceipt ? copy.subtotal : order.amount}</dd>
-              </div>
-              <div>
-                <dt>{th.consumerPortal.payment.coupon}</dt>
-                <dd>{isPrimaryReceipt ? copy.discount : '-'}</dd>
-              </div>
-              <div className="receipt-total">
-                <dt>{th.consumerPortal.payment.finalAmount}</dt>
-                <dd>{order.amount}</dd>
-              </div>
-              <div>
-                <dt>{th.consumerPortal.payment.subsidyExpected}</dt>
-                <dd>{isPrimaryReceipt ? copy.subsidyPaid : '-'}</dd>
-              </div>
-              <div>
-                <dt>{th.consumerPortal.payment.personalExpected}</dt>
-                <dd>{isPrimaryReceipt ? copy.personalPaid : order.amount}</dd>
-              </div>
-            </dl>
-            {isPrimaryReceipt && (
-              <p className="receipt-coupon">{copy.coupon}</p>
-            )}
-            <p className="portal-safety-note">
-              <LockKeyhole aria-hidden="true" />
-              {copy.immutableNote}
-            </p>
-          </article>
+          <div className="text-xs text-slate-400 font-medium">
+            {copy.resultPrefix}{' '}
+            <strong className="text-slate-800 font-bold">
+              {filteredOrders.length}
+            </strong>{' '}
+            {copy.resultSuffix}
+          </div>
         </div>
-      ) : (
-        <div className="portal-card order-empty-state">
-          <CalendarDays aria-hidden="true" />
-          <p>{copy.noResults}</p>
-          <button onClick={showAll} type="button">
-            {copy.clearFilter}
+      </div>
+
+      {/* Orders List Section */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-24 rounded-3xl bg-white border border-slate-200/80 p-5 shadow-sm animate-pulse"
+            />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-sm font-semibold text-red-700 mb-2">{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchOrders()}
+            className="px-4 py-2 rounded-xl bg-red-600 text-xs font-bold text-white hover:bg-red-700 transition-colors cursor-pointer"
+          >
+            {copy.retry}
           </button>
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
+            <ShoppingBag className="size-7" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-1">
+            {copy.emptyTitle}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {copy.emptySubtitle}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredOrders.map((order) => (
+            <div
+              key={order.orderId}
+              onClick={() => handleOpenReceipt(order)}
+              className="group relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm hover:border-blue-300 hover:shadow-md transition-all cursor-pointer active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 border border-blue-100">
+                  <Store className="size-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      {order.merchantName}
+                    </h4>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 className="size-3" />
+                      <span>{copy.paid}</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {formatThaiDate(order.paidAt ?? order.createdAt)} ·{' '}
+                    <span className="font-mono text-slate-500">
+                      {order.receiptNumber}
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {order.itemCount} รายการสินค้า
+                    {order.appliedCoupon && (
+                      <span className="ml-2 inline-flex items-center text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                        ใช้คูปองส่วนลด
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Price & Action */}
+              <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                <div className="text-left sm:text-right">
+                  <p className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight font-mono">
+                    {formatCurrency(order.finalAmount)}
+                  </p>
+                  <p className="text-xs text-emerald-600 font-medium">
+                    รับสิทธิ์ร่วมจ่าย {formatCurrency(order.subsidyAmount)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                  <span>{copy.viewReceipt}</span>
+                  <ChevronRight className="size-4" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-    </section>
+
+      {/* Full Digital Receipt Modal */}
+      {selectedReceipt && (
+        <DigitalReceiptModal
+          receipt={selectedReceipt}
+          onClose={() => setSelectedReceipt(null)}
+        />
+      )}
+    </div>
   );
 }

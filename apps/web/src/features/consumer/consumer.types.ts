@@ -173,3 +173,72 @@ export type PaymentResultResponse = {
   paidAt: string;
 };
 
+export type ConsumerOrderItem = {
+  orderItemId: string;
+  productId: string;
+  productName: string;
+  categoryName?: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type ConsumerOrder = {
+  orderId: string;
+  receiptNumber: string;
+  status: string;
+  merchantId: string;
+  merchantName: string;
+  merchantAddress: string | null;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  createdAt: string;
+  paidAt: string | null;
+  itemCount: number;
+  items: ConsumerOrderItem[];
+  appliedCoupon: {
+    couponName: string;
+    discountValue: number;
+    discountType: string;
+  } | null;
+};
+
+export type ReceiptDetail = {
+  orderId: string;
+  receiptNumber: string;
+  status: string;
+  createdAt: string;
+  paidAt: string | null;
+  subtotal: number;
+  discountAmount: number;
+  finalAmount: number;
+  subsidyAmount: number;
+  userPaidAmount: number;
+  merchant: {
+    merchantId: string;
+    merchantName: string;
+    address: string;
+    phone: string | null;
+  };
+  consumer: {
+    fullName: string;
+    maskedCitizenId: string;
+  };
+  items: Array<{
+    orderItemId: string;
+    productId: string;
+    productName: string;
+    categoryName: string;
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
+  }>;
+  appliedCoupon: {
+    couponName: string;
+    discountValue: number;
+    discountType: string;
+  } | null;
+};

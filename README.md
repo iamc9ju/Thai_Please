@@ -25,7 +25,17 @@ Production-oriented foundation for an AI-powered local-spending, personalized-qu
 
 The web application defaults to `http://localhost:5173`. The API defaults to `http://localhost:4000/api/v1`, with liveness at `/health/live` and database readiness at `/health/ready` under that versioned prefix.
 
-Authentication uses an HTTP-only cookie. Set `JWT_SECRET` to a random value of at least 32 characters; the API intentionally has no fallback secret. Existing development accounts created with the former unversioned SHA-256 password format must be reset before they can sign in.
+Authentication uses an HTTP-only cookie (`access_token`). Set `JWT_SECRET` to a random value of at least 32 characters; the API intentionally has no fallback secret. Existing development accounts created with the former unversioned SHA-256 password format must be reset before they can sign in.
+
+## Implemented API Endpoints (`/api/v1`)
+
+- **Health**: `GET /health/live`, `GET /health/ready`
+- **Auth**: `POST /auth/register/customer`, `POST /auth/register/merchant`, `POST /auth/consumer/login`, `POST /auth/merchant/login`, `POST /auth/admin/login`, `POST /auth/logout`
+- **Users**: `GET /users/me`, `GET /users`, `GET /users/:id`, `POST /users`
+- **Consumer Wallet**: `GET /wallet/overview`, `GET /wallet/transactions`, `POST /wallet/topup`
+- **Consumer Orders & Payment**: `POST /consumer/orders/preview`, `POST /consumer/orders/pay`, `GET /consumer/orders`, `GET /consumer/orders/:id/receipt`
+- **Merchant Catalog & Orders**: `GET /catalog/categories`, `POST /catalog/categories`, `GET /merchant/products`, `POST /merchant/products`, `PUT /merchant/products/:id`, `DELETE /merchant/products/:id`, `POST /merchant/orders`, `GET /merchant/orders`, `GET /merchant/orders/:id/receipt`
+- **Quests**: `GET /consumer/quests`, `POST /admin/quests/generate`
 
 ## Quality gates
 

@@ -7,6 +7,7 @@ import type {
   PaymentResult,
   Product,
 } from '../merchant.types';
+import type { ReceiptDetail } from '../../consumer/consumer.types';
 
 const MERCHANT_API = '/api/v1/merchant';
 const CATALOG_API = '/api/v1/catalog';
@@ -42,6 +43,14 @@ export function createOrder(data: {
 
 export function getMerchantOrders(): Promise<MerchantOrder[]> {
   return apiClient.get<MerchantOrder[]>(`${MERCHANT_API}/orders`);
+}
+
+export function getMerchantOrderReceipt(
+  orderId: string,
+): Promise<ReceiptDetail> {
+  return apiClient.get<ReceiptDetail>(
+    `${MERCHANT_API}/orders/${encodeURIComponent(orderId)}/receipt`,
+  );
 }
 
 // ── Consumer QR Payment ───────────────────────────────────────────────────────

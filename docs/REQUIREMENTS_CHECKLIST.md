@@ -28,7 +28,7 @@
 6. รัน tests, typecheck, lint, format check และ build ที่เกี่ยวข้อง
 7. บันทึก evidence และ gap ที่เหลือในเอกสารนี้ก่อนติ๊ก `[x]`
 
-> สถานะปัจจุบัน: มี Postman Collection v2.1 สำหรับ API ที่ implement จริง 24 requests ที่
+> สถานะปัจจุบัน: มี Postman Collection v2.1 สำหรับ API ที่ implement จริง 27 requests ที่
 > `postman/Thai-Please.postman_collection.json` พร้อม Local environment และคู่มือใช้งาน
 > Requirement อื่นยังต้องมี contract/integration/E2E evidence ของตนก่อนประกาศ Complete
 
@@ -52,7 +52,7 @@
   - Gap Test: ยังขาด integration/negative security tests
 
 - [ ] **FR-AUTH-04 — Login — Partial**
-  - มี: แยก customer/merchant/admin login routes, session cookie, role guards และหน้า Login
+  - มี: แยก customer/merchant/admin login routes, session cookie, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
   - Gap UI/API: pending merchant tracking flow และ permission-denied UX ยังไม่ครบ
   - Gap Test: ยังขาด portal/session authorization integration และ E2E ครบสาม portal
 
@@ -129,15 +129,16 @@
   - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/api/src/order/order.service.spec.ts`
   - Gap Test: database integration สำหรับ duplicate/concurrent/rollback บน environment จริง
 
-- [ ] **FR-C06 — Order History and Receipt — Partial**
-  - มี recent paid orders ใน Overview และ UI history/receipt แบบ mock
-  - Gap API/UI: ไม่มี consumer history/receipt endpoints และ frontend integration ตาม contract
-  - Gap Test: snapshot/immutability/ownership integration และ E2E
+- [ ] **FR-C06 — Order History and Receipt — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/consumer/orders` (รองรับกรอง `dateFrom`/`dateTo`) และ `GET /api/v1/consumer/orders/:id/receipt` (ตรวจสอบสิทธิ์เจ้าของ order และคืน snapshot ใบเสร็จพร้อม masked citizenId)
+  - UI: `OrdersView.tsx` และ `DigitalReceiptModal.tsx` เชื่อมต่อ API จริง แสดงประวัติคำสั่งซื้อ ค้นหา/กรองตามสถานะและวันที่ และเปิดดูใบเสร็จรับเงินดิจิทัลฉบับเต็ม
+  - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/consumer/views/OrdersView.test.tsx`, `apps/web/src/features/consumer/pages/ConsumerDashboard.test.tsx`
+  - Gap Test: E2E ตรวจสอบ immutability ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-C07 — Personalized Quest — Partial**
   - มี quest data/assignment บางส่วนและ Overview แสดงข้อมูลจริง
-  - Gap API/Domain: deterministic one-order completion และ point issuance ยังไม่ครบ
-  - Gap UI/Test: quest detail/history ยัง mock; ขาด completion/idempotency integration/E2E
+  - Gap API/Domain: deterministic one-order completion และ point issuance เชื่อมกับ order payment แล้ว (`FR-S06`)
+  - Gap UI/Test: quest detail/history ในฝั่งเว็บบางส่วนยังต้องเชื่อม E2E ให้ครบ
 
 - [ ] **FR-C08 — Point — Partial**
   - มี point balance/schema และ Overview แสดงยอดจริง
@@ -167,13 +168,13 @@
   - Gap Test: server-side repricing, invalid/inactive product และ E2E
 
 - [ ] **FR-M04 — QR Generation — Partial**
-  - มี random QR token และ expiry สำหรับ order
+  - มี random QR token และ expiry สำหรับ order พร้อมปุ่มคัดลอกใน POS
   - Gap Security: database ยังเก็บ token ที่ค้นด้วยค่าตรง ไม่ใช่ hash-only ตาม requirement
   - Gap Test: unpredictability, expiry, replay และ one-order/one-payment integration
 
 - [ ] **FR-M05 — Payment Status — Partial**
-  - มี order status/backend payment commit และ merchant order listing
-  - Gap UI/API: status refresh/polling และ `DRAFT/CHECKED_OUT/PAID/EXPIRED` lifecycle ยังไม่ครบ
+  - มี order status/backend payment commit, merchant order listing และ auto-polling สถานะการชำระเงินในหน้า POS พร้อมแสดงหน้าชำระเงินสำเร็จและเปิดใบเสร็จดิจิทัลได้ทันที
+  - Gap UI/API: `DRAFT/CHECKED_OUT/PAID/EXPIRED` lifecycle เต็มรูปแบบและ E2E ยังไม่ครบ
   - Gap Test: ห้ามแสดง PAID ก่อน commit และ failure/retry E2E
 
 - [ ] **FR-M06 — Merchant Wallet — Partial**
@@ -186,36 +187,34 @@
     top products, trend และ freshness
   - Gap Test: ownership, aggregation correctness และ UI states
 
-- [ ] **FR-M08 — Order and Receipt History — Partial**
-  - มี merchant order listing และ UI บางส่วน
-  - Gap API/UI: receipt view, immutable snapshots, filters/pagination และ integration ยังไม่ครบ
-  - Gap Test: merchant ownership, paid-only receipt และ E2E
+- [ ] **FR-M08 — Order and Receipt History — Partial (Backend Receipt API & POS History Integrated)**
+  - API: `GET /api/v1/merchant/orders` และ `GET /api/v1/merchant/orders/:id/receipt` ตรวจสอบสิทธิ์ร้านค้าและแสดงใบเสร็จฉบับเต็ม
+  - UI: `MerchantPos.tsx` รองรับดูประวัติรายการขาย ค้นหา/กรองตามสถานะและวันที่ และเปิด `DigitalReceiptModal` ดูใบเสร็จย้อนหลังได้
+  - Gap Test: merchant ownership integration และ E2E
 
 ## System and AI Requirements
 
-- [ ] **FR-S01 — Quest Generation — Not started**
-  - Gap: ไม่มี AI/provider workflow ที่สร้าง personalized quest จากข้อมูลขั้นต่ำที่อนุญาต
-  - Gap Test: deterministic fallback, privacy boundary และ generation integration
+- [ ] **FR-S01 — Quest Generation — Partial**
+  - มี AI/provider workflow ที่สร้าง personalized quest จากข้อมูลขั้นต่ำที่อนุญาต
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-S02 — Provider Abstraction — Not started**
-  - Gap: ไม่มี provider interface/configuration/fallback implementation และ contract tests
+- [ ] **FR-S02 — Provider Abstraction — Partial**
+  - มี provider interface/configuration/fallback implementation และ unit tests
 
-- [ ] **FR-S03 — Output Validation — Not started**
-  - Gap: ไม่มี schema/allow-list/policy validation สำหรับ AI output และ negative tests
+- [ ] **FR-S03 — Output Validation — Partial**
+  - มี schema/allow-list/policy validation สำหรับ AI output และ negative tests
 
 - [ ] **FR-S04 — Generation Log — Partial**
-  - มี `quest_generation_logs` schema
-  - Gap API/Domain: ไม่มี generation service ที่เขียน log จริงหรือ admin query endpoint
-  - Gap Test: audit completeness, redaction และ replay traceability
+  - มี `quest_generation_logs` schema และการบันทึก log ใน generation service
+  - Gap API: admin query endpoint และ replay traceability E2E
 
 - [ ] **FR-S05 — Automatic Assignment — Partial**
-  - มี user quest schema/query และ assignment behavior บางส่วน
-  - Gap Domain: assignment จาก generation workflow, idempotency และ expiration lifecycle ยังไม่ครบ
-  - Gap Test: duplicate assignment และ E2E visibility
+  - มี user quest schema/query และ assignment behavior จาก generation workflow
+  - Gap Test: duplicate assignment และ E2E visibility บนฐานข้อมูลจริง
 
-- [ ] **FR-S06 — Deterministic Completion — Not started**
-  - Gap Domain: ไม่มี rule engine ที่พิสูจน์ completion จาก paid receipt หนึ่งใบและให้ reward ครั้งเดียว
-  - Gap Test: category/product/merchant/min-spend rules, expiry และ double reward
+- [ ] **FR-S06 — Deterministic Completion — Partial**
+  - มี rule engine (`quest-evaluation.ts`) ที่พิสูจน์ completion จาก paid receipt หนึ่งใบและให้ reward ครั้งเดียว พร้อม unit tests (`quest-evaluation.spec.ts`, `quests.service.spec.ts`)
+  - Gap Test: real PostgreSQL concurrent integration สำหรับ double reward
 
 ## Administrator Requirements
 

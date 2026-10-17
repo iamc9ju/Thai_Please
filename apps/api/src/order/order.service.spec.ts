@@ -6,6 +6,7 @@ import { OrderService } from './order.service.js';
 interface MockPrisma {
   order: {
     findUnique: Mock;
+    findFirst: Mock;
     update: Mock;
     create: Mock;
     findMany: Mock;
@@ -55,6 +56,7 @@ describe('OrderService payment', () => {
     prismaMock = {
       order: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         update: vi.fn(),
         create: vi.fn(),
         findMany: vi.fn(),
@@ -402,5 +404,113 @@ describe('OrderService payment', () => {
       service.createOrder(1n, { items: [{ productId: 1, quantity: 1 }] }),
     ).rejects.toThrow('ร้านค้ายังไม่มีกระเป๋าเงินที่พร้อมรับเงิน');
     expect(prismaMock.order.create).not.toHaveBeenCalled();
+  });
+
+  describe('FR-C06 & FR-M08: Orders and Receipts', () => {
+    it('listConsumerOrders returns mapped orders with items and merchant snapshot', async () => {
+      const now = new Date();
+      prismaMock.order.findMany.mockResolvedValueOnce([
+        {
+          orderId: 10n,
+          status: 'PAID',
+          subtotal: '200.00',
+          discountAmount: '20.00',
+          finalAmount: '180.00',
+          subsidyAmount: '90.00',
+          userPaidAmount: '90.00',
+          createdAt: now,
+          paidAt: now,
+          merchant: {
+            merchantId: 1n,
+            merchantName: 'ร้านครัวบ้านเรา',
+            address: 'เขตบางรัก',
+            phone: '0812345678',
+          },
+          orderItems: [
+            {
+              orderItemId: 101n,
+              productId: 5n,
+              productNameSnapshot: 'ข้าวกะเพรา',
+              unitPrice: '60.00',
+              quantity: 2,
+              lineTotal: '120.00',
+              category: { categoryName: 'อาหาร' },
+            },
+          ],
+          appliedUserCoupon: {
+            coupon: {
+              couponName: 'ลด 20 บาท',
+              discountValue: '20.00',
+              discountType: 'FIXED',
+            },
+          },
+        },
+      ]);
+
+      const result = await service.listConsumerOrders(100n);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].orderId).toBe('10');
+      expect(result[0].receiptNumber).toBe('TP-000010');
+      expect(result[0].merchantName).toBe('ร้านครัวบ้านเรา');
+      expect(result[0].finalAmount).toBe(180);
+      expect(result[0].items[0].productName).toBe('ข้าวกะเพรา');
+      expect(result[0].appliedCoupon?.couponName).toBe('ลด 20 บาท');
+    });
+
+    it('getConsumerReceipt returns receipt and throws NotFoundException when order not found', async () => {
+      const now = new Date();
+      prismaMock.order.findFirst.mockResolvedValueOnce({
+        orderId: 10n,
+        status: 'PAID',
+        subtotal: '100.00',
+        discountAmount: '0.00',
+        finalAmount: '100.00',
+        subsidyAmount: '50.00',
+        userPaidAmount: '50.00',
+        createdAt: now,
+        paidAt: now,
+        merchant: {
+          merchantId: 1n,
+          merchantName: 'ร้านค้าชุมชน',
+          address: 'กรุงเทพฯ',
+          phone: null,
+        },
+        user: {
+          fullName: 'สมชาย รักชาติ',
+          citizenId: '1100000000001',
+        },
+        orderItems: [
+          {
+            orderItemId: 1n,
+            productId: 1n,
+            productNameSnapshot: 'น้ำดื่ม',
+            unitPrice: '10.00',
+            quantity: 10,
+            lineTotal: '100.00',
+            category: { categoryName: 'เครื่องดื่ม' },
+          },
+        ],
+        appliedUserCoupon: null,
+      });
+
+      const receipt = await service.getConsumerReceipt(100n, 10n);
+      expect(receipt.orderId).toBe('10');
+      expect(receipt.consumer.fullName).toBe('สมชาย รักชาติ');
+      expect(receipt.consumer.maskedCitizenId).toBe('1-XXXX-XXXXX-00-1');
+      expect(receipt.items).toHaveLength(1);
+
+      prismaMock.order.findFirst.mockResolvedValueOnce(null);
+      await expect(service.getConsumerReceipt(100n, 999n)).rejects.toThrow(
+        'ไม่พบคำสั่งซื้อหรือไม่มีสิทธิ์เข้าถึงใบเสร็จนี้',
+      );
+    });
+
+    it('getMerchantReceipt returns receipt and throws NotFoundException when order not found', async () => {
+      prismaMock.order.findFirst.mockResolvedValueOnce(null);
+      await expect(service.getMerchantReceipt(1n, 999n)).rejects.toThrow(
+        'ไม่พบคำสั่งซื้อหรือไม่มีสิทธิ์เข้าถึงใบเสร็จนี้',
+      );
+    });
   });
 });

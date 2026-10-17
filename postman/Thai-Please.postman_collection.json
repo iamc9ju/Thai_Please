@@ -920,7 +920,40 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); const first = Array.isArray(json) ? json[0] : null; if (first && first.orderId) pm.environment.set('orderId', first.orderId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Merchant Order Receipt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/orders/{{orderId}}/receipt",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "merchant",
+                "orders",
+                "{{orderId}}",
+                "receipt"
+              ]
+            },
+            "description": "MERCHANT เท่านั้น | FR-M08 ดูใบเสร็จรับเงินฉบับเต็มของ Order ในร้านตนเอง | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มีข้อมูลใบเสร็จและร้านค้า', () => { const json = pm.response.json(); pm.expect(json).to.have.property('receiptNumber'); pm.expect(json).to.have.property('merchant'); pm.expect(json).to.have.property('items'); });"
                 ]
               }
             }
@@ -931,7 +964,7 @@
     },
     {
       "name": "Consumer Payment",
-      "description": "Consumer preview และจ่ายจาก QR token ที่ Merchant สร้าง",
+      "description": "Consumer preview, จ่ายจาก QR token และดูประวัติคำสั่งซื้อ/ใบเสร็จรับเงินดิจิทัล",
       "item": [
         {
           "name": "Preview Order",
@@ -988,6 +1021,77 @@
                   "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
                   "pm.test('ชำระสำเร็จ', () => pm.expect(pm.response.json().success).to.eql(true));",
                   "const json = pm.response.json(); if (json.orderId) pm.environment.set('orderId', json.orderId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Consumer Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "orders"],
+              "query": [
+                {
+                  "key": "dateFrom",
+                  "value": "{{orderDateFrom}}",
+                  "disabled": true
+                },
+                {
+                  "key": "dateTo",
+                  "value": "{{orderDateTo}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C06 ดูประวัติคำสั่งซื้อของตนเอง พร้อมกรองวันที่ dateFrom/dateTo | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('คืนค่าเป็น array', () => pm.expect(json).to.be.an('array'));",
+                  "const first = Array.isArray(json) ? json[0] : null; if (first && first.orderId) pm.environment.set('orderId', first.orderId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Consumer Order Receipt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/orders/{{orderId}}/receipt",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "consumer",
+                "orders",
+                "{{orderId}}",
+                "receipt"
+              ]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C06 ดูใบเสร็จรับเงินดิจิทัลฉบับเต็มของ Order ตนเอง | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มีข้อมูลใบเสร็จและผู้ซื้อแบบ mask', () => { const json = pm.response.json(); pm.expect(json).to.have.property('receiptNumber'); pm.expect(json).to.have.property('consumer'); pm.expect(json).to.have.property('items'); });"
                 ]
               }
             }

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createOrder,
   createProduct,
   getCategories,
+  getMerchantOrderReceipt,
   getMerchantOrders,
   getMyProducts,
 } from '../api/merchant.api';
@@ -13,6 +14,16 @@ import type {
   MerchantOrder,
   Product,
 } from '../merchant.types';
+import type { ReceiptDetail } from '../../consumer/consumer.types';
+import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  FileText,
+  Search,
+  TrendingUp,
+} from 'lucide-react';
 import QRCode from 'qrcode';
 
 type PosView = 'pos' | 'qr' | 'orders';
@@ -563,7 +574,9 @@ export function MerchantPos({
                           type="button"
                           id="copy-token-btn"
                           onClick={() => {
-                            void navigator.clipboard.writeText(createdOrder.qrToken);
+                            void navigator.clipboard.writeText(
+                              createdOrder.qrToken,
+                            );
                             setCopiedToken(true);
                             setTimeout(() => setCopiedToken(false), 2000);
                           }}
@@ -580,7 +593,9 @@ export function MerchantPos({
                         {createdOrder.qrToken}
                       </p>
                       <p className="mt-2 text-[11px] text-slate-400">
-                        💡 คัดลอกรหัสนี้ไปวางในเมนู <strong>"สแกน / ชำระเงิน"</strong> ฝั่งประชาชนเพื่อทดสอบชำระเงิน
+                        💡 คัดลอกรหัสนี้ไปวางในเมนู{' '}
+                        <strong>"สแกน / ชำระเงิน"</strong>{' '}
+                        ฝั่งประชาชนเพื่อทดสอบชำระเงิน
                       </p>
                     </div>
                   )}
@@ -646,8 +661,17 @@ function MerchantOrdersList() {
   const [orders, setOrders] = useState<MerchantOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING'>(
+    'ALL',
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptDetail | null>(
+    null,
+  );
+  const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOrders = () => {
+    setIsLoading(true);
     getMerchantOrders()
       .then(setOrders)
       .catch((caughtError: unknown) => {
@@ -658,6 +682,10 @@ function MerchantOrdersList() {
         );
       })
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, []);
 
   const formatCurrency = (n: number) =>
@@ -666,9 +694,51 @@ function MerchantOrdersList() {
       currency: 'THB',
     }).format(n);
 
+  const handleOpenReceipt = async (orderId: string) => {
+    setLoadingReceiptId(orderId);
+    try {
+      const receipt = await getMerchantOrderReceipt(orderId);
+      setSelectedReceipt(receipt);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'ไม่สามารถเปิดใบเสร็จได้');
+    } finally {
+      setLoadingReceiptId(null);
+    }
+  };
+
+  // Stats
+  const stats = useMemo(() => {
+    const paidOrders = orders.filter((o) => o.status === 'PAID');
+    const totalSales = paidOrders.reduce((sum, o) => sum + o.finalAmount, 0);
+    const paidCount = paidOrders.length;
+    const pendingCount = orders.filter((o) => o.status !== 'PAID').length;
+    return { totalSales, paidCount, pendingCount };
+  }, [orders]);
+
+  // Filtered orders
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Status filter
+      if (statusFilter === 'PAID' && order.status !== 'PAID') return false;
+      if (statusFilter === 'PENDING' && order.status === 'PAID') return false;
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesId = order.orderId.toLowerCase().includes(query);
+        const matchesName = (order.consumerName ?? '')
+          .toLowerCase()
+          .includes(query);
+        if (!matchesId && !matchesName) return false;
+      }
+
+      return true;
+    });
+  }, [orders, statusFilter, searchQuery]);
+
   if (isLoading) {
     return (
-      <div className="flex h-48 items-center justify-center">
+      <div className="flex h-64 items-center justify-center">
         <div className="size-8 animate-spin rounded-full border-4 border-orange-500 border-r-transparent" />
       </div>
     );
@@ -676,65 +746,223 @@ function MerchantOrdersList() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-        {error}
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-center">
+        <p className="text-sm font-semibold text-red-400 mb-2">{error}</p>
+        <button
+          onClick={fetchOrders}
+          className="rounded-xl bg-red-500/20 px-4 py-2 text-xs font-bold text-red-300 hover:bg-red-500/30 transition-colors cursor-pointer"
+        >
+          ลองใหม่อีกครั้ง
+        </button>
       </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="mb-4 text-sm font-semibold text-white">
-        📋 ประวัติ Orders
-      </h2>
-      {orders.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-700 text-slate-500">
-          <span className="text-3xl">📋</span>
-          <p className="text-sm">ยังไม่มี Order</p>
+    <div className="space-y-6">
+      {/* Top Header & Refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <span>📋</span> ประวัติคำสั่งซื้อและยอดขาย
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            บันทึกคำสั่งซื้อทั้งหมดของร้านค้า ตรวจสอบยอดเงิน
+            และเรียกดูใบเสร็จย้อนหลัง
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={fetchOrders}
+          className="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+        >
+          ↻ รีเฟรชข้อมูล
+        </button>
+      </div>
+
+      {/* KPI Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Total Sales */}
+        <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800/80 p-4">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>ยอดขายที่ชำระแล้ว</span>
+            <TrendingUp className="size-4 text-emerald-400" />
+          </div>
+          <p className="mt-2 text-xl font-black text-orange-400">
+            {formatCurrency(stats.totalSales)}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            รวมเงินสนับสนุนและเงินลูกค้า
+          </p>
+        </div>
+
+        {/* Paid Orders */}
+        <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800/80 p-4">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>ชำระสำเร็จ</span>
+            <CheckCircle2 className="size-4 text-emerald-400" />
+          </div>
+          <p className="mt-2 text-xl font-black text-emerald-400">
+            {stats.paidCount}{' '}
+            <span className="text-xs font-normal text-slate-400">ออเดอร์</span>
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            ออกใบเสร็จและบันทึกสมบูรณ์
+          </p>
+        </div>
+
+        {/* Pending Orders */}
+        <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800/80 p-4">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>รอลูกค้าชำระเงิน</span>
+            <Clock className="size-4 text-amber-400" />
+          </div>
+          <p className="mt-2 text-xl font-black text-amber-400">
+            {stats.pendingCount}{' '}
+            <span className="text-xs font-normal text-slate-400">ออเดอร์</span>
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            สร้าง QR แล้วแต่ยังไม่ชำระ
+          </p>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+        {/* Search */}
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ค้นหา Order # หรือชื่อลูกค้า..."
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Status Pills */}
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          {(
+            [
+              { id: 'ALL', label: 'ทั้งหมด' },
+              { id: 'PAID', label: '✓ ชำระแล้ว' },
+              { id: 'PENDING', label: '⏳ รอชำระ' },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setStatusFilter(t.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                statusFilter === t.id
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Orders List */}
+      {filteredOrders.length === 0 ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
+          <FileText className="size-8 text-slate-600" />
+          <p className="text-sm">ไม่พบรายการคำสั่งซื้อ</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {orders.map((order) => (
+        <div className="space-y-2.5">
+          {filteredOrders.map((order) => (
             <div
               key={order.orderId}
-              className="flex items-center gap-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 px-4 py-3 transition-colors hover:bg-slate-800"
+              className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 hover:border-slate-700 hover:bg-slate-900 transition-all"
             >
-              <div
-                className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-sm ${
-                  order.status === 'PAID'
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-amber-500/20 text-amber-400'
-                }`}
-              >
-                {order.status === 'PAID' ? '✓' : '⏳'}
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
+                    order.status === 'PAID'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  }`}
+                >
+                  {order.status === 'PAID' ? '✓' : '⏳'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-white">
+                      Order #{order.orderId}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        order.status === 'PAID'
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-amber-500/10 text-amber-400'
+                      }`}
+                    >
+                      {order.status === 'PAID' ? 'ชำระแล้ว' : 'รอชำระ'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {order.consumerName
+                      ? `ลูกค้า: ${order.consumerName}`
+                      : 'รอลูกค้าสแกน'}{' '}
+                    · {order.itemCount} รายการ
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    เวลา:{' '}
+                    {order.paidAt
+                      ? new Date(order.paidAt).toLocaleTimeString('th-TH', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }) + ' น.'
+                      : new Date(order.createdAt).toLocaleTimeString('th-TH', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }) + ' น.'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white">
-                  Order #{order.orderId}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {order.consumerName ?? 'รอลูกค้า'} · {order.itemCount} รายการ
-                </p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-orange-400">
-                  {formatCurrency(order.finalAmount)}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {order.paidAt
-                    ? new Date(order.paidAt).toLocaleTimeString('th-TH', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : new Date(order.createdAt).toLocaleTimeString('th-TH', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                </p>
+
+              <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                <div className="text-left sm:text-right">
+                  <p className="text-base font-extrabold text-orange-400 font-mono">
+                    {formatCurrency(order.finalAmount)}
+                  </p>
+                  {order.status === 'PAID' && (
+                    <p className="text-[11px] text-emerald-400 font-medium">
+                      สิทธิ์ร่วมจ่าย {formatCurrency(order.subsidyAmount)}
+                    </p>
+                  )}
+                </div>
+
+                {order.status === 'PAID' && (
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenReceipt(order.orderId)}
+                    disabled={loadingReceiptId === order.orderId}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <Eye className="size-3.5" />
+                    <span>
+                      {loadingReceiptId === order.orderId
+                        ? 'กำลังโหลด...'
+                        : 'ดูใบเสร็จ'}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Modal Receipt for Merchant */}
+      {selectedReceipt && (
+        <DigitalReceiptModal
+          receipt={selectedReceipt}
+          onClose={() => setSelectedReceipt(null)}
+        />
       )}
     </div>
   );
