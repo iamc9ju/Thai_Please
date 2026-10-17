@@ -404,8 +404,9 @@ export const th = {
       activeTab: 'กำลังทำ',
       historyTab: 'ประวัติภารกิจ',
       historyDescription:
-        'ภารกิจที่สำเร็จแล้ว พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
+        'ภารกิจที่สำเร็จแล้วหรือหมดอายุ พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
       receiptLabel: 'ใบเสร็จอ้างอิง',
+      viewReceipt: 'ดูใบเสร็จ',
       emptyActive: 'ยังไม่มีภารกิจที่กำลังทำในขณะนี้',
       emptyHistory: 'ยังไม่มีประวัติภารกิจ',
       loading: 'กำลังโหลดข้อมูลภารกิจ...',
@@ -416,8 +417,12 @@ export const th = {
       rewardPrefix: '+',
       pointsSuffix: 'พอยต์',
       expiryPrefix: 'หมดเขต',
+      assignedPrefix: 'มอบหมายเมื่อ',
       completedPrefix: 'สำเร็จเมื่อ',
       defaultProgress: 'ยังไม่มีใบเสร็จที่ผ่านเงื่อนไข',
+      totalActiveLabel: 'ภารกิจกำลังทำ',
+      totalCompletedLabel: 'ภารกิจสำเร็จแล้ว',
+      totalPointsEarnedLabel: 'พอยต์สะสมจากภารกิจ',
       spendMinSpendCondition: (amount: string) =>
         `ซื้อสินค้าครบ ${amount} บาทในหนึ่งบิล`,
       categorySpendCondition: (category: string, amount: string) =>
@@ -480,10 +485,40 @@ export const th = {
     rewards: {
       eyebrow: 'FR-C08 · FR-C09',
       title: 'พอยต์และคูปอง',
-      description: 'ตรวจสอบที่มาของพอยต์ แลกคูปอง และดูสิทธิ์ที่พร้อมใช้',
+      description: 'ตรวจสอบที่มาของพอยต์ แลกคูปองส่วนลด และดูสิทธิ์ที่พร้อมใช้',
       pointBalance: 'พอยต์คงเหลือ',
       expiring: '50 พอยต์จะหมดอายุ 31 ธ.ค. 2569',
+      expiringSoonFormat: (points: number, dateStr: string) =>
+        `${points.toLocaleString('th-TH')} พอยต์จะหมดอายุวันที่ ${dateStr}`,
+      noExpiringPoints: 'ไม่มีพอยต์ที่ใกล้หมดอายุใน 30 วันข้างหน้า',
       pointHistory: 'ประวัติพอยต์',
+      emptyPointHistory: 'ยังไม่มีประวัติการได้รับหรือใช้พอยต์',
+      loading: 'กำลังโหลดข้อมูลพอยต์และคูปอง...',
+      loadError: 'ไม่สามารถโหลดข้อมูลพอยต์และคูปองได้',
+      retry: 'ลองใหม่อีกครั้ง',
+      permissionDenied: 'ไม่มีสิทธิ์เข้าถึงข้อมูลพอยต์และคูปอง',
+      questRewardLabel: 'รางวัลภารกิจสำเร็จ',
+      couponRedeemLabel: 'แลกคูปองส่วนลด',
+      pointExpireLabel: 'พอยต์หมดอายุ',
+      pointExpiresPrefix: 'หมดอายุ',
+      myCoupons: 'คูปองของฉัน',
+      emptyMyCoupons:
+        'ยังไม่มีคูปองในกระเป๋า สามารถใช้พอยต์แลกคูปองได้ด้านล่าง',
+      catalogue: 'แลกคูปองส่วนลด',
+      emptyCatalogue: 'ยังไม่มีรายการคูปองที่เปิดให้แลกในขณะนี้',
+      availableBadge: 'พร้อมใช้',
+      usedBadge: 'ใช้แล้ว',
+      expiredBadge: 'หมดอายุ',
+      allMerchants: 'ใช้ได้ทุกร้านที่ร่วมรายการ',
+      minPurchaseCondition: (min: string) => `เมื่อซื้อขั้นต่ำ ฿${min}`,
+      noMinPurchase: 'ไม่มีขั้นต่ำในการสั่งซื้อ',
+      validityDaysNote: (days: number) => `อายุคูปอง ${days} วันหลังแลก`,
+      useNowAction: 'นำไปสแกนจ่ายเงิน',
+      insufficientPoints: 'พอยต์ไม่พอ',
+      redeeming: 'กำลังแลก...',
+      redeemSuccess: (name: string, points: number) =>
+        `แลกคูปอง "${name}" สำเร็จ (หัก ${points.toLocaleString('th-TH')} พอยต์)`,
+      redeemError: 'ไม่สามารถแลกคูปองได้ กรุณาลองใหม่อีกครั้ง',
       pointItems: [
         {
           title: 'รางวัลภารกิจช้อปชุมชน',
@@ -493,8 +528,6 @@ export const th = {
         { title: 'แลกคูปองส่วนลด', detail: '7 ต.ค. 2569', amount: '-100' },
         { title: 'รางวัลภารกิจอาหารไทย', detail: '3 ต.ค. 2569', amount: '+50' },
       ],
-      myCoupons: 'คูปองของฉัน',
-      catalogue: 'แลกคูปอง',
       couponItems: [
         {
           title: 'ลด 20 บาท',

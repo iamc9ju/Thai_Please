@@ -23,6 +23,7 @@ import { QuestsService } from './quests.service.js';
 
 export const QUEST_ROUTES = {
   list: 'quests',
+  consumerList: 'consumer/quests',
   generate: 'admin/quests/generate',
 } as const;
 const databaseId = z
@@ -57,7 +58,7 @@ export class QuestsController {
     private readonly config: ConfigService,
   ) {}
 
-  @Get(QUEST_ROUTES.list)
+  @Get([QUEST_ROUTES.list, QUEST_ROUTES.consumerList])
   @Roles('CONSUMER')
   @ApiOperation({
     summary: 'Read own quest assignments with cursor pagination',

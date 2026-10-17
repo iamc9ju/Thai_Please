@@ -14,6 +14,7 @@ import { QuestsView } from './QuestsView';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerQuests: vi.fn(),
+  getOrderReceipt: vi.fn(),
 }));
 
 const mockedGetConsumerQuests = vi.mocked(consumerApi.getConsumerQuests);
@@ -103,7 +104,7 @@ describe('QuestsView (FR-C07)', () => {
     expect(
       screen.getByText(th.consumerPortal.quests.historyDescription),
     ).toBeInTheDocument();
-    expect(screen.getByText('+50 พอยต์')).toBeInTheDocument();
+    expect(screen.getAllByText('+50 พอยต์').length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByText(th.consumerPortal.quests.completed),
     ).toBeInTheDocument();

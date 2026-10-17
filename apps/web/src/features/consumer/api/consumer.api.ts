@@ -1,19 +1,24 @@
 import { apiClient } from '../../../lib/api-client';
 import type {
+  ConsumerCouponsResponse,
   ConsumerOrder,
   ConsumerOverviewResponse,
+  ConsumerPointsResponse,
   ConsumerQuestListResponse,
   OrderPreviewResponse,
   PaymentResultResponse,
   ReceiptDetail,
+  RedeemCouponResponse,
   TopUpResponse,
   WalletTransactionHistoryQuery,
   WalletTransactionHistoryResponse,
 } from '../consumer.types';
 
 const WALLET_API_PATH = '/api/v1/wallet';
-const QUEST_API_PATH = '/api/v1/quests';
+const QUEST_API_PATH = '/api/v1/consumer/quests';
 const ORDER_API_PATH = '/api/v1/consumer/orders';
+const POINTS_API_PATH = '/api/v1/consumer/points';
+const COUPONS_API_PATH = '/api/v1/consumer/coupons';
 
 export function getConsumerQuests(
   cursor?: string,
@@ -24,6 +29,32 @@ export function getConsumerQuests(
   return apiClient.get<ConsumerQuestListResponse>(
     `${QUEST_API_PATH}${queryString}`,
     requestOptions,
+  );
+}
+
+export function getConsumerPoints(
+  signal?: AbortSignal,
+): Promise<ConsumerPointsResponse> {
+  const requestOptions: RequestInit = signal ? { signal } : {};
+  return apiClient.get<ConsumerPointsResponse>(POINTS_API_PATH, requestOptions);
+}
+
+export function getConsumerCoupons(
+  signal?: AbortSignal,
+): Promise<ConsumerCouponsResponse> {
+  const requestOptions: RequestInit = signal ? { signal } : {};
+  return apiClient.get<ConsumerCouponsResponse>(
+    COUPONS_API_PATH,
+    requestOptions,
+  );
+}
+
+export function redeemConsumerCoupon(
+  couponId: string,
+): Promise<RedeemCouponResponse> {
+  return apiClient.post<RedeemCouponResponse>(
+    `${COUPONS_API_PATH}/${encodeURIComponent(couponId)}/redeem`,
+    {},
   );
 }
 

@@ -478,6 +478,7 @@ export class QuestsRepository {
         assignedAt: true,
         expiresAt: true,
         completedAt: true,
+        completedOrderId: true,
         quest: {
           select: {
             questName: true,
@@ -503,6 +504,10 @@ export class QuestsRepository {
       assignedAt: r.assignedAt.toISOString(),
       expiresAt: r.expiresAt.toISOString(),
       completedAt: r.completedAt?.toISOString() ?? null,
+      completedOrderId: r.completedOrderId?.toString() ?? null,
+      receiptNumber: r.completedOrderId
+        ? `TP-${r.completedOrderId.toString().padStart(6, '0')}`
+        : null,
       type: r.quest.questType,
       targetCategoryId: r.quest.targetCategoryId?.toString() ?? null,
       targetCategoryName: r.quest.category?.categoryName ?? null,

@@ -1099,6 +1099,127 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Consumer Quests, Points & Coupons",
+      "description": "FR-C07, FR-C08 และ FR-C09 สำหรับดูภารกิจ ประวัติพอยต์ และแลกคูปองส่วนลด",
+      "item": [
+        {
+          "name": "Get Consumer Quests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/quests",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "quests"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C07 ดูรายการภารกิจที่กำลังทำและประวัติภารกิจ | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('มีรายการ items', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Consumer Points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/points",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "points"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C08 ดูพอยต์คงเหลือ พอยต์ที่ใกล้หมดอายุ และประวัติ point_transactions | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มียอดพอยต์และประวัติ', () => { pm.expect(json).to.have.property('pointBalance'); pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Consumer Coupons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/coupons",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "consumer", "coupons"]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C09 ดูรายการคูปองที่เปิดให้แลก (catalogue) และคูปองของฉัน (ownedCoupons) | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('มี catalogue และ ownedCoupons', () => { pm.expect(json.catalogue).to.be.an('array'); pm.expect(json.ownedCoupons).to.be.an('array'); });",
+                  "const first = Array.isArray(json.catalogue) ? json.catalogue[0] : null; if (first && first.couponId) pm.environment.set('couponId', first.couponId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Redeem Coupon with Points",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/consumer/coupons/{{couponId}}/redeem",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "consumer",
+                "coupons",
+                "{{couponId}}",
+                "redeem"
+              ]
+            },
+            "description": "CONSUMER เท่านั้น | FR-C09 ใช้พอยต์แลกคูปองส่วนลดแบบ Atomic Transaction | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json(); pm.test('แลกคูปองสำเร็จ', () => { pm.expect(json.success).to.eql(true); pm.expect(json).to.have.property('userCoupon'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
     }
   ]
 }

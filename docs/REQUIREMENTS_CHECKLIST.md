@@ -28,7 +28,7 @@
 6. รัน tests, typecheck, lint, format check และ build ที่เกี่ยวข้อง
 7. บันทึก evidence และ gap ที่เหลือในเอกสารนี้ก่อนติ๊ก `[x]`
 
-> สถานะปัจจุบัน: มี Postman Collection v2.1 สำหรับ API ที่ implement จริง 27 requests ที่
+> สถานะปัจจุบัน: มี Postman Collection v2.1 สำหรับ API ที่ implement จริง 31 requests ที่
 > `postman/Thai-Please.postman_collection.json` พร้อม Local environment และคู่มือใช้งาน
 > Requirement อื่นยังต้องมี contract/integration/E2E evidence ของตนก่อนประกาศ Complete
 
@@ -135,20 +135,23 @@
   - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/consumer/views/OrdersView.test.tsx`, `apps/web/src/features/consumer/pages/ConsumerDashboard.test.tsx`
   - Gap Test: E2E ตรวจสอบ immutability ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-C07 — Personalized Quest — Partial**
-  - มี quest data/assignment บางส่วนและ Overview แสดงข้อมูลจริง
-  - Gap API/Domain: deterministic one-order completion และ point issuance เชื่อมกับ order payment แล้ว (`FR-S06`)
-  - Gap UI/Test: quest detail/history ในฝั่งเว็บบางส่วนยังต้องเชื่อม E2E ให้ครบ
+- [ ] **FR-C07 — Personalized Quest — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/consumer/quests` (และ `/api/v1/quests`) คืนรายการภารกิจที่กำลังทำ ประวัติภารกิจที่สำเร็จ/หมดอายุ วันหมดอายุ แต้มที่ได้รับ และเลขอ้างอิงใบเสร็จ (`completedOrderId`/`receiptNumber`)
+  - UI: `QuestsView.tsx` (Blue Theme) แสดง KPI ภารกิจ แท็บกำลังทำ/ประวัติภารกิจ และปุ่มกดดูใบเสร็จดิจิทัลของบิลที่ทำภารกิจสำเร็จ
+  - Evidence: `apps/api/src/quests/quests.controller.spec.ts`, `apps/api/src/quests/quests.service.spec.ts`, `apps/web/src/features/consumer/views/QuestsView.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-C08 — Point — Partial**
-  - มี point balance/schema และ Overview แสดงยอดจริง
-  - Gap API/UI: ไม่มี point history/source/expiry API และหน้าจอยัง mock
-  - Gap Test: ledger reconciliation, expiry และ double-reward integration/E2E
+- [ ] **FR-C08 — Point — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/consumer/points` (และ `/api/v1/points`) คืนยอด `pointBalance`, พอยต์ที่ใกล้หมดอายุใน 30 วัน และประวัติ `point_transactions` พร้อมแหล่งที่มา (ภารกิจ/คูปอง) และวันหมดอายุ
+  - UI: `CouponsView.tsx` (Blue Theme) แสดงยอดพอยต์ แจ้งเตือนพอยต์ใกล้หมดอายุ และรายการประวัติพอยต์จริงจาก API
+  - Evidence: `apps/api/src/rewards/rewards.service.spec.ts`, `apps/web/src/features/consumer/views/CouponsView.test.tsx`
+  - Gap Test: database integration สำหรับ point expiry job
 
-- [ ] **FR-C09 — Coupon — Partial**
-  - มี coupon schema, payment eligibility/use และ Overview แสดง owned coupons
-  - Gap API/UI: ไม่มี catalogue/redeem endpoints และ frontend redemption/payment selection จริง
-  - Gap Test: point redemption, ownership, expiry และ double-use E2E
+- [ ] **FR-C09 — Coupon — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/consumer/coupons` (รายการคูปองที่เปิดให้แลก + คูปองของฉัน) และ `POST /api/v1/consumer/coupons/:id/redeem` แลกพอยต์เป็นคูปองแบบ Atomic Transaction (Row Lock ผู้ใช้, ตรวจพอยต์, หักพอยต์, สร้าง `point_transactions` และ `user_coupons`)
+  - UI: `CouponsView.tsx` (Blue Theme) แสดงคูปองของฉันพร้อมสถานะ (`AVAILABLE`/`USED`/`EXPIRED`), แค็ตตาล็อกแลกคูปอง, ปุ่มกดแลกคูปองพร้อมอัปเดตยอดทันที และปุ่มนำไปใช้สแกนจ่ายเงินใน `PaymentView.tsx`
+  - Evidence: `apps/api/src/rewards/rewards.service.spec.ts`, `apps/web/src/features/consumer/views/CouponsView.test.tsx`
+  - Gap Test: E2E แลกพอยต์และใช้คูปองลดราคาบนฐานข้อมูลจริง
 
 ## Merchant Requirements
 

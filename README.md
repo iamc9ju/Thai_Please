@@ -34,8 +34,9 @@ Authentication uses an HTTP-only cookie (`access_token`). Set `JWT_SECRET` to a 
 - **Users**: `GET /users/me`, `GET /users`, `GET /users/:id`, `POST /users`
 - **Consumer Wallet**: `GET /wallet/overview`, `GET /wallet/transactions`, `POST /wallet/topup`
 - **Consumer Orders & Payment**: `POST /consumer/orders/preview`, `POST /consumer/orders/pay`, `GET /consumer/orders`, `GET /consumer/orders/:id/receipt`
+- **Consumer Quests, Points & Coupons**: `GET /consumer/quests` (alias `GET /quests`), `GET /consumer/points` (alias `GET /points`), `GET /consumer/coupons` (alias `GET /coupons`), `POST /consumer/coupons/:id/redeem` (alias `POST /coupons/:id/redeem`)
 - **Merchant Catalog & Orders**: `GET /catalog/categories`, `POST /catalog/categories`, `GET /merchant/products`, `POST /merchant/products`, `PUT /merchant/products/:id`, `DELETE /merchant/products/:id`, `POST /merchant/orders`, `GET /merchant/orders`, `GET /merchant/orders/:id/receipt`
-- **Quests**: `GET /consumer/quests`, `POST /admin/quests/generate`
+- **Admin Quests**: `POST /admin/quests/generate`
 
 ## Quality gates
 

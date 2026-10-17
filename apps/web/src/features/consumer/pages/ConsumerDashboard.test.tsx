@@ -20,6 +20,9 @@ import { ConsumerDashboard } from './ConsumerDashboard';
 vi.mock('../api/consumer.api', () => ({
   getConsumerOverview: vi.fn(),
   getConsumerQuests: vi.fn(),
+  getConsumerPoints: vi.fn(),
+  getConsumerCoupons: vi.fn(),
+  redeemConsumerCoupon: vi.fn(),
   getWalletTransactions: vi.fn(),
   topUpPersonalWallet: vi.fn(),
   previewOrder: vi.fn(),

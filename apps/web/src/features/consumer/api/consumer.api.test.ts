@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../lib/api-client';
-import { getConsumerQuests, getWalletTransactions } from './consumer.api';
+import {
+  getConsumerCoupons,
+  getConsumerPoints,
+  getConsumerQuests,
+  getWalletTransactions,
+  redeemConsumerCoupon,
+} from './consumer.api';
 
 vi.mock('../../../lib/api-client', () => ({
   apiClient: {
@@ -10,13 +16,16 @@ vi.mock('../../../lib/api-client', () => ({
 }));
 
 const mockedGet = vi.mocked(apiClient.get);
+const mockedPost = vi.mocked(apiClient.post);
 
 beforeEach(() => {
   mockedGet.mockReset();
   mockedGet.mockResolvedValue({ items: [], nextCursor: null });
+  mockedPost.mockReset();
+  mockedPost.mockResolvedValue({ success: true });
 });
 
-describe('consumer wallet API', () => {
+describe('consumer wallet & rewards API', () => {
   it('serializes inclusive date filters, cursor, and limit for history', async () => {
     const controller = new AbortController();
 
@@ -49,14 +58,31 @@ describe('consumer wallet API', () => {
     const controller = new AbortController();
     await getConsumerQuests('10', controller.signal);
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests?cursor=10', {
-      signal: controller.signal,
-    });
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/api/v1/consumer/quests?cursor=10',
+      {
+        signal: controller.signal,
+      },
+    );
   });
 
   it('fetches consumer quests without cursor when not provided', async () => {
     await getConsumerQuests();
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/v1/quests', {});
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/consumer/quests', {});
+  });
+
+  it('fetches consumer points and coupons and posts coupon redemption', async () => {
+    await getConsumerPoints();
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/consumer/points', {});
+
+    await getConsumerCoupons();
+    expect(mockedGet).toHaveBeenCalledWith('/api/v1/consumer/coupons', {});
+
+    await redeemConsumerCoupon('7');
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/api/v1/consumer/coupons/7/redeem',
+      {},
+    );
   });
 });

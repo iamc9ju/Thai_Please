@@ -9,11 +9,11 @@ import type {
 import { ConsumerSidebar } from '../components/ConsumerSidebar';
 import { ConsumerTopBar } from '../components/ConsumerTopBar';
 import { ConsumerOverview } from '../views/ConsumerOverview';
+import { CouponsView } from '../views/CouponsView';
 import { OrdersView } from '../views/OrdersView';
 import { PaymentView } from '../views/PaymentView';
 import { ProfileView } from '../views/ProfileView';
 import { QuestsView } from '../views/QuestsView';
-import { RewardsView } from '../views/RewardsView';
 import { WalletView } from '../views/WalletView';
 
 function overviewErrorState(error: unknown): ConsumerOverviewLoadState {
@@ -116,16 +116,14 @@ export function ConsumerDashboard({
           className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-[1800px] mx-auto"
           id="dashboard-top"
         >
-          {activeView !== 'overview' &&
-            activeView !== 'wallet' &&
-            activeView !== 'quests' && (
-              <div className="draft-banner mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-sm flex items-center justify-between shadow-xs">
-                <span className="font-bold">{th.consumerPortal.draftLabel}</span>
-                <p aria-live="polite" className="text-amber-700 font-medium">
-                  {announcement}
-                </p>
-              </div>
-            )}
+          {activeView === 'profile' && (
+            <div className="draft-banner mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-sm flex items-center justify-between shadow-xs">
+              <span className="font-bold">{th.consumerPortal.draftLabel}</span>
+              <p aria-live="polite" className="text-amber-700 font-medium">
+                {announcement}
+              </p>
+            </div>
+          )}
 
           {activeView === 'overview' && (
             <ConsumerOverview
@@ -152,7 +150,12 @@ export function ConsumerDashboard({
           )}
           {activeView === 'orders' && <OrdersView />}
           {activeView === 'quests' && <QuestsView />}
-          {activeView === 'rewards' && <RewardsView />}
+          {activeView === 'rewards' && (
+            <CouponsView
+              onNavigate={navigate}
+              onCouponRedeemed={() => void retryOverview()}
+            />
+          )}
           {activeView === 'profile' && (
             <ProfileView
               displayName={displayName}

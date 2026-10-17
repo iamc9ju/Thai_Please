@@ -110,6 +110,8 @@ export type ConsumerQuest = {
   assignedAt: string;
   expiresAt: string;
   completedAt: string | null;
+  completedOrderId?: string | null;
+  receiptNumber?: string | null;
   type: 'MIN_SPEND' | 'CATEGORY_SPEND' | 'MERCHANT_SPEND' | 'PRODUCT_PURCHASE';
   targetCategoryId: string | null;
   targetCategoryName?: string | null;
@@ -131,6 +133,71 @@ export type ConsumerQuestLoadState =
   | { status: 'success'; data: ConsumerQuestListResponse }
   | { status: 'permission-denied' }
   | { status: 'error'; message?: string };
+
+export type ConsumerPointTransactionItem = {
+  pointTransactionId: string;
+  transactionType: string;
+  points: number;
+  sourceName: string | null;
+  userQuestId: string | null;
+  completedOrderId: string | null;
+  userCouponId: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+export type ConsumerPointsResponse = {
+  pointBalance: number;
+  expiringPoints: number;
+  nearestExpiryAt: string | null;
+  items: ConsumerPointTransactionItem[];
+};
+
+export type CouponCatalogueItem = {
+  couponId: string;
+  couponName: string;
+  description: string | null;
+  discountType: string;
+  discountValue: number;
+  minPurchase: number;
+  pointCost: number;
+  validityDays: number;
+  merchantId: string | null;
+  merchantName: string | null;
+  canRedeem: boolean;
+};
+
+export type OwnedConsumerCoupon = {
+  userCouponId: string;
+  couponId: string;
+  couponName: string;
+  description: string | null;
+  discountType: string;
+  discountValue: number;
+  minPurchase: number;
+  pointCost: number;
+  merchantId: string | null;
+  merchantName: string | null;
+  status: string;
+  redeemedAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  usedOrderId: string | null;
+};
+
+export type ConsumerCouponsResponse = {
+  pointBalance: number;
+  catalogue: CouponCatalogueItem[];
+  ownedCoupons: OwnedConsumerCoupon[];
+};
+
+export type RedeemCouponResponse = {
+  success: boolean;
+  pointBalance: number;
+  pointTransactionId: string;
+  pointsDeducted: number;
+  userCoupon: OwnedConsumerCoupon;
+};
 
 export type OrderPreviewItem = {
   productName: string;

@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { validateEnvironment } from './config/environment.js';
 import { QuestsModule } from './quests/quests.module.js';
+import { RewardsModule } from './rewards/rewards.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { QuestsModule } from './quests/quests.module.js';
     CatalogModule,
     OrderModule,
     QuestsModule,
+    RewardsModule,
   ],
   controllers: [AppController],
 })
