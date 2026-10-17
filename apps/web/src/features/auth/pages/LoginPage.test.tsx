@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
 import { LoginPage } from './LoginPage';
@@ -57,7 +63,9 @@ describe('LoginPage remember credentials', () => {
       });
     });
 
-    const storedRaw = localStorage.getItem('thai_please_remembered_credentials');
+    const storedRaw = localStorage.getItem(
+      'thai_please_remembered_credentials',
+    );
     expect(storedRaw).toBeTruthy();
     const stored = JSON.parse(storedRaw || '{}');
     expect(stored.consumer).toEqual({

@@ -761,11 +761,18 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products",
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products?includeInactive=true",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "merchant", "products"]
+              "path": ["{{apiPrefix}}", "merchant", "products"],
+              "query": [
+                {
+                  "key": "includeInactive",
+                  "value": "true",
+                  "description": "FR-M02: แสดงสินค้าทั้งหมดรวมถึงสินค้าที่ปิดการขาย (INACTIVE)"
+                }
+              ]
             },
-            "description": "MERCHANT เท่านั้น | รายการสินค้าของ active merchant | Expected: 200"
+            "description": "MERCHANT เท่านั้น | FR-M02 รายการสินค้าของ active merchant (รองรับ ?includeInactive=true) | Expected: 200"
           },
           "event": [
             {
@@ -818,14 +825,14 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productName\": \"สินค้าทดสอบ Postman (แก้ไข)\",\n  \"price\": 55,\n  \"categoryId\": {{categoryId}}\n}"
+              "raw": "{\n  \"productName\": \"สินค้าทดสอบ Postman (แก้ไข)\",\n  \"price\": 55,\n  \"categoryId\": {{categoryId}},\n  \"status\": \"ACTIVE\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products/{{productId}}",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "merchant", "products", "{{productId}}"]
             },
-            "description": "MERCHANT เท่านั้น | แก้สินค้าของ active merchant ตาม UpdateProductDto | Expected: 200"
+            "description": "MERCHANT เท่านั้น | FR-M02 แก้ไขสินค้าของ active merchant ตาม UpdateProductDto โดยไม่กระทบใบเสร็จย้อนหลัง | Expected: 200"
           },
           "event": [
             {
@@ -834,6 +841,42 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('สถานะ 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Product Status (Activate/Deactivate)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/merchant/products/{{productId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "merchant",
+                "products",
+                "{{productId}}",
+                "status"
+              ]
+            },
+            "description": "MERCHANT เท่านั้น | FR-M02 เปิด-ปิดการขายสินค้า (ACTIVE / INACTIVE) โดยไม่กระทบใบเสร็จย้อนหลัง | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('เปลี่ยนสถานะสำเร็จ', () => pm.expect(pm.response.json().status).to.be.oneOf(['ACTIVE', 'INACTIVE']));"
                 ]
               }
             }
@@ -1467,6 +1510,71 @@
                 "exec": [
                   "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
                   "const json = pm.response.json(); pm.test('มีรายการโครงการเงินอุดหนุน', () => { pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Subsidy Program Status (FR-A04)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/subsidy-programs/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "subsidy-programs", "1"]
+            },
+            "description": "ADMIN เท่านั้น | FR-A04 แก้ไขสถานะหรือเงื่อนไขโครงการเงินอุดหนุน (ACTIVE / INACTIVE / ENDED) โดยไม่กระทบธุรกรรมเดิม | Expected: 200"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 200', () => pm.response.to.have.status(200));",
+                  "pm.test('อัปเดตสถานะสำเร็จ', () => pm.expect(pm.response.json().status).to.be.oneOf(['ACTIVE', 'INACTIVE', 'ENDED']));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Generate Personalized Quest for Consumer (FR-A05)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"1\",\n  \"idempotencyKey\": \"postman-personalized-quest-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/admin/quests/generate-personalized",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "admin",
+                "quests",
+                "generate-personalized"
+              ]
+            },
+            "description": "ADMIN เท่านั้น | FR-A05 & FR-S01..FR-S05 สั่ง AI สร้างและมอบหมายภารกิจเฉพาะบุคคลให้ผู้บริโภค พร้อมบันทึก quest_generation_logs | Expected: 201"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('สถานะ 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json(); pm.test('สร้างภารกิจสำเร็จพร้อม generationId และ title', () => { pm.expect(json).to.have.property('generationId'); pm.expect(json).to.have.property('title'); pm.expect(json).to.have.property('rewardPoints'); });"
                 ]
               }
             }

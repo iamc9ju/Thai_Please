@@ -35,9 +35,17 @@ Authentication uses an HTTP-only cookie (`access_token`). Set `JWT_SECRET` to a 
 - **Consumer Wallet**: `GET /wallet/overview`, `GET /wallet/transactions`, `POST /wallet/topup`
 - **Consumer Orders & Payment**: `POST /consumer/orders/preview`, `POST /consumer/orders/pay`, `GET /consumer/orders`, `GET /consumer/orders/:id/receipt`
 - **Consumer Quests, Points & Coupons**: `GET /consumer/quests` (alias `GET /quests`), `GET /consumer/points` (alias `GET /points`), `GET /consumer/coupons` (alias `GET /coupons`), `POST /consumer/coupons/:id/redeem` (alias `POST /coupons/:id/redeem`)
-- **Merchant Catalog & Orders**: `GET /catalog/categories`, `POST /catalog/categories`, `GET /merchant/products`, `POST /merchant/products`, `PUT /merchant/products/:id`, `DELETE /merchant/products/:id`, `POST /merchant/orders`, `GET /merchant/orders`, `GET /merchant/orders/:id/receipt`
+- **Merchant Catalog & Orders**: `GET /catalog/categories`, `POST /catalog/categories`, `GET /merchant/products` (supports `?includeInactive=true`), `POST /merchant/products`, `PUT /merchant/products/:id`, `PATCH /merchant/products/:id/status`, `DELETE /merchant/products/:id`, `POST /merchant/orders`, `GET /merchant/orders`, `GET /merchant/orders/:id/receipt`
 - **Merchant Wallet, Withdrawal & Analytics**: `GET /merchant/wallet` (alias `GET /merchants/:id/wallet`), `GET /merchant/wallet/transactions` (alias `GET /merchants/:id/wallet/transactions`), `POST /merchant/wallet/withdrawals` (aliases `POST /merchant/wallet/withdraw`, `POST /merchants/:id/wallet/withdrawals`), `GET /merchant/dashboard` (alias `GET /merchants/:id/dashboard`)
-- **Admin Portal & Social Impact**: `GET /admin/overview`, `GET /admin/merchants`, `POST /admin/merchants/:id/approve`, `POST /admin/merchants/:id/reject`, `POST /admin/merchants/:id/suspend`, `POST /admin/merchants/:id/activate`, `GET /admin/users/admins`, `POST /admin/users/:userId/roles/admin`, `PATCH /admin/users/:userId/roles/admin`, `GET /admin/subsidy-programs`, `POST /admin/subsidy-programs`, `PATCH /admin/subsidy-programs/:id`, `POST /admin/quests/generate`, `GET /admin/quest-generation-logs`, `GET /admin/rewards/monitoring`, `GET /admin/dashboard/social-impact`
+- **Admin Portal & Social Impact**: `GET /admin/overview`, `GET /admin/merchants`, `POST /admin/merchants/:id/approve`, `POST /admin/merchants/:id/reject`, `POST /admin/merchants/:id/suspend`, `POST /admin/merchants/:id/activate`, `GET /admin/users/admins`, `POST /admin/users/:userId/roles/admin`, `PATCH /admin/users/:userId/roles/admin`, `GET /admin/subsidy-programs`, `POST /admin/subsidy-programs`, `PATCH /admin/subsidy-programs/:id`, `POST /admin/quests/generate`, `POST /admin/quests/generate-personalized`, `GET /admin/quest-generation-logs`, `GET /admin/rewards/monitoring`, `GET /admin/dashboard/social-impact`
+
+## End-to-End (E2E) Acceptance Tests
+
+Run the full-lifecycle HTTP acceptance test suite (`health.e2e-spec.ts`, `wallet-topup.e2e-spec.ts`, and 4-stage `platform-lifecycle.e2e-spec.ts`):
+
+```bash
+pnpm --filter @thai-please/api test:e2e
+```
 
 ## Quality gates
 

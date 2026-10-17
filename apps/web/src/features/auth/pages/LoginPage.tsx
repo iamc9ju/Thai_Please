@@ -71,10 +71,12 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
     const stored = getStoredCredentials();
     return stored.consumer?.password || '';
   });
-  const [rememberCredentials, setRememberCredentials] = useState<boolean>(() => {
-    const stored = getStoredCredentials();
-    return Boolean(stored.consumer?.citizenId);
-  });
+  const [rememberCredentials, setRememberCredentials] = useState<boolean>(
+    () => {
+      const stored = getStoredCredentials();
+      return Boolean(stored.consumer?.citizenId);
+    },
+  );
 
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -192,223 +194,234 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
             className="h-12 w-auto object-contain"
           />
         </div>
-          {/* Header Title Block */}
-          <div className="text-center mb-6">
-            <p className="text-xs sm:text-sm font-semibold text-slate-500 mb-1">
-              {th.login.welcome}
-            </p>
-            <h2
-              id="login-title"
-              className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-1"
-            >
-              {th.login.title}
-            </h2>
-            <p className="text-xs sm:text-sm font-medium text-slate-500">
-              {th.login.subtitle}
-            </p>
-          </div>
-
-          {/* Role Selector Tabs */}
-          <div
-            role="group"
-            aria-label={th.login.role.label}
-            className="grid grid-cols-3 gap-1 p-1 rounded-2xl border border-slate-200 bg-white mb-6"
+        {/* Header Title Block */}
+        <div className="text-center mb-6">
+          <p className="text-xs sm:text-sm font-semibold text-slate-500 mb-1">
+            {th.login.welcome}
+          </p>
+          <h2
+            id="login-title"
+            className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-1"
           >
-            <button
-              type="button"
-              onClick={() => handleRoleChange('consumer')}
-              aria-pressed={role === 'consumer'}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                role === 'consumer'
-                  ? 'bg-[#0056b3] text-white shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <User className="size-4 shrink-0" aria-hidden="true" />
-              <span>{th.login.role.options.consumer}</span>
-            </button>
+            {th.login.title}
+          </h2>
+          <p className="text-xs sm:text-sm font-medium text-slate-500">
+            {th.login.subtitle}
+          </p>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => handleRoleChange('merchant')}
-              aria-pressed={role === 'merchant'}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                role === 'merchant'
-                  ? 'bg-[#0056b3] text-white shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Store className="size-4 shrink-0" aria-hidden="true" />
-              <span>{th.login.role.options.merchant}</span>
-            </button>
+        {/* Role Selector Tabs */}
+        <div
+          role="group"
+          aria-label={th.login.role.label}
+          className="grid grid-cols-3 gap-1 p-1 rounded-2xl border border-slate-200 bg-white mb-6"
+        >
+          <button
+            type="button"
+            onClick={() => handleRoleChange('consumer')}
+            aria-pressed={role === 'consumer'}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              role === 'consumer'
+                ? 'bg-[#0056b3] text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <User className="size-4 shrink-0" aria-hidden="true" />
+            <span>{th.login.role.options.consumer}</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleRoleChange('administrator')}
-              aria-pressed={role === 'administrator'}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                role === 'administrator'
-                  ? 'bg-[#0056b3] text-white shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
-              <span>{th.login.role.options.administrator}</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => handleRoleChange('merchant')}
+            aria-pressed={role === 'merchant'}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              role === 'merchant'
+                ? 'bg-[#0056b3] text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Store className="size-4 shrink-0" aria-hidden="true" />
+            <span>{th.login.role.options.merchant}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRoleChange('administrator')}
+            aria-pressed={role === 'administrator'}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              role === 'administrator'
+                ? 'bg-[#0056b3] text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+            <span>{th.login.role.options.administrator}</span>
+          </button>
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          {/* Citizen ID Field */}
+          <label
+            htmlFor="citizen-id"
+            className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
+          >
+            {th.login.fields.citizenId.label}
+          </label>
+          <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-1">
+            <CreditCard
+              className="size-5 text-slate-400 shrink-0"
+              aria-hidden="true"
+            />
+            <input
+              id="citizen-id"
+              name="username"
+              autoComplete="username"
+              inputMode="numeric"
+              maxLength={13}
+              value={citizenId}
+              onChange={(event) => handleCitizenIdChange(event.target.value)}
+              placeholder={th.login.fields.citizenId.placeholder}
+              aria-describedby={citizenIdError ? 'citizen-id-error' : undefined}
+              aria-invalid={citizenIdError.length > 0}
+              className="w-full pl-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
+            />
           </div>
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col">
-            {/* Citizen ID Field */}
-            <label
-              htmlFor="citizen-id"
-              className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
-            >
-              {th.login.fields.citizenId.label}
-            </label>
-            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-1">
-              <CreditCard className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
-              <input
-                id="citizen-id"
-                name="username"
-                autoComplete="username"
-                inputMode="numeric"
-                maxLength={13}
-                value={citizenId}
-                onChange={(event) => handleCitizenIdChange(event.target.value)}
-                placeholder={th.login.fields.citizenId.placeholder}
-                aria-describedby={citizenIdError ? 'citizen-id-error' : undefined}
-                aria-invalid={citizenIdError.length > 0}
-                className="w-full pl-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
-              />
-            </div>
-            {citizenIdError ? (
-              <p className="text-xs text-red-500 mb-3" id="citizen-id-error">
-                {citizenIdError}
-              </p>
-            ) : (
-              <div className="h-3" />
-            )}
-
-            {/* Password Field */}
-            <label
-              htmlFor="password"
-              className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
-            >
-              {th.login.fields.password.label}
-            </label>
-            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-3">
-              <Lock className="size-5 text-slate-400 shrink-0" aria-hidden="true" />
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setFeedback('');
-                }}
-                placeholder={th.login.fields.password.placeholder}
-                className="w-full pl-3 pr-8 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={
-                  showPassword
-                    ? th.login.fields.password.hide
-                    : th.login.fields.password.show
-                }
-                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                {showPassword ? (
-                  <EyeOff className="size-4.5" aria-hidden="true" />
-                ) : (
-                  <Eye className="size-4.5" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-
-            {/* Remember Credentials Checkbox & Clear Action */}
-            <div className="flex items-center justify-between mb-3 select-none">
-              <label
-                htmlFor="remember-credentials"
-                className="flex items-center gap-2 cursor-pointer group"
-              >
-                <input
-                  id="remember-credentials"
-                  name="rememberCredentials"
-                  type="checkbox"
-                  checked={rememberCredentials}
-                  onChange={(event) =>
-                    setRememberCredentials(event.target.checked)
-                  }
-                  className="size-4 rounded border-slate-300 text-[#0056b3] focus:ring-[#0056b3]/30 accent-[#0056b3] cursor-pointer"
-                />
-                <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                  {th.login.rememberCredentials}
-                </span>
-              </label>
-
-              {hasSavedForCurrentRole && (
-                <button
-                  type="button"
-                  onClick={handleClearSaved}
-                  className="text-xs text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-                  title={th.login.clearSaved}
-                >
-                  {th.login.clearSaved}
-                </button>
-              )}
-            </div>
-
-            {/* Error or Feedback message */}
-            {feedback && (
-              <p aria-live="polite" className="text-xs text-red-600 mb-3 font-medium">
-                {feedback}
-              </p>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0056b3] py-3.5 text-sm sm:text-base font-bold text-white shadow-md hover:bg-[#004494] active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              <span>{isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}</span>
-              <ArrowRight className="size-4.5" aria-hidden="true" />
-            </button>
-          </form>
-
-          {/* Registration Navigation Link */}
-          {role !== 'administrator' && (
-            <div className="mt-6 text-center text-xs sm:text-sm text-slate-500">
-              <span>
-                {role === 'consumer'
-                  ? th.login.registration.promptConsumer
-                  : th.login.registration.promptMerchant}
-              </span>{' '}
-              <button
-                type="button"
-                onClick={() =>
-                  setRegistrationRole(
-                    role === 'consumer' ? 'consumer' : 'merchant',
-                  )
-                }
-                className="font-bold text-[#0056b3] hover:underline cursor-pointer ml-1"
-              >
-                {th.login.registration.actions[role]}
-              </button>
-            </div>
+          {citizenIdError ? (
+            <p className="text-xs text-red-500 mb-3" id="citizen-id-error">
+              {citizenIdError}
+            </p>
+          ) : (
+            <div className="h-3" />
           )}
 
-          {/* Security Verification Badge */}
-          <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
-            <ShieldCheck className="size-4 text-slate-500" aria-hidden="true" />
-            <span>{th.login.securityNote}</span>
+          {/* Password Field */}
+          <label
+            htmlFor="password"
+            className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
+          >
+            {th.login.fields.password.label}
+          </label>
+          <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 transition-all focus-within:border-[#0056b3] focus-within:ring-2 focus-within:ring-blue-500/20 mb-3">
+            <Lock
+              className="size-5 text-slate-400 shrink-0"
+              aria-hidden="true"
+            />
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setFeedback('');
+              }}
+              placeholder={th.login.fields.password.placeholder}
+              className="w-full pl-3 pr-8 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={
+                showPassword
+                  ? th.login.fields.password.hide
+                  : th.login.fields.password.show
+              }
+              className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4.5" aria-hidden="true" />
+              ) : (
+                <Eye className="size-4.5" aria-hidden="true" />
+              )}
+            </button>
           </div>
+
+          {/* Remember Credentials Checkbox & Clear Action */}
+          <div className="flex items-center justify-between mb-3 select-none">
+            <label
+              htmlFor="remember-credentials"
+              className="flex items-center gap-2 cursor-pointer group"
+            >
+              <input
+                id="remember-credentials"
+                name="rememberCredentials"
+                type="checkbox"
+                checked={rememberCredentials}
+                onChange={(event) =>
+                  setRememberCredentials(event.target.checked)
+                }
+                className="size-4 rounded border-slate-300 text-[#0056b3] focus:ring-[#0056b3]/30 accent-[#0056b3] cursor-pointer"
+              />
+              <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
+                {th.login.rememberCredentials}
+              </span>
+            </label>
+
+            {hasSavedForCurrentRole && (
+              <button
+                type="button"
+                onClick={handleClearSaved}
+                className="text-xs text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                title={th.login.clearSaved}
+              >
+                {th.login.clearSaved}
+              </button>
+            )}
+          </div>
+
+          {/* Error or Feedback message */}
+          {feedback && (
+            <p
+              aria-live="polite"
+              className="text-xs text-red-600 mb-3 font-medium"
+            >
+              {feedback}
+            </p>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0056b3] py-3.5 text-sm sm:text-base font-bold text-white shadow-md hover:bg-[#004494] active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+          >
+            <span>
+              {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}
+            </span>
+            <ArrowRight className="size-4.5" aria-hidden="true" />
+          </button>
+        </form>
+
+        {/* Registration Navigation Link */}
+        {role !== 'administrator' && (
+          <div className="mt-6 text-center text-xs sm:text-sm text-slate-500">
+            <span>
+              {role === 'consumer'
+                ? th.login.registration.promptConsumer
+                : th.login.registration.promptMerchant}
+            </span>{' '}
+            <button
+              type="button"
+              onClick={() =>
+                setRegistrationRole(
+                  role === 'consumer' ? 'consumer' : 'merchant',
+                )
+              }
+              className="font-bold text-[#0056b3] hover:underline cursor-pointer ml-1"
+            >
+              {th.login.registration.actions[role]}
+            </button>
+          </div>
+        )}
+
+        {/* Security Verification Badge */}
+        <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+          <ShieldCheck className="size-4 text-slate-500" aria-hidden="true" />
+          <span>{th.login.securityNote}</span>
         </div>
+      </div>
     </main>
   );
 }

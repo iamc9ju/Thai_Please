@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { MessageSquare, Phone, Clock, X, HelpCircle, Newspaper } from 'lucide-react';
+import {
+  MessageSquare,
+  Phone,
+  Clock,
+  X,
+  HelpCircle,
+  Newspaper,
+} from 'lucide-react';
 import { th } from '../../../i18n/th';
 
 export interface LandingHeroSectionProps {
@@ -126,8 +133,12 @@ export function LandingHeroSection({
               <div className="flex items-center gap-3 rounded-xl bg-blue-50/70 p-3.5 text-[#0052cc]">
                 <Phone className="size-5 shrink-0" />
                 <div>
-                  <p className="font-bold text-sm">{th.landing.support.phone}</p>
-                  <p className="text-xs text-slate-600">{th.landing.support.hours}</p>
+                  <p className="font-bold text-sm">
+                    {th.landing.support.phone}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    {th.landing.support.hours}
+                  </p>
                 </div>
               </div>
 
@@ -182,7 +193,9 @@ export function LandingHeroSection({
             </div>
             <div className="space-y-3 text-sm text-slate-700">
               <div className="rounded-xl border border-slate-100 p-3.5 hover:bg-slate-50 transition-colors">
-                <span className="text-xs font-semibold text-blue-600">1 ต.ค. 2569</span>
+                <span className="text-xs font-semibold text-blue-600">
+                  1 ต.ค. 2569
+                </span>
                 <h4 className="font-bold text-slate-900 mt-1">
                   เปิดให้ประชาชนยืนยันสิทธิผ่านแอปพลิเคชันอย่างเป็นทางการ
                 </h4>
@@ -234,14 +247,18 @@ export function LandingHeroSection({
             </div>
             <div className="space-y-3 text-sm">
               <div className="rounded-xl bg-slate-50 p-3.5">
-                <p className="font-bold text-slate-900">ใครมีสิทธิเข้าร่วมโครงการได้บ้าง?</p>
+                <p className="font-bold text-slate-900">
+                  ใครมีสิทธิเข้าร่วมโครงการได้บ้าง?
+                </p>
                 <p className="text-xs text-slate-600 mt-1">
                   ประชาชนสัญชาติไทย อายุ 18 ปีบริบูรณ์ขึ้นไปในวันลงทะเบียน
                   และมีบัตรประจำตัวประชาชน
                 </p>
               </div>
               <div className="rounded-xl bg-slate-50 p-3.5">
-                <p className="font-bold text-slate-900">เงินสนับสนุนจากรัฐร่วมจ่ายเท่าไหร่?</p>
+                <p className="font-bold text-slate-900">
+                  เงินสนับสนุนจากรัฐร่วมจ่ายเท่าไหร่?
+                </p>
                 <p className="text-xs text-slate-600 mt-1">
                   รัฐบาลร่วมจ่าย 60% ประชาชนจ่าย 40% สูงสุดไม่เกิน 150 บาทต่อวัน
                 </p>

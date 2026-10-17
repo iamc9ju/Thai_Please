@@ -8,7 +8,11 @@ export interface LandingHeaderProps {
   onOpenFaq?: () => void;
 }
 
-export function LandingHeader({ onLogin, onOpenNews, onOpenFaq }: LandingHeaderProps) {
+export function LandingHeader({
+  onLogin,
+  onOpenNews,
+  onOpenFaq,
+}: LandingHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

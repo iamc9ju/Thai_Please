@@ -33,7 +33,10 @@ describe('LandingPage', () => {
     // Schedule section
     expect(screen.getByText(th.landing.schedule.title)).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 1, name: th.landing.schedule.dates }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.landing.schedule.dates,
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText(th.landing.schedule.subtitle)).toBeInTheDocument();
 
