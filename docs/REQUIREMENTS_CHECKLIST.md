@@ -35,28 +35,25 @@
 
 ## Authentication and Registration
 
-- [ ] **FR-AUTH-01 — Customer Registration — Partial**
-  - มี: API/UI ลงทะเบียน, Citizen ID และวันเกิด validation, password hashing, สร้าง role/wallet
-  - Gap API/Data: ยังไม่มีหลักฐาน audit event และ transaction/integration coverage ครบทุกกรณี
-    existing identity, duplicate role, initial subsidy และ rollback
-  - Gap Test/Docs: ยังขาด registration integration/E2E, Postman collection และ README contract
+- [ ] **FR-AUTH-01 — Customer Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - มี: API/UI ลงทะเบียน (`POST /api/v1/auth/register/customer`), Citizen ID และวันเกิด validation, password hashing (`scrypt`), สร้าง `CONSUMER` role, `CONSUMER` wallet พร้อม `SUBSIDY_GRANT` ledger และมอบหมายภารกิจเริ่มต้นอัตโนมัติ
+  - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
+  - Gap API/Data: database integration ร่วมกับฐานข้อมูลสดสำหรับ rollback
 
-- [ ] **FR-AUTH-02 — Merchant Registration — Partial**
-  - มี: API/UI ลงทะเบียนร้านและสถานะเริ่มต้น `PENDING`
-  - Gap API/Data: merchant membership/OWNER model, audit event และ merchant-wallet invariants
-    ยังไม่ครบตาม requirement
-  - Gap Test/Docs: ยังขาด existing-identity integration, rollback/E2E, Postman และ README
+- [ ] **FR-AUTH-02 — Merchant Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - มี: API/UI ลงทะเบียนร้าน (`POST /api/v1/auth/register/merchant`) รองรับทั้งผู้ใช้ใหม่และเพิ่มบทบาท `MERCHANT` ให้บัญชี `CONSUMER` เดิมโดยไม่สร้าง User ซ้ำ, สถานะเริ่มต้น `PENDING` และสร้าง `MERCHANT` wallet แยกต่างหาก
+  - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
+  - Gap API/Data: database integration ร่วมกับฐานข้อมูลสด
 
-- [ ] **FR-AUTH-03 — Password Policy & Brute-Force Protection — Partial (Rate Limiter Integrated)**
-  - มี: password validation, hash service, `LoginRateLimiterService` (จำกัดการล็อกอินผิดพลาดสูงสุด 5 ครั้งใน 15 นาทีต่อ `(role, citizenId, clientIp)` พร้อมคืน `429 Too Many Requests / AUTH_RATE_LIMITED`) และ unit tests
-  - Evidence: `apps/api/src/auth/login-rate-limiter.service.ts`, `apps/api/src/auth/auth.service.spec.ts`, `apps/api/src/auth/password/password.service.spec.ts`
+- [ ] **FR-AUTH-03 — Password Policy & Brute-Force Protection — Partial (Rate Limiter Integrated + HTTP E2E)**
+  - มี: password validation, hash service, `LoginRateLimiterService` (จำกัดการล็อกอินผิดพลาดสูงสุด 5 ครั้งใน 15 นาทีต่อ `(role, citizenId, clientIp)` พร้อมคืน `429 Too Many Requests / AUTH_RATE_LIMITED`) และ unit + HTTP E2E tests
+  - Evidence: `apps/api/src/auth/login-rate-limiter.service.ts`, `apps/api/src/auth/auth.service.spec.ts`, `apps/api/src/auth/password/password.service.spec.ts`, `apps/api/test/auth-registration.e2e-spec.ts`
   - Gap Security: distributed rate limit store (เช่น Redis) เมื่อขยายหลาย instance และ log-redaction audit suite
 
-- [ ] **FR-AUTH-04 — Login — Partial**
-  - มี: แยก customer/merchant/admin login routes, session cookie, SHA-256 `tokenHash` ใน `auth_sessions`, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
-  - Evidence: `apps/api/src/auth/auth.service.spec.ts`, `apps/web/src/features/auth/pages/LoginPage.test.tsx`
+- [ ] **FR-AUTH-04 — Login — Partial (Multi-Portal Cookie Auth + HTTP E2E)**
+  - มี: แยก customer/merchant/admin login routes, HTTP-only session cookie (`access_token`), SHA-256 `tokenHash` ใน `auth_sessions`, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
+  - Evidence: `apps/api/src/auth/auth.service.spec.ts`, `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/auth/pages/LoginPage.test.tsx`
   - Gap UI/API: pending merchant tracking flow และ permission-denied UX ยังไม่ครบ
-  - Gap Test: ยังขาด portal/session authorization integration และ E2E ครบสาม portal
 
 - [ ] **FR-AUTH-05 — Admin Creation — Partial (Frontend & Backend Integrated)**
   - API: `GET /api/v1/admin/users/admins`, `POST /api/v1/admin/users/:userId/roles/admin`, `PATCH /api/v1/admin/users/:userId/roles/admin` พร้อมระบบป้องกันการระงับผู้ดูแลคนสุดท้าย (Last-Active-Admin Protection) และเพิกถอน Session อัตโนมัติเมื่อถูกระงับ
