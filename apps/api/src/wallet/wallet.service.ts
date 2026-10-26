@@ -262,50 +262,98 @@ export class WalletService {
    */
   async getConsumerOverview(userId: bigint) {
     const now = new Date();
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-      select: {
-        pointBalance: true,
-      },
-    });
+    const [user, wallet] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { userId },
+        select: {
+          pointBalance: true,
+        },
+      }),
+      this.prisma.wallet.findUnique({
+        where: { userId },
+      }),
+    ]);
 
     if (!user) {
       throw new NotFoundException('ไม่พบข้อมูลผู้ใช้งาน');
     }
 
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
     if (!wallet) {
       throw new NotFoundException('ไม่พบข้อมูลกระเป๋าเงิน');
     }
 
     const businessDate = this.getBangkokBusinessDate(now);
-    const activeProgram = await this.prisma.subsidyProgram.findFirst({
-      where: {
-        status: 'ACTIVE',
-        startDate: { lte: businessDate },
-        endDate: { gte: businessDate },
-      },
-    });
-
     const { startOfDayUtc, nextDayUtc } = this.getBangkokDayBoundaries(now);
 
-    // คำนวณยอดเงินอุดหนุนที่ใช้ไปในวันนี้
-    const todaySubsidyTxs = await this.prisma.walletTransaction.findMany({
-      where: {
-        walletId: wallet.walletId,
-        fundType: FundType.SUBSIDY,
-        transactionType: TransactionType.PAYMENT_SUBSIDY,
-        createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
-      },
-      select: { amount: true },
-    });
+    // จำกัด concurrent DB reads ครั้งละ 3 เพื่อป้องกัน cold PrismaPg/Neon pool
+    // จาก connection burst 6 รายการ ขณะที่ยังลด waterfall จากแบบ sequential เดิม
+    const [activeProgram, todaySubsidyAggregate, userQuests] =
+      await Promise.all([
+        this.prisma.subsidyProgram.findFirst({
+          where: {
+            status: 'ACTIVE',
+            startDate: { lte: businessDate },
+            endDate: { gte: businessDate },
+          },
+        }),
+        this.prisma.walletTransaction.aggregate({
+          where: {
+            walletId: wallet.walletId,
+            fundType: FundType.SUBSIDY,
+            transactionType: TransactionType.PAYMENT_SUBSIDY,
+            createdAt: { gte: startOfDayUtc, lt: nextDayUtc },
+          },
+          _sum: { amount: true },
+        }),
+        // FR-C01 เป็น read-only: การ assign Quest เป็นหน้าที่ของ workflow FR-C07
+        this.prisma.userQuest.findMany({
+          where: {
+            userId,
+            status: 'ACTIVE',
+            expiresAt: { gt: now },
+          },
+          include: { quest: true },
+          orderBy: { assignedAt: 'desc' },
+          take: 5,
+        }),
+      ]);
 
-    const dailySubsidyUsed = todaySubsidyTxs.reduce(
-      (sum, tx) => sum + Number(tx.amount),
-      0,
-    );
+    const [userCoupons, recentTransactions, recentOrders] = await Promise.all([
+      this.prisma.userCoupon.findMany({
+        where: {
+          userId,
+          status: 'AVAILABLE',
+          expiresAt: { gt: now },
+        },
+        include: { coupon: true },
+        orderBy: { redeemedAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.walletTransaction.findMany({
+        where: { walletId: wallet.walletId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      this.prisma.order.findMany({
+        where: {
+          userId,
+          status: PAID_ORDER_STATUS,
+          paidAt: { not: null },
+        },
+        select: {
+          orderId: true,
+          finalAmount: true,
+          paidAt: true,
+          merchant: {
+            select: { merchantName: true },
+          },
+        },
+        orderBy: { paidAt: 'desc' },
+        take: RECENT_PAID_ORDER_LIMIT,
+      }),
+    ]);
+
+    const dailySubsidyUsed = Number(todaySubsidyAggregate._sum.amount ?? 0);
 
     const dailySubsidyLimit = activeProgram
       ? Number(activeProgram.dailySubsidyLimit)
@@ -313,56 +361,6 @@ export class WalletService {
     const subsidyBalance = Number(wallet.subsidyBalance);
     const dailyCapRemaining = Math.max(0, dailySubsidyLimit - dailySubsidyUsed);
     const dailySubsidyRemaining = Math.min(subsidyBalance, dailyCapRemaining);
-
-    // FR-C01 เป็น read-only: การ assign Quest เป็นหน้าที่ของ workflow FR-C07
-    const userQuests = await this.prisma.userQuest.findMany({
-      where: {
-        userId,
-        status: 'ACTIVE',
-        expiresAt: { gt: now },
-      },
-      include: { quest: true },
-      orderBy: { assignedAt: 'desc' },
-      take: 5,
-    });
-
-    // ดึง Coupons ที่พร้อมใช้งาน
-    const userCoupons = await this.prisma.userCoupon.findMany({
-      where: {
-        userId,
-        status: 'AVAILABLE',
-        expiresAt: { gt: now },
-      },
-      include: { coupon: true },
-      orderBy: { redeemedAt: 'desc' },
-      take: 5,
-    });
-
-    // ดึงประวัติธุรกรรมล่าสุด 10 รายการ
-    const recentTransactions = await this.prisma.walletTransaction.findMany({
-      where: { walletId: wallet.walletId },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
-
-    // ดึงเฉพาะรายการชำระสำเร็จของ Consumer คนปัจจุบันแบบมีขอบเขต
-    const recentOrders = await this.prisma.order.findMany({
-      where: {
-        userId,
-        status: PAID_ORDER_STATUS,
-        paidAt: { not: null },
-      },
-      select: {
-        orderId: true,
-        finalAmount: true,
-        paidAt: true,
-        merchant: {
-          select: { merchantName: true },
-        },
-      },
-      orderBy: { paidAt: 'desc' },
-      take: RECENT_PAID_ORDER_LIMIT,
-    });
 
     return {
       wallet: {

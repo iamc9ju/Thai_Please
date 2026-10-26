@@ -26,6 +26,7 @@ interface MockPrisma {
   };
   subsidyProgram: { findFirst: Mock };
   walletTransaction: {
+    aggregate: Mock;
     findMany: Mock;
     findUnique: Mock;
     create: Mock;
@@ -57,6 +58,7 @@ describe('WalletService', () => {
         findFirst: vi.fn(),
       },
       walletTransaction: {
+        aggregate: vi.fn().mockResolvedValue({ _sum: { amount: null } }),
         findMany: vi.fn(),
         findUnique: vi.fn(),
         create: vi.fn(),
@@ -118,25 +120,20 @@ describe('WalletService', () => {
         endDate: new Date('2026-12-31'),
       });
 
-      prismaMock.walletTransaction.findMany.mockImplementation(
-        (args: unknown) => {
-          const params = args as { select?: { amount?: boolean } } | undefined;
-          if (params?.select?.amount) {
-            return Promise.resolve([{ amount: '50.00' }]);
-          }
-          return Promise.resolve([
-            {
-              walletTransactionId: 1n,
-              fundType: 'PERSONAL',
-              transactionType: 'PERSONAL_TOPUP',
-              amount: '100.00',
-              balanceBefore: '0.00',
-              balanceAfter: '100.00',
-              createdAt: new Date(),
-            },
-          ]);
+      prismaMock.walletTransaction.aggregate.mockResolvedValue({
+        _sum: { amount: '50.00' },
+      });
+      prismaMock.walletTransaction.findMany.mockResolvedValue([
+        {
+          walletTransactionId: 1n,
+          fundType: 'PERSONAL',
+          transactionType: 'PERSONAL_TOPUP',
+          amount: '100.00',
+          balanceBefore: '0.00',
+          balanceAfter: '100.00',
+          createdAt: new Date(),
         },
-      );
+      ]);
 
       prismaMock.userQuest.findMany.mockResolvedValue([]);
       prismaMock.userCoupon.findMany.mockResolvedValue([]);
@@ -223,7 +220,7 @@ describe('WalletService', () => {
 
       await service.getConsumerOverview(100n);
 
-      expect(prismaMock.walletTransaction.findMany).toHaveBeenCalledWith({
+      expect(prismaMock.walletTransaction.aggregate).toHaveBeenCalledWith({
         where: {
           walletId: 1n,
           fundType: 'SUBSIDY',
@@ -233,7 +230,121 @@ describe('WalletService', () => {
             lt: new Date('2026-10-14T17:00:00.000Z'),
           },
         },
-        select: { amount: true },
+        _sum: { amount: true },
+      });
+    });
+
+    it('runs dependent overview reads with concurrency bounded at three after wallet identity is known', async () => {
+      const calls: string[] = [];
+      const pending = <T>() => {
+        let settle: ((value: T) => void) | undefined;
+        const promise = new Promise<T>((resolve) => {
+          settle = resolve;
+        });
+        return {
+          promise,
+          resolve(value: T) {
+            if (!settle) {
+              throw new Error('deferred promise was not initialized');
+            }
+            settle(value);
+          },
+        };
+      };
+
+      const user = pending<{ pointBalance: number }>();
+      const wallet = pending<{
+        walletId: bigint;
+        personalBalance: string;
+        subsidyBalance: string;
+      }>();
+      prismaMock.user.findUnique.mockImplementation(() => {
+        calls.push('user');
+        return user.promise;
+      });
+      prismaMock.wallet.findUnique.mockImplementation(() => {
+        calls.push('wallet');
+        return wallet.promise;
+      });
+
+      const program = pending<null>();
+      const subsidy = pending<{ _sum: { amount: null } }>();
+      const quests = pending<never[]>();
+      const coupons = pending<never[]>();
+      const transactions = pending<never[]>();
+      const orders = pending<never[]>();
+      prismaMock.subsidyProgram.findFirst.mockImplementation(() => {
+        calls.push('program');
+        return program.promise;
+      });
+      prismaMock.walletTransaction.aggregate.mockImplementation(() => {
+        calls.push('subsidy');
+        return subsidy.promise;
+      });
+      prismaMock.userQuest.findMany.mockImplementation(() => {
+        calls.push('quests');
+        return quests.promise;
+      });
+      prismaMock.userCoupon.findMany.mockImplementation(() => {
+        calls.push('coupons');
+        return coupons.promise;
+      });
+      prismaMock.walletTransaction.findMany.mockImplementation(() => {
+        calls.push('transactions');
+        return transactions.promise;
+      });
+      prismaMock.order.findMany.mockImplementation(() => {
+        calls.push('orders');
+        return orders.promise;
+      });
+
+      const overview = service.getConsumerOverview(100n);
+
+      expect(calls).toEqual(['user', 'wallet']);
+      expect(prismaMock.subsidyProgram.findFirst).not.toHaveBeenCalled();
+
+      user.resolve({ pointBalance: 0 });
+      wallet.resolve({
+        walletId: 1n,
+        personalBalance: '0.00',
+        subsidyBalance: '0.00',
+      });
+
+      await vi.waitFor(() => {
+        expect(calls).toEqual([
+          'user',
+          'wallet',
+          'program',
+          'subsidy',
+          'quests',
+        ]);
+      });
+      expect(prismaMock.userCoupon.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.walletTransaction.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.order.findMany).not.toHaveBeenCalled();
+
+      program.resolve(null);
+      subsidy.resolve({ _sum: { amount: null } });
+      quests.resolve([]);
+
+      await vi.waitFor(() => {
+        expect(calls).toEqual([
+          'user',
+          'wallet',
+          'program',
+          'subsidy',
+          'quests',
+          'coupons',
+          'transactions',
+          'orders',
+        ]);
+      });
+      coupons.resolve([]);
+      transactions.resolve([]);
+      orders.resolve([]);
+
+      await expect(overview).resolves.toMatchObject({
+        wallet: { dailySubsidyUsed: 0 },
       });
     });
 

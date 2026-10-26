@@ -13,6 +13,7 @@ import {
   getWalletTransactions,
   topUpPersonalWallet,
 } from '../api/consumer.api';
+import { CONSUMER_OVERVIEW_NAVIGATION_REUSE_POLICY } from '../consumer.types';
 import type { ConsumerOverviewResponse } from '../consumer.types';
 import { WalletView } from './WalletView';
 
@@ -125,6 +126,60 @@ afterEach(() => {
 });
 
 describe('WalletView FR-C02 integration', () => {
+  it('renders a fresh parent overview without requesting it again', async () => {
+    render(
+      <WalletView
+        initialOverview={initialOverview}
+        initialOverviewFetchedAt={Date.now()}
+      />,
+    );
+
+    expect(screen.getByText('฿1,000.00')).toBeInTheDocument();
+    expect(mockedGetOverview).not.toHaveBeenCalled();
+    expect(
+      await screen.findAllByText(
+        th.consumerPortal.wallet.transactionTypes.personalTopUp,
+      ),
+    ).not.toHaveLength(0);
+  });
+
+  it('renders a stale parent overview immediately and revalidates it', async () => {
+    const onOverviewUpdated = vi.fn();
+    mockedGetOverview.mockResolvedValueOnce(refreshedOverview);
+
+    render(
+      <WalletView
+        initialOverview={initialOverview}
+        initialOverviewFetchedAt={
+          Date.now() - CONSUMER_OVERVIEW_NAVIGATION_REUSE_POLICY.maxAgeMs - 1
+        }
+        onOverviewUpdated={onOverviewUpdated}
+      />,
+    );
+
+    expect(screen.getByText('฿1,000.00')).toBeInTheDocument();
+    expect(await screen.findByText('฿1,500.00')).toBeInTheDocument();
+    expect(mockedGetOverview).toHaveBeenCalledWith();
+    expect(onOverviewUpdated).toHaveBeenCalledWith(
+      refreshedOverview,
+      expect.any(Number),
+    );
+  });
+
+  it('propagates a successfully loaded overview to its parent owner', async () => {
+    const onOverviewUpdated = vi.fn();
+
+    render(<WalletView onOverviewUpdated={onOverviewUpdated} />);
+
+    expect(
+      await screen.findByLabelText(th.consumerPortal.wallet.topUpAmount),
+    ).toBeInTheDocument();
+    expect(onOverviewUpdated).toHaveBeenCalledWith(
+      initialOverview,
+      expect.any(Number),
+    );
+  });
+
   it('loads balances and real transaction history from their APIs', async () => {
     await renderLoadedWallet();
 
@@ -174,6 +229,9 @@ describe('WalletView FR-C02 integration', () => {
       screen.getByText(th.consumerPortal.wallet.topUpSuccess),
     ).toBeInTheDocument();
     expect(mockedGetOverview).toHaveBeenCalledTimes(2);
+    expect(mockedGetOverview).toHaveBeenNthCalledWith(2, {
+      forceRefresh: true,
+    });
     expect(mockedGetTransactions).toHaveBeenCalledTimes(2);
   });
 

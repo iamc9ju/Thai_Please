@@ -16,6 +16,7 @@ import {
 } from '../api/consumer.api';
 import { PortalPageHeader } from '../components/PortalPageHeader';
 import {
+  CONSUMER_OVERVIEW_NAVIGATION_REUSE_POLICY,
   TOP_UP_MAX_BAHT,
   TOP_UP_MIN_BAHT,
   WALLET_HISTORY_PAGE_SIZE,
@@ -162,11 +163,34 @@ function transactionAmount(transaction: WalletTransactionItem) {
   return `${prefix}${formatBaht(Math.abs(transaction.amount))}`;
 }
 
-export function WalletView() {
+type WalletViewProps = Readonly<{
+  initialOverview?: ConsumerOverviewResponse | undefined;
+  initialOverviewFetchedAt?: number | undefined;
+  onOverviewUpdated?: (
+    data: ConsumerOverviewResponse,
+    fetchedAt: number,
+  ) => void;
+}>;
+
+function isOverviewFresh(fetchedAt: number | undefined) {
+  if (fetchedAt === undefined) return false;
+  const ageMs = Date.now() - fetchedAt;
+  return (
+    ageMs >= 0 && ageMs <= CONSUMER_OVERVIEW_NAVIGATION_REUSE_POLICY.maxAgeMs
+  );
+}
+
+export function WalletView({
+  initialOverview,
+  initialOverviewFetchedAt,
+  onOverviewUpdated,
+}: WalletViewProps = {}) {
   const [amount, setAmount] = useState('');
-  const [walletState, setWalletState] = useState<WalletLoadState>({
-    status: 'loading',
-  });
+  const [walletState, setWalletState] = useState<WalletLoadState>(() =>
+    initialOverview
+      ? { status: 'success', data: initialOverview }
+      : { status: 'loading' },
+  );
   const [topUpState, setTopUpState] = useState<TopUpState>('idle');
   const [historyState, setHistoryState] = useState<WalletHistoryState>({
     status: 'loading',
@@ -183,6 +207,7 @@ export function WalletView() {
     try {
       const data = await getConsumerOverview();
       setWalletState({ status: 'success', data });
+      onOverviewUpdated?.(data, Date.now());
       return true;
     } catch (error) {
       setWalletState(loadErrorState(error));
@@ -192,8 +217,9 @@ export function WalletView() {
 
   const refreshWalletAfterTopUp = async () => {
     try {
-      const data = await getConsumerOverview();
+      const data = await getConsumerOverview({ forceRefresh: true });
       setWalletState({ status: 'success', data });
+      onOverviewUpdated?.(data, Date.now());
       return true;
     } catch {
       return false;
@@ -201,10 +227,16 @@ export function WalletView() {
   };
 
   useEffect(() => {
+    if (initialOverview && isOverviewFresh(initialOverviewFetchedAt)) return;
+
     let isCurrent = true;
     void getConsumerOverview()
       .then((data) => {
-        if (isCurrent) setWalletState({ status: 'success', data });
+        if (isCurrent) {
+          const fetchedAt = Date.now();
+          setWalletState({ status: 'success', data });
+          onOverviewUpdated?.(data, fetchedAt);
+        }
       })
       .catch((error: unknown) => {
         if (isCurrent) setWalletState(loadErrorState(error));
@@ -212,7 +244,7 @@ export function WalletView() {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [initialOverview, initialOverviewFetchedAt, onOverviewUpdated]);
 
   useEffect(() => {
     const requestId = historyRequestRef.current + 1;
@@ -343,6 +375,7 @@ export function WalletView() {
         setTopUpState('success');
         setAmount('');
         attemptRef.current = null;
+        historyRequestRef.current += 1;
         setHistoryState({ status: 'loading' });
         setDateFrom('');
         setDateTo('');

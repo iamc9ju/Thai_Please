@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import { ConsumerBottomNavigation } from '../components/ConsumerBottomNavigation';
@@ -6,6 +6,7 @@ import { ConsumerHeader } from '../components/ConsumerHeader';
 import { ConsumerNavigation } from '../components/ConsumerNavigation';
 import { getConsumerOverview } from '../api/consumer.api';
 import type {
+  ConsumerOverviewResponse,
   ConsumerOverviewLoadState,
   ConsumerView,
 } from '../consumer.types';
@@ -44,16 +45,26 @@ export function ConsumerDashboard({
   const [overviewState, setOverviewState] = useState<ConsumerOverviewLoadState>(
     { status: 'loading' },
   );
+  const [overviewFetchedAt, setOverviewFetchedAt] = useState<number>();
   const displayName = fullName ?? th.consumerDashboard.displayName;
   const maskedCitizenId = `X-XXXX-${citizenId.slice(-4)}`;
+
+  const updateOverview = useCallback(
+    (data: ConsumerOverviewResponse, fetchedAt: number) => {
+      setOverviewState({ status: 'success', data });
+      setOverviewFetchedAt(fetchedAt);
+    },
+    [],
+  );
 
   const retryOverview = async () => {
     setOverviewState({ status: 'loading' });
 
     try {
       const data = await getConsumerOverview();
-      setOverviewState({ status: 'success', data });
+      updateOverview(data, Date.now());
     } catch (error) {
+      setOverviewFetchedAt(undefined);
       setOverviewState(overviewErrorState(error));
     }
   };
@@ -64,11 +75,12 @@ export function ConsumerDashboard({
     void getConsumerOverview()
       .then((data) => {
         if (isCurrent) {
-          setOverviewState({ status: 'success', data });
+          updateOverview(data, Date.now());
         }
       })
       .catch((error: unknown) => {
         if (isCurrent) {
+          setOverviewFetchedAt(undefined);
           setOverviewState(overviewErrorState(error));
         }
       });
@@ -76,7 +88,7 @@ export function ConsumerDashboard({
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [updateOverview]);
 
   const navigate = (view: ConsumerView) => {
     setActiveView(view);
@@ -113,7 +125,17 @@ export function ConsumerDashboard({
             onRetry={() => void retryOverview()}
           />
         )}
-        {activeView === 'wallet' && <WalletView />}
+        {activeView === 'wallet' && (
+          <WalletView
+            initialOverview={
+              overviewState.status === 'success'
+                ? overviewState.data
+                : undefined
+            }
+            initialOverviewFetchedAt={overviewFetchedAt}
+            onOverviewUpdated={updateOverview}
+          />
+        )}
         {activeView === 'payment' && <PaymentView onNavigate={navigate} />}
         {activeView === 'orders' && <OrdersView />}
         {activeView === 'quests' && <QuestsView />}

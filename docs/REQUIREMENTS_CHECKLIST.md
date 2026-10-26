@@ -270,6 +270,19 @@
   - Gap: ไม่มีหลักฐานครบของ request/correlation IDs, structured logs, audit events,
     payment/reward metrics และ reconciliation reports
 
+- [ ] **NFR-PERF-01 — Customer Portal Performance — In progress**
+  - Baseline 2026-10-15: Neon `us-east-2`; first query ~3,262 ms, warm query ~270 ms,
+    8 sequential queries ~2,168 ms และ 8 parallel queries ~275 ms
+  - Implemented: deduplicate `/users/me`, overview และ exact history query ตาม session generation;
+    reuse overview ภายใน navigation window 30 วินาที, revalidate เมื่อ stale และ invalidate หลัง top-up
+  - Implemented: overview DB reads ใช้ aggregate และ bounded concurrency สูงสุด 3 แบบ 3 stages;
+    เวอร์ชัน burst 6 ถูกยกเลิกหลัง live test พบ `ETIMEDOUT`
+  - Post-change service measurement บน Neon `us-east-2` แบบ read-only 20 warm samples:
+    min 1,383 ms, avg 1,429 ms, p95 1,446 ms, max 1,719 ms; cold service 7,465 ms
+  - Verified: API unit 74/74, API E2E 2/2, Web 52/52 พร้อม typecheck/lint/build ผ่าน
+  - Remaining: proposed warm authenticated HTTP p95 <= 1,000 ms และ Customer primary data <= 1,500 ms
+    ยังไม่ผ่าน/ยังไม่มี end-to-end evidence; ต้องลด `/users/me` -> overview waterfall และพิจารณา Neon region/pooling/autosuspend
+
 ## Definition of Done ระดับระบบ
 
 - [ ] Behavior และ Authorization ถูกต้องทุก Portal — Partial; consumer/merchant บางเส้นมี guard

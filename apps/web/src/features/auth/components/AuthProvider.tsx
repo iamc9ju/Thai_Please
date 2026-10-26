@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { getMe, login as apiLogin, logout as apiLogout } from '../api/auth.api';
 import { AuthContext } from '../auth-context';
+import { getSessionGeneration } from '../session-scope';
 import type { AuthUser, LoginCredentials, LoginRole } from '../auth.types';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -8,13 +9,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSession = useCallback(async () => {
+    const generation = getSessionGeneration();
     try {
       const currentUser = await getMe();
-      setUser(currentUser);
+      if (generation === getSessionGeneration()) setUser(currentUser);
     } catch {
-      setUser(null);
+      if (generation === getSessionGeneration()) setUser(null);
     } finally {
-      setIsLoading(false);
+      if (generation === getSessionGeneration()) setIsLoading(false);
     }
   }, []);
 

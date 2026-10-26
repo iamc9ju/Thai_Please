@@ -10,19 +10,29 @@ import type {
   RegisterMerchantPayload,
   RegisterMerchantResponse,
 } from '../auth.types';
+import { getSessionGeneration, invalidateSessionScope } from '../session-scope';
 
 const AUTH_API_PATH = '/api/v1/auth';
 const USERS_API_PATH = '/api/v1/users';
 
-export function login(
+type MeRequest = {
+  generation: number;
+  promise: Promise<AuthUser | null>;
+};
+
+let meRequest: MeRequest | null = null;
+
+export async function login(
   role: LoginRole,
   credentials: LoginCredentials,
 ): Promise<LoginResponse> {
   const rolePath = role === 'administrator' ? 'admin' : role;
-  return apiClient.post<LoginResponse>(
+  const response = await apiClient.post<LoginResponse>(
     `${AUTH_API_PATH}/${rolePath}/login`,
     credentials,
   );
+  invalidateSessionScope();
+  return response;
 }
 
 export function registerConsumer(
@@ -43,15 +53,31 @@ export function registerMerchant(
   );
 }
 
-export async function getMe(): Promise<AuthUser | null> {
-  try {
-    const res = await apiClient.get<MeResponse>(`${USERS_API_PATH}/me`);
-    return res.user;
-  } catch {
-    return null;
+export function getMe(): Promise<AuthUser | null> {
+  const generation = getSessionGeneration();
+  if (meRequest?.generation === generation) {
+    return meRequest.promise;
   }
+
+  const promise = apiClient
+    .get<MeResponse>(`${USERS_API_PATH}/me`)
+    .then((response) => response.user)
+    .catch(() => null);
+  const request = { generation, promise };
+  meRequest = request;
+  const clearRequest = () => {
+    if (meRequest === request) meRequest = null;
+  };
+  void promise.then(clearRequest, clearRequest);
+  return promise;
 }
 
-export function logout(): Promise<{ success: boolean }> {
-  return apiClient.post<{ success: boolean }>(`${AUTH_API_PATH}/logout`);
+export async function logout(): Promise<{ success: boolean }> {
+  try {
+    return await apiClient.post<{ success: boolean }>(
+      `${AUTH_API_PATH}/logout`,
+    );
+  } finally {
+    invalidateSessionScope();
+  }
 }

@@ -15,6 +15,13 @@ export type PaymentStep = 'scan' | 'review' | 'success';
 export const TOP_UP_MIN_BAHT = 1;
 export const TOP_UP_MAX_BAHT = 50_000;
 export const WALLET_HISTORY_PAGE_SIZE = 20;
+/**
+ * Controls whether Dashboard data can skip revalidation when navigating to
+ * Wallet. It is not a maximum age for data already displayed on either view.
+ */
+export const CONSUMER_OVERVIEW_NAVIGATION_REUSE_POLICY = {
+  maxAgeMs: 30_000,
+} as const;
 
 export type WalletTransactionItem = {
   transactionId: string;

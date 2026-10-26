@@ -7,7 +7,7 @@
 | ชื่อระบบ            | ThaiChuayThaiPlease — ไทยช่วยไทยพลีส |
 | ประเภท              | Functional Prototype                 |
 | สถานะ               | Draft for Review                     |
-| วันที่ปรับปรุง      | 13 ตุลาคม 2026                       |
+| วันที่ปรับปรุง      | 15 ตุลาคม 2026                       |
 | Repository เป้าหมาย | `D:\work\Thai_Please`                |
 | Database            | PostgreSQL บน Neon                   |
 | Business timezone   | `Asia/Bangkok`                       |
@@ -1122,6 +1122,16 @@ Wallet, Payment, Merchant Credit, Coupon และ Point ต้องถูก�
 ### NFR-OBS-01 — Observability
 
 มี Request ID, Correlation ID, Structured Logs, Audit Events, Payment Metrics, Reward Metrics และ Reconciliation Reports
+
+### NFR-PERF-01 — Customer Portal Performance
+
+- การเปิด Customer Portal หนึ่งครั้งต้องไม่สร้าง API request ซ้ำสำหรับ resource เดียวกันโดยไม่จำเป็น แม้ทำงานภายใต้ React Development `StrictMode`
+- หลังยืนยัน Session แล้ว หน้า Overview ต้องใช้ข้อมูลจาก `GET /api/v1/wallet/overview` เพียงหนึ่ง logical request และหน้า Wallet ต้อง reuse overview ที่ยังสดแทนการโหลดข้อมูลเดียวกันซ้ำ
+- Overview ที่ส่งต่อระหว่างหน้าใช้ navigation-reuse window เริ่มต้น 30 วินาที; ค่านี้เป็น engineering assumption ที่ต้องทบทวนกับ Product Owner และไม่ใช่ maximum displayed-data age บนหน้าที่เปิดค้าง
+- Database reads ที่ไม่ขึ้นต่อกันต้องรันพร้อมกันแบบ bounded concurrency; ห้ามสร้าง sequential query waterfall โดยไม่มี dependency
+- Performance budget เริ่มต้นที่เสนอเพื่อรอ Product Owner ยืนยันคือ warm `GET /api/v1/wallet/overview` p95 ไม่เกิน 1,000 ms ใน development/staging ที่เชื่อมฐานข้อมูลจริง โดยวัดอย่างน้อย 20 authenticated requests และรายงาน database region/สภาพแวดล้อมที่ใช้วัด
+- Performance budget เริ่มต้นที่เสนอเพื่อรอ Product Owner ยืนยันสำหรับหน้า Customer คือแสดงข้อมูลหลักภายใน 1,500 ms เมื่อ API และฐานข้อมูลอยู่ใน warm state; cold start ของฐานข้อมูลต้องวัดและรายงานแยก พร้อมคง loading/error/retry state ที่ใช้งานได้
+- การปรับ performance ต้องไม่ลด authorization, session validation, wallet/ledger correctness, query bounds หรือ error handling และต้องมี regression tests สำหรับ request deduplication กับ query orchestration
 
 ---
 
