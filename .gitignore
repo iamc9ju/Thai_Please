@@ -15,3 +15,6 @@ apps/api/src/generated/
 playwright-report/
 test-results/
 output/
+
+# Local HTTPS certificates (generated per developer machine)
+apps/web/certs/*.pem

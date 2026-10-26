@@ -18,12 +18,37 @@ Production-oriented foundation for an AI-powered local-spending, personalized-qu
 ## Local setup
 
 1. Copy `.env.example` to `.env` and replace every `replace-me` value.
-2. Install dependencies with `pnpm install --frozen-lockfile` after the first lockfile is committed; use `pnpm install` only when intentionally updating dependencies.
+2. Install dependencies with `corepack pnpm install --frozen-lockfile` after the first lockfile is committed; use `corepack pnpm install` only when intentionally updating dependencies.
 3. Start PostgreSQL with `docker compose up -d postgres`.
-4. Generate the Prisma client with `pnpm db:generate`.
-5. Run applications with `pnpm dev`.
+4. Generate the Prisma client with `corepack pnpm db:generate`.
+5. In VS Code, press `Ctrl+Shift+B` to start both applications.
 
-The web application defaults to `http://localhost:5173`. The API defaults to `http://localhost:4000/api/v1`, with liveness at `/health/live` and database readiness at `/health/ready` under that versioned prefix.
+### Run in VS Code
+
+Open `D:\work\Thai_Please` as the VS Code workspace, then:
+
+1. Press `Ctrl+Shift+B`.
+2. Select `ThaiPlease: Dev (Web + API)` if VS Code asks which task to run.
+3. VS Code starts Web and API in two dedicated, split Integrated Terminal panes. No external PowerShell window is opened.
+4. Open the `Network` URL printed in the Web terminal from a phone connected to the same Wi-Fi.
+5. Stop each process with `Ctrl+C` in its own terminal pane.
+
+The individual `ThaiPlease: Web` and `ThaiPlease: API` tasks are also available through `Terminal` > `Run Task`. Do not run another development task while ports `5173` and `4000` are already in use.
+
+The web application listens on all local interfaces and prints both its Local and Network URLs when it starts. A phone on the same Wi-Fi can open the Network URL, for example `http://192.168.1.37:5173`. The browser calls `/api` on the same origin and Vite proxies those requests to `http://localhost:4000`, so a LAN-specific API URL or CORS entry is not required. The API has liveness at `/health/live` and database readiness at `/health/ready` under its versioned prefix.
+
+### Local HTTPS for phone camera access
+
+Mobile browsers require a trusted secure context to access the camera. Generate a locally trusted certificate with `mkcert`:
+
+```powershell
+winget install FiloSottile.mkcert
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-dev-https.ps1
+```
+
+After generating the certificate, press `Ctrl+Shift+B` to start the applications. The setup script detects private LAN addresses and writes the key and certificate to the ignored `apps/web/certs` directory. Vite enables HTTPS automatically when both files exist and prints an `https://<LAN-IP>:5173` Network URL. If the computer's LAN IP changes, run the script again.
+
+For phone camera access, copy `rootCA.pem` from the CA directory printed by the script to the phone and install it as a trusted CA certificate. Only install this development CA on devices you control. Opening the HTTPS URL without trusting that CA may show a certificate warning and may still leave camera access unavailable.
 
 Authentication uses an HTTP-only cookie (`access_token`). Set `JWT_SECRET` to a random value of at least 32 characters; the API intentionally has no fallback secret. Existing development accounts created with the former unversioned SHA-256 password format must be reset before they can sign in.
 

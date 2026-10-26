@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
-    "dev": "pnpm --parallel --filter @thai-please/web --filter @thai-please/api dev",
+    "dev": "corepack pnpm --parallel --filter @thai-please/web --filter @thai-please/api dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm --recursive --if-present lint",
