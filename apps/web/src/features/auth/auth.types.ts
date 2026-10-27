@@ -1,3 +1,5 @@
+import type { MerchantBusinessType } from '@thai-please/contracts';
+
 export const LOGIN_ROLES = ['consumer', 'merchant', 'administrator'] as const;
 
 export const API_AUTH_ROLES = ['CONSUMER', 'MERCHANT', 'ADMIN'] as const;
@@ -61,7 +63,7 @@ export type RegisterConsumerPayload = {
 
 export type RegisterMerchantPayload = RegisterConsumerPayload & {
   merchantName: string;
-  merchantType: string;
+  merchantTypes: MerchantBusinessType[];
   taxId?: string | undefined;
   merchantPhone: string;
   merchantDescription: string;
@@ -83,4 +85,5 @@ export type RegisterMerchantResponse = {
   success: boolean;
   merchantId: string;
   merchantName: string;
+  merchantTypes: MerchantBusinessType[];
 };

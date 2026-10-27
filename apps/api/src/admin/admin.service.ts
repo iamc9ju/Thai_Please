@@ -299,6 +299,7 @@ export class AdminService {
       items: merchants.map((m) => ({
         merchantId: m.merchantId.toString(),
         merchantName: m.merchantName,
+        merchantTypes: m.merchantTypes,
         description: m.description,
         address: m.address,
         phone: m.phone ?? m.owner.phone,

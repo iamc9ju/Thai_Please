@@ -868,7 +868,7 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         merchant: {
           merchantId: '201',
           merchantName: 'ร้านป้าสมศรี ข้าวแกงชุมชน',
-          merchantType: 'อาหารและเครื่องดื่ม',
+          merchantTypes: ['FOOD_BEVERAGE'],
           status: merchantStatus,
         },
         wallet: {

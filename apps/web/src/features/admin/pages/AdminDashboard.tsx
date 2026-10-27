@@ -838,6 +838,20 @@ export function AdminDashboard({
                               {merchant.description}
                             </p>
                           )}
+                          {merchant.merchantTypes.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {merchant.merchantTypes.map((merchantType) => (
+                                <span
+                                  key={merchantType}
+                                  className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-[#0056b3]"
+                                >
+                                  {th.registration.merchantTypes.find(
+                                    (option) => option.value === merchantType,
+                                  )?.label ?? merchantType}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-xs text-slate-500">
                             เจ้าของร้าน: {merchant.owner.fullName} (
                             {merchant.owner.citizenIdMasked}) · โทร:{' '}

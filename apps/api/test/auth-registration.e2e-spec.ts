@@ -18,6 +18,10 @@ interface StoredUser {
   userId: bigint;
   citizenId: string;
   fullName: string;
+  title: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: Date;
   passwordHash: string;
   status: string;
   roles: Array<{ role: string; status: string }>;
@@ -52,6 +56,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
         merchantId: bigint;
         ownerUserId: bigint;
         merchantName: string;
+        merchantTypes: string[];
         status: string;
       }
     >();
@@ -99,6 +104,10 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
           data: {
             citizenId: string;
             fullName: string;
+            title: string;
+            firstName: string;
+            lastName: string;
+            dateOfBirth: Date;
             passwordHash: string;
             status: string;
           };
@@ -107,6 +116,10 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
             userId: nextBigInt(),
             citizenId: data.citizenId,
             fullName: data.fullName,
+            title: data.title,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dateOfBirth: data.dateOfBirth,
             passwordHash: data.passwordHash,
             status: data.status,
             roles: [],
@@ -232,6 +245,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
           data: {
             ownerUserId: bigint;
             merchantName: string;
+            merchantTypes: string[];
             status: string;
           };
         }) => {
@@ -240,6 +254,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
             merchantId,
             ownerUserId: data.ownerUserId,
             merchantName: data.merchantName,
+            merchantTypes: data.merchantTypes,
             status: data.status,
           };
           merchants.set(merchantId, created);
@@ -387,7 +402,35 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
     );
     expect(dupConsumerReg.status).toBe(409);
 
-    // 3. FR-AUTH-02: Existing Consumer registers a Merchant Store using the SAME citizenId & password
+    // Existing identity data must match before adding another role.
+    const mismatchedMerchantRegRes = await fetch(
+      `${baseUrl}/api/v1/auth/register/merchant`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...validConsumerDto,
+          firstName: 'สมหญิง',
+          merchantName: 'ร้านข้อมูลไม่ตรง',
+          merchantTypes: ['FOOD_BEVERAGE', 'OTOP'],
+          merchantPhone: '0898765432',
+          merchantDescription: 'ข้อมูลทดสอบ',
+          merchantAddress: '99/1 ถนนพระราม 4',
+          merchantSubdistrict: 'คลองเตย',
+          merchantDistrict: 'คลองเตย',
+          merchantProvince: 'กรุงเทพมหานคร',
+          merchantPostalCode: '10110',
+          acceptMerchantTerms: true,
+        }),
+      },
+    );
+    expect(mismatchedMerchantRegRes.status).toBe(409);
+    await expect(mismatchedMerchantRegRes.json()).resolves.toEqual(
+      expect.objectContaining({ code: 'IDENTITY_DATA_MISMATCH' }),
+    );
+    expect(merchants.size).toBe(0);
+
+    // 3. FR-AUTH-02: Existing Consumer registers a Merchant Store using the SAME citizenId, password, and identity data
     const merchantRegRes = await fetch(
       `${baseUrl}/api/v1/auth/register/merchant`,
       {
@@ -396,7 +439,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
         body: JSON.stringify({
           ...validConsumerDto,
           merchantName: 'ร้านสมศักดิ์ โภชนา',
-          merchantType: 'อาหารและเครื่องดื่ม',
+          merchantTypes: ['FOOD_BEVERAGE', 'OTOP'],
           merchantPhone: '0898765432',
           merchantDescription: 'อาหารตามสั่งชุมชน',
           merchantAddress: '99/1 ถนนพระราม 4',
@@ -417,6 +460,10 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
       }),
     );
     expect([...merchants.values()][0]?.status).toBe('PENDING');
+    expect([...merchants.values()][0]?.merchantTypes).toEqual([
+      'FOOD_BEVERAGE',
+      'OTOP',
+    ]);
     // Multi-role invariant: still only 1 User record in usersByCitizenId with both CONSUMER & MERCHANT roles
     expect(usersByCitizenId.size).toBe(1);
     const storedUser = usersByCitizenId.get('1100000000009')!;

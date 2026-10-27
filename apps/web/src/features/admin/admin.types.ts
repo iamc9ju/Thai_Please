@@ -1,3 +1,5 @@
+import type { MerchantBusinessType } from '@thai-please/contracts';
+
 export type MerchantStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
 export type AdminRoleStatus = 'ACTIVE' | 'SUSPENDED';
 export type ProgramStatus = 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'ARCHIVED';
@@ -61,6 +63,7 @@ export interface PlatformOverviewResponse {
 export interface AdminMerchantItem {
   merchantId: string;
   merchantName: string;
+  merchantTypes: MerchantBusinessType[];
   description: string | null;
   address: string | null;
   phone: string | null;

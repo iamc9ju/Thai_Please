@@ -19,7 +19,7 @@ export function RegistrationField({
 }: RegistrationFieldProps) {
   return (
     <div className="registration-field">
-      <label htmlFor={name}>
+      <label htmlFor={name} id={`${name}-label`}>
         {label}
         {optional ? (
           <small>{th.registration.optional}</small>

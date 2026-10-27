@@ -46,15 +46,16 @@ model Coupon {
 }
 
 model Merchant {
-  merchantId   BigInt   @id @default(autoincrement()) @map("merchant_id")
-  ownerUserId  BigInt   @map("owner_user_id")
-  merchantName String   @map("merchant_name") @db.VarChar(150)
-  description  String?
-  address      String?
-  phone        String?  @db.VarChar(20)
-  status       String   @default("PENDING") @db.VarChar(20)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  merchantId    BigInt   @id @default(autoincrement()) @map("merchant_id")
+  ownerUserId   BigInt   @map("owner_user_id")
+  merchantName  String   @map("merchant_name") @db.VarChar(150)
+  merchantTypes String[] @default([]) @map("merchant_types")
+  description   String?
+  address       String?
+  phone         String?  @db.VarChar(20)
+  status        String   @default("PENDING") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   authSessions AuthSession[]
   coupons      Coupon[]

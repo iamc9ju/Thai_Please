@@ -1,13 +1,21 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
   IsBoolean,
   Equals,
   IsDateString,
   IsNotEmpty,
   IsOptional,
+  IsIn,
+  IsArray,
   IsString,
   Length,
   Matches,
 } from 'class-validator';
+import {
+  MERCHANT_BUSINESS_TYPES,
+  type MerchantBusinessType,
+} from '@thai-please/contracts';
 
 export class RegisterConsumerDto {
   @IsString()
@@ -101,9 +109,15 @@ export class RegisterMerchantDto extends RegisterConsumerDto {
   @IsNotEmpty()
   merchantName!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  merchantType!: string;
+  @IsArray()
+  @ArrayNotEmpty({ message: 'กรุณาเลือกประเภทธุรกิจอย่างน้อยหนึ่งประเภท' })
+  @ArrayUnique({ message: 'ประเภทธุรกิจต้องไม่ซ้ำกัน' })
+  @IsString({ each: true })
+  @IsIn(MERCHANT_BUSINESS_TYPES, {
+    each: true,
+    message: 'ประเภทธุรกิจไม่ถูกต้อง',
+  })
+  merchantTypes!: MerchantBusinessType[];
 
   @IsString()
   @IsOptional()

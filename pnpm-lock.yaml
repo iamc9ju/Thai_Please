@@ -199,6 +199,9 @@ importers:
       '@prisma/client':
         specifier: 7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(magicast@0.5.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3))(typescript@6.0.3)
+      '@thai-please/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       class-transformer:
         specifier: 0.5.1
         version: 0.5.1
@@ -275,6 +278,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@thai-please/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0

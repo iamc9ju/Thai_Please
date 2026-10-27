@@ -146,7 +146,6 @@ export function validateRegistration(
   if (role === 'merchant') {
     const requiredMerchantFields = [
       'merchantName',
-      'merchantType',
       'merchantPhone',
       'merchantDescription',
       'merchantAddress',
@@ -160,6 +159,15 @@ export function validateRegistration(
       if (isBlank(formData, field)) {
         errors[field] = 'required';
       }
+    }
+
+    const merchantTypes = formData
+      .getAll('merchantTypes')
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (merchantTypes.length === 0) {
+      errors.merchantTypes = 'required';
     }
 
     if (!phonePattern.test(valueOf(formData, 'merchantPhone'))) {

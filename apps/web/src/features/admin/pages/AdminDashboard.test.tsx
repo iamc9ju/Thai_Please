@@ -166,6 +166,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
       {
         merchantId: '11',
         merchantName: 'ร้านก๋วยเตี๋ยวเรือลุงเข้ม',
+        merchantTypes: ['FOOD_BEVERAGE'],
         description: 'ก๋วยเตี๋ยวเรือรสเด็ด',
         address: '99 ถ.พหลโยธิน',
         phone: '0891234567',
