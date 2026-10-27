@@ -17,6 +17,10 @@
 
 ## API และ lifecycle
 
+### สวิตช์ทดสอบ rate limit
+
+ตั้ง `QUEST_GENERATION_RATE_LIMIT_ENABLED=false` ใน `apps/api/.env` แล้ว restart Backend เพื่อปิดเฉพาะเพดานชุดต่อวันและคำขอจาก actor ต่อนาที ใช้ได้ใน development/test เท่านั้น production บังคับเปิดเสมอ ค่าเริ่มต้นคือ `true`; ทดสอบเสร็จเปลี่ยนกลับ `true` แล้ว restart ไม่เปลี่ยน policy snapshot จึงไม่ทำให้ชุด READY เดิมผิดรุ่น ไม่ข้าม active/cycle, existing set, failed cooldown, budget หรือ provider quota
+
 Consumer routesใช้session CONSUMERและตัวตนจากsession Mutationต้องJSONพร้อมOriginในCORS_ORIGINS
 
 | Method | Path หลัง API prefix                          | พฤติกรรม                                                                         |

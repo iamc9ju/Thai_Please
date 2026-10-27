@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
+import { ConfigService } from '@nestjs/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseQuestPolicy } from './domain/quest-policy.js';
@@ -146,6 +147,52 @@ describe.skipIf(!enabled)('personal-spend proposal PostgreSQL workflow', () => {
       summary: { summaryVersion: 'fixture' },
     });
   }
+  it('allows a development-only rate-limit bypass while production keeps the daily limit', async () => {
+    const u = await user();
+    const limited = structuredClone(policy);
+    limited.proposals.maximumSetsPerDay = 1;
+    const dev = new QuestsRepository(
+      db,
+      new ConfigService({
+        NODE_ENV: 'test',
+        QUEST_GENERATION_RATE_LIMIT_ENABLED: 'false',
+      }),
+    );
+    const production = new QuestsRepository(
+      db,
+      new ConfigService({
+        NODE_ENV: 'production',
+        QUEST_GENERATION_RATE_LIMIT_ENABLED: 'false',
+      }),
+    );
+    const first = randomUUID();
+    const input = {
+      userId: u.userId,
+      actorId: u.userId,
+      policy: limited,
+      model: 'fixture',
+      summary: {},
+      now,
+      key: first,
+    };
+    await dev.claim(input);
+    await dev.fail(first, 'FIXTURE_FAILURE', now);
+    const afterCooldown = new Date(now.getTime() + 16 * 60_000);
+    expect(
+      (await production.proposalState(u.userId, afterCooldown, limited)).reason,
+    ).toBe('GENERATION_DAILY_LIMIT');
+    await expect(
+      production.claim({ ...input, key: randomUUID(), now: afterCooldown }),
+    ).rejects.toThrow('QUEST_GENERATION_RATE_LIMIT');
+    expect(
+      (await dev.proposalState(u.userId, afterCooldown, limited)).status,
+    ).toBe('ELIGIBLE');
+    const second = randomUUID();
+    expect(
+      (await dev.claim({ ...input, key: second, now: afterCooldown })).claimed,
+    ).toBe(true);
+    await dev.fail(second, 'FIXTURE_FAILURE', afterCooldown);
+  });
   async function ready(userId: bigint, time = now, selectedPolicy = policy) {
     const key = randomUUID();
     await claim(userId, key, time, selectedPolicy);

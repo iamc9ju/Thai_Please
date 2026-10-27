@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QUEST_PROMPT_VERSION } from './gemini.provider.js';
 import { ProposalSchema, validateProposals } from './quest-proposals.js';
@@ -91,7 +92,18 @@ function minor(value: Prisma.Decimal): bigint {
 
 @Injectable()
 export class QuestsRepository {
-  constructor(private readonly db: PrismaService) {}
+  constructor(
+    private readonly db: PrismaService,
+    private readonly config: ConfigService = new ConfigService(),
+  ) {}
+
+  private generationRateLimitsEnabled(): boolean {
+    // The temporary developer switch cannot disable production protection.
+    return (
+      this.config.get<string>('NODE_ENV') === 'production' ||
+      this.config.get<string>('QUEST_GENERATION_RATE_LIMIT_ENABLED') !== 'false'
+    );
+  }
 
   async history(userId: bigint, now: Date, policy: QuestPolicy) {
     const user = await this.db.user.findFirst({
@@ -446,7 +458,10 @@ export class QuestsRepository {
     >`SELECT count(*)::bigint AS count FROM quest_generation_logs
       WHERE user_id=${userId} AND policy_version=${policy.version} AND status IN ('PENDING','READY','ASSIGNED','FAILED')
       AND generated_at>=(${start}::timestamptz AT TIME ZONE 'UTC') AND generated_at<(${new Date(start.getTime() + DAY_MS)}::timestamptz AT TIME ZONE 'UTC')`;
-    if ((count?.count ?? 0n) >= BigInt(policy.proposals.maximumSetsPerDay))
+    if (
+      this.generationRateLimitsEnabled() &&
+      (count?.count ?? 0n) >= BigInt(policy.proposals.maximumSetsPerDay)
+    )
       return {
         ...base,
         status: 'COOLDOWN',
@@ -514,10 +529,11 @@ export class QuestsRepository {
         count(*) FILTER (WHERE user_id=${input.userId} AND policy_version=${input.policy.version} AND generated_at>=(${start}::timestamptz AT TIME ZONE 'UTC'))::bigint AS user_count
         FROM quest_generation_logs WHERE generated_at>=(${start}::timestamptz AT TIME ZONE 'UTC') OR generated_at>(${new Date(input.now.getTime() - GENERATION_RATE_WINDOW_MS)}::timestamptz AT TIME ZONE 'UTC')`;
       if (
-        (rate?.actor_count ?? 0n) >=
+        this.generationRateLimitsEnabled() &&
+        ((rate?.actor_count ?? 0n) >=
           BigInt(GENERATION_MAX_REQUESTS_PER_ACTOR_WINDOW) ||
-        (rate?.user_count ?? 0n) >=
-          BigInt(input.policy.proposals.maximumSetsPerDay)
+          (rate?.user_count ?? 0n) >=
+            BigInt(input.policy.proposals.maximumSetsPerDay))
       )
         throw new HttpException(
           'QUEST_GENERATION_RATE_LIMIT',
