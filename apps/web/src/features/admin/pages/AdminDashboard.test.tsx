@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin.api';
 import { AdminDashboard } from './AdminDashboard';
+import { th } from '../../../i18n/th';
 
 vi.mock('../api/admin.api', () => ({
   getPlatformOverview: vi.fn(),
@@ -30,6 +31,83 @@ afterEach(() => {
 });
 
 describe('AdminDashboard (FR-A01 through FR-A07)', () => {
+  it('queues proposals without claiming assignment and shows bounded validation audit', async () => {
+    const copy = th.adminPortal;
+    vi.mocked(adminApi.getQuestGenerationLogs).mockResolvedValue({
+      eligibleConsumers: [
+        {
+          userId: '1',
+          fullName: 'ผู้ใช้ทดสอบ',
+          citizenIdMasked: 'X',
+          pointBalance: 0,
+          paidOrdersCount: 25,
+          activeQuestsCount: 0,
+        },
+      ],
+      logs: [
+        {
+          generationId: '1',
+          requestKey: null,
+          status: 'READY',
+          provider: 'GEMINI',
+          modelVersion: 'fixture',
+          promptVersion: 'v3',
+          policyVersion: 'quest-policy-v3',
+          selectionReason: null,
+          reservedPoints: 0,
+          generatedAt: '2026-10-28T01:00:00Z',
+          finishedAt: '2026-10-28T01:00:01Z',
+          user: { userId: '1', fullName: 'ผู้ใช้ทดสอบ', citizenIdMasked: 'X' },
+          actor: null,
+          quest: null,
+          assignment: null,
+          proposals: [
+            {
+              id: 'MIN_SPEND:ALL:6000',
+              type: 'MIN_SPEND',
+              targetId: null,
+              minimumSpendMinor: '6000',
+            },
+          ],
+          validation: {
+            attempts: [
+              {
+                call: 1,
+                acceptedCount: 1,
+                rejections: ['PROPOSAL_AMOUNT_INVALID'],
+              },
+            ],
+            rejections: [],
+          },
+        },
+      ],
+    });
+    vi.mocked(adminApi.triggerQuestGeneration).mockResolvedValue({
+      status: 'PENDING',
+      requestKey: '00000000-0000-4000-8000-000000000001',
+      expiresAt: null,
+      nextEligibleAt: null,
+      reason: null,
+      items: [],
+    });
+    render(<AdminDashboard adminName="แอดมินทดสอบ" onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: copy.nav.quests }));
+    expect(
+      await screen.findByText(copy.questAudit.proposals),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText(copy.questAudit.validation));
+    expect(screen.getByText(/PROPOSAL_AMOUNT_INVALID/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: copy.quests.generateBtn }),
+    );
+    expect(
+      await screen.findByText(copy.questProposalStatus.PENDING),
+    ).toBeInTheDocument();
+    expect(adminApi.triggerQuestGeneration).toHaveBeenCalledWith(
+      '1',
+      expect.stringMatching(/^[0-9a-f-]{36}$/i),
+    );
+  });
   beforeEach(() => {
     vi.clearAllMocks();
 

@@ -159,6 +159,16 @@ export interface CreateSubsidyProgramInput {
 }
 
 export interface QuestGenerationLogItem {
+  proposals?: {
+    id: string;
+    type: 'MIN_SPEND' | 'CATEGORY_SPEND';
+    targetId: string | null;
+    minimumSpendMinor: string;
+  }[];
+  validation?: {
+    attempts: { call: number; acceptedCount: number; rejections: string[] }[];
+    rejections: string[];
+  };
   generationId: string;
   requestKey: string | null;
   status: string;

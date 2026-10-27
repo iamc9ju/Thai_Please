@@ -1,4 +1,6 @@
-# Backend เควสและ Gemini
+# Backend เควสและ Gemini v2 (ประวัติ)
+
+> API generation และ flow ด้านล่างถูกแทนที่ด้วย [คู่มือเควส v3](QUEST_PROPOSALS_RUNBOOK_TH.md) ซึ่งให้ consumer เลือกข้อเสนอก่อน assignment
 
 สถานะ: มีตัวสรุปประวัติ ตัวสร้าง candidate, Gemini REST adapter, Admin generate และ Consumer list พร้อม generation-run audit/transactional reservation. มีหน้า Consumer แสดงเควสและตรวจ completion/ออกแต้มหลัง PAID แล้ว; ยังไม่เปิดงานเวลา 08:00. เปลี่ยนแนวทาง online จาก CatBoost เป็น Gemini ranking ตามผู้ใช้สั่ง ไม่ใช้ model artifact และไม่อ้าง probability; ไฟล์แผน CatBoost เก่าเป็นบริบทเดิม ไม่ใช่คู่มือ online flow นี้
 

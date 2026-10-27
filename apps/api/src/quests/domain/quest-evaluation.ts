@@ -22,6 +22,7 @@ export interface ReceiptFact {
   readonly userId: string;
   readonly merchantId: string;
   readonly finalMinor: bigint;
+  readonly personalMinor?: bigint;
   readonly paidAt: Date;
   readonly items: readonly ReceiptItemFact[];
 }
@@ -38,6 +39,7 @@ export interface ActiveQuestAssignment {
   readonly rewardPoints: number;
   readonly assignedAt: Date;
   readonly expiresAt: Date;
+  readonly spendBasis?: 'PERSONAL_AFTER_DISCOUNT' | 'FINAL_AFTER_DISCOUNT';
 }
 
 export interface QuestCompletionResult {
@@ -85,6 +87,31 @@ export function allocateNetAcrossItems(
   return new Map(shares.map((share) => [share.id, share.amount]));
 }
 
+/** Allocate personal contribution over immutable discounted item amounts. */
+export function allocatePersonalAcrossItems(
+  items: readonly ReceiptItemFact[],
+  finalMinor: bigint,
+  personalMinor: bigint,
+): ReadonlyMap<string, bigint> {
+  const gross = items.reduce((sum, item) => sum + item.lineMinor, 0n);
+  if (
+    personalMinor < 0n ||
+    personalMinor > finalMinor ||
+    finalMinor > gross ||
+    items.some((item) => item.lineMinor < 0n) ||
+    new Set(items.map((item) => item.id)).size !== items.length
+  )
+    throw new Error('Invalid personal allocation facts');
+  const discounted = allocateNetAcrossItems(items, finalMinor);
+  return allocateNetAcrossItems(
+    items.map((item) => ({
+      ...item,
+      lineMinor: discounted.get(item.id) ?? 0n,
+    })),
+    personalMinor,
+  );
+}
+
 /**
  * Checks whether a single receipt satisfies the condition of an active quest.
  *
@@ -103,21 +130,30 @@ export function isQuestConditionSatisfied(
   if (receipt.paidAt < quest.assignedAt || receipt.paidAt >= quest.expiresAt) {
     return false;
   }
+  const personal = quest.spendBasis === 'PERSONAL_AFTER_DISCOUNT';
+  if (
+    personal &&
+    (receipt.personalMinor === undefined ||
+      receipt.personalMinor < 0n ||
+      receipt.personalMinor > receipt.finalMinor)
+  )
+    return false;
+  const spend = personal ? receipt.personalMinor : receipt.finalMinor;
+  if (spend === undefined) return false;
 
   switch (quest.type) {
     case 'MIN_SPEND': {
       if (quest.minimumSpendMinor === null) return false;
-      return receipt.finalMinor >= quest.minimumSpendMinor;
+      return spend >= quest.minimumSpendMinor;
     }
 
     case 'CATEGORY_SPEND': {
       if (quest.targetCategoryId === null || quest.minimumSpendMinor === null) {
         return false;
       }
-      const netAllocations = allocateNetAcrossItems(
-        receipt.items,
-        receipt.finalMinor,
-      );
+      const netAllocations = personal
+        ? allocatePersonalAcrossItems(receipt.items, receipt.finalMinor, spend)
+        : allocateNetAcrossItems(receipt.items, receipt.finalMinor);
       let categorySpend = 0n;
       for (const item of receipt.items) {
         if (item.categoryId === quest.targetCategoryId) {

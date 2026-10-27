@@ -1,4 +1,6 @@
-# นโยบายเควส v2
+# นโยบายเควส v2 (ประวัติการออกแบบ)
+
+> v3 แทนที่เอกสารนี้ในการเปลี่ยนวันที่ 28 ตุลาคม 2026 ใช้ [คู่มือเควส v3](QUEST_PROPOSALS_RUNBOOK_TH.md) สำหรับกฎและการปฏิบัติงาน เนื้อหาด้านล่างอ้างอิง v2 เท่านั้น
 
 ไฟล์ค่ากลาง: `apps/api/src/quests/config/quest-policy.json` ตรวจด้วย `parseQuestPolicy` ใน domain. เริ่มจาก config/validator/tests; ปัจจุบันมี Backend generation ที่ใช้ policy นี้แล้ว ดู [คู่มือ Backend](QUEST_BACKEND_TH.md). มี completion/ออกแต้มหลัง PAID แล้ว แต่ยังไม่เปิด schedule
 
@@ -23,7 +25,7 @@ AGENTS ที่ส่งในแชตมีช่วงเลข FR ต่า
 | เป้ายอด          | 1 เท่า/1.5 เท่าของค่าเฉลี่ย เก็บตัวคูณเป็น numerator/denominator ใช้ integer/Decimal และ ceil หน่วยสตางค์; ถ้าหลุดช่วง 10–1,000 บาทให้ตัด candidate ไม่ clamp                                                                                                           |
 | ฐานค่าเฉลี่ย     | ทั้งบิลสำหรับ MIN_SPEND; ยอดหมวดหลังแบ่งส่วนลดเฉพาะบิลที่มีหมวดนั้นสำหรับ CATEGORY_SPEND                                                                                                                                                                                |
 | ส่วนลดหมวด       | ข้อกำหนดกำหนด after-discount แต่สูตร allocation ยังไม่ระบุใน REQUIREMENTS ปัจจุบัน: เลือกแบ่งตามสัดส่วน line_total ใช้ largest remainder หน่วยสตางค์ tie ด้วย order_item_id; ไม่หัก subsidy ซ้ำ ผลรวมต้องตรง final_amount                                               |
-| เป้าหมาย         | เฉพาะหมวดที่เคยซื้อและยังมีสินค้าใช้งานได้จากร้าน active (MIN_SPEND ไม่มี target); จัดลำดับจำนวนบิลมากก่อน ซื้อครั้งล่าสุดก่อน แล้ว ID น้อยก่อน ใช้ ID numeric เปรียบเทียบแบบไม่เสีย precision                                                                                                               |
+| เป้าหมาย         | เฉพาะหมวดที่เคยซื้อและยังมีสินค้าใช้งานได้จากร้าน active (MIN_SPEND ไม่มี target); จัดลำดับจำนวนบิลมากก่อน ซื้อครั้งล่าสุดก่อน แล้ว ID น้อยก่อน ใช้ ID numeric เปรียบเทียบแบบไม่เสีย precision                                                                          |
 | จำนวนตัวเลือก    | ไม่เกิน 4 ต่อประเภท รวม 8; กำจัดตัวเลือกเงื่อนไขซ้ำก่อนตัดจำนวน ลำดับตัวคูณตาม JSON                                                                                                                                                                                     |
 | คะแนน            | integer 0–100 เพื่อจัดอันดับความสอดคล้องและความท้าทาย ไม่ใช่ probability; ทุก candidate ต้องมีคะแนนครั้งเดียว ไม่มีเกณฑ์ขั้นต่ำใน v1                                                                                                                                    |
 | คะแนนเท่ากัน     | เป้ายอดต่ำกว่าก่อน แล้ว candidate ID แบบ canonical ASCII ascending; ID ต้องสร้าง deterministic                                                                                                                                                                          |

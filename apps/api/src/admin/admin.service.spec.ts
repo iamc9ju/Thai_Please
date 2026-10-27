@@ -7,9 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AdminService } from './admin.service.js';
+import type { QuestsService } from '../quests/quests.service.js';
 
 describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
   let service: AdminService;
+  let proposals: { generate: ReturnType<typeof vi.fn> };
   let prismaMock: {
     user: {
       findMany: ReturnType<typeof vi.fn>;
@@ -125,8 +127,39 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
       ),
     };
 
-    service = new AdminService(prismaMock as unknown as PrismaService);
+    proposals = { generate: vi.fn() };
+    service = new AdminService(
+      prismaMock as unknown as PrismaService,
+      proposals as unknown as QuestsService,
+    );
   });
+
+  it('FR-C07 queues proposals through the authoritative quest service without assigning or inventing rewards', async () => {
+    const key = '541c432e-94e6-4a46-bda4-da5dd0864b71';
+    const result = {
+      requestKey: key,
+      status: 'PENDING',
+      assignmentId: null,
+      reason: null,
+    };
+    proposals.generate.mockResolvedValue(result);
+    await expect(
+      service.generatePersonalizedQuestForConsumer(3n, 1n, key),
+    ).resolves.toEqual(result);
+    expect(proposals.generate).toHaveBeenCalledWith(3n, 1n, key);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each(['not-a-uuid', '541c432e-94e6-1a46-bda4-da5dd0864b71'])(
+    'rejects unsupported generation idempotency key %s',
+    async (key) => {
+      await expect(
+        service.generatePersonalizedQuestForConsumer(3n, 1n, key),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(proposals.generate).not.toHaveBeenCalled();
+    },
+  );
 
   describe('getPlatformOverview (FR-A01)', () => {
     it('aggregates platform users, merchants, orders, points, coupons, quests, and active program', async () => {

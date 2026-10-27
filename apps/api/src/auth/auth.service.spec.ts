@@ -6,6 +6,7 @@ import {
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
+import type { RegisterConsumerDto } from './dto/register.dto.js';
 import {
   AUTH_RATE_LIMITED_CODE,
   LOGIN_LOCKOUT_WINDOW_MS,
@@ -184,5 +185,63 @@ describe('AuthService & LoginRateLimiterService (FR-AUTH-03, FR-AUTH-04)', () =>
         startMs + LOGIN_LOCKOUT_WINDOW_MS,
       ),
     ).not.toThrow();
+  });
+});
+
+describe('FR-C07 consumer registration proposal-only lifecycle', () => {
+  it('registers an account without automatically assigning any catalogue quests', async () => {
+    const tx = {
+      user: {
+        create: vi.fn().mockResolvedValue({
+          userId: 1n,
+          citizenId: '1100000000001',
+          fullName: 'Fixture Consumer',
+        }),
+      },
+      userRole: { create: vi.fn().mockResolvedValue({}) },
+      wallet: { findUnique: vi.fn().mockResolvedValue({ walletId: 1n }) },
+      quest: {
+        findMany: vi.fn().mockResolvedValue([{ questId: 1n, durationDays: 7 }]),
+      },
+      userQuest: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+      },
+    };
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(
+        async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+      ),
+    };
+    const auth = new AuthService(
+      prisma as unknown as PrismaService,
+      {} as never,
+      {} as never,
+      { hash: vi.fn().mockResolvedValue('fixture-hash') } as never,
+    );
+    const dto: RegisterConsumerDto = {
+      citizenId: '1100000000001',
+      title: 'นาย',
+      firstName: 'Fixture',
+      lastName: 'Consumer',
+      birthDate: '2000-01-01',
+      phone: '0811111111',
+      homeNumber: '1',
+      subdistrict: 'Fixture',
+      district: 'Fixture',
+      province: 'Fixture',
+      postalCode: '10100',
+      password: 'FixturePassword1!',
+      acceptTerms: true,
+      acceptPrivacy: true,
+    };
+    await expect(auth.registerConsumer(dto)).resolves.toMatchObject({
+      success: true,
+    });
+    expect(tx.user.create).toHaveBeenCalledOnce();
+    expect(tx.userRole.create).toHaveBeenCalledOnce();
+    expect(tx.quest.findMany).not.toHaveBeenCalled();
+    expect(tx.userQuest.create).not.toHaveBeenCalled();
   });
 });

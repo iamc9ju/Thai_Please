@@ -5,6 +5,9 @@ import type {
   ConsumerOverviewResponse,
   ConsumerPointsResponse,
   ConsumerQuestListResponse,
+  ConsumerQuestProposal,
+  ConsumerQuestProposalsResponse,
+  ConsumerQuestSelectionResponse,
   OrderPreviewResponse,
   PaymentResultResponse,
   ReceiptDetail,
@@ -16,9 +19,156 @@ import type {
 
 const WALLET_API_PATH = '/api/v1/wallet';
 const QUEST_API_PATH = '/api/v1/consumer/quests';
+const QUEST_PROPOSALS_API_PATH = `${QUEST_API_PATH}/proposals`;
 const ORDER_API_PATH = '/api/v1/consumer/orders';
 const POINTS_API_PATH = '/api/v1/consumer/points';
 const COUPONS_API_PATH = '/api/v1/consumer/coupons';
+
+const PROPOSAL_STATUSES = new Set([
+  'READY',
+  'PENDING',
+  'COOLDOWN',
+  'ELIGIBLE',
+  'FAILED',
+]);
+
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nullableText(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
+}
+
+function nullableTimestamp(value: unknown): value is string | null {
+  return (
+    value === null ||
+    (typeof value === 'string' && Number.isFinite(Date.parse(value)))
+  );
+}
+
+function parseProposals(value: unknown): ConsumerQuestProposalsResponse {
+  if (
+    !record(value) ||
+    typeof value.status !== 'string' ||
+    !PROPOSAL_STATUSES.has(value.status) ||
+    !nullableText(value.requestKey) ||
+    !nullableTimestamp(value.expiresAt) ||
+    !nullableTimestamp(value.nextEligibleAt) ||
+    !nullableText(value.reason) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 3
+  ) {
+    throw new Error('QUEST_PROPOSALS_RESPONSE_INVALID');
+  }
+  const items = value.items.map((item: unknown): ConsumerQuestProposal => {
+    if (
+      !record(item) ||
+      typeof item.id !== 'string' ||
+      !item.id ||
+      (item.type !== 'MIN_SPEND' && item.type !== 'CATEGORY_SPEND') ||
+      !nullableText(item.targetCategoryId) ||
+      !nullableText(item.targetCategoryName) ||
+      (item.type === 'MIN_SPEND' && item.targetCategoryId !== null) ||
+      (item.type === 'CATEGORY_SPEND' && !item.targetCategoryId) ||
+      typeof item.minimumSpend !== 'string' ||
+      !/^[0-9]+(?:\.[0-9]{1,2})?$/.test(item.minimumSpend) ||
+      Number(item.minimumSpend) <= 0 ||
+      typeof item.rewardPoints !== 'number' ||
+      !Number.isSafeInteger(item.rewardPoints) ||
+      item.rewardPoints <= 0 ||
+      typeof item.durationDays !== 'number' ||
+      !Number.isSafeInteger(item.durationDays) ||
+      item.durationDays <= 0
+    ) {
+      throw new Error('QUEST_PROPOSALS_RESPONSE_INVALID');
+    }
+    return {
+      id: item.id,
+      type: item.type,
+      targetCategoryId: item.targetCategoryId,
+      targetCategoryName: item.targetCategoryName,
+      minimumSpend: item.minimumSpend,
+      rewardPoints: item.rewardPoints,
+      durationDays: item.durationDays,
+    };
+  });
+  if (
+    (value.status === 'READY' &&
+      (!value.requestKey || !value.expiresAt || items.length === 0)) ||
+    new Set(items.map((item) => item.id)).size !== items.length
+  ) {
+    throw new Error('QUEST_PROPOSALS_RESPONSE_INVALID');
+  }
+  // The status check above narrows the finite server states explicitly.
+  switch (value.status) {
+    case 'READY':
+    case 'PENDING':
+    case 'COOLDOWN':
+    case 'ELIGIBLE':
+    case 'FAILED':
+      return {
+        status: value.status,
+        requestKey: value.requestKey,
+        expiresAt: value.expiresAt,
+        nextEligibleAt: value.nextEligibleAt,
+        reason: value.reason,
+        items,
+      };
+    default:
+      throw new Error('QUEST_PROPOSALS_RESPONSE_INVALID');
+  }
+}
+
+export async function getConsumerQuestProposals(
+  signal?: AbortSignal,
+): Promise<ConsumerQuestProposalsResponse> {
+  return parseProposals(
+    await apiClient.get<unknown>(
+      QUEST_PROPOSALS_API_PATH,
+      signal ? { signal } : {},
+    ),
+  );
+}
+
+export async function createConsumerQuestProposals(
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<ConsumerQuestProposalsResponse> {
+  return parseProposals(
+    await apiClient.post<unknown>(
+      QUEST_PROPOSALS_API_PATH,
+      { idempotencyKey },
+      signal ? { signal } : {},
+    ),
+  );
+}
+
+export async function selectConsumerQuestProposal(
+  requestKey: string,
+  proposalId: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<ConsumerQuestSelectionResponse> {
+  const result = await apiClient.post<unknown>(
+    `${QUEST_PROPOSALS_API_PATH}/${encodeURIComponent(requestKey)}/select`,
+    { proposalId, idempotencyKey },
+    signal ? { signal } : {},
+  );
+  if (
+    !record(result) ||
+    typeof result.assignmentId !== 'string' ||
+    !result.assignmentId ||
+    typeof result.nextEligibleAt !== 'string' ||
+    !Number.isFinite(Date.parse(result.nextEligibleAt))
+  ) {
+    throw new Error('QUEST_SELECTION_RESPONSE_INVALID');
+  }
+  return {
+    assignmentId: result.assignmentId,
+    nextEligibleAt: result.nextEligibleAt,
+  };
+}
 
 export function getConsumerQuests(
   cursor?: string,

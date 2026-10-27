@@ -249,31 +249,6 @@ export class AuthService {
         }
       }
 
-      // มอบหมายภารกิจเริ่มต้นให้ประชาชนโดยอัตโนมัติ (FR-C07 / FR-S05)
-      const defaultQuests = await tx.quest.findMany({
-        orderBy: { questId: 'asc' },
-        take: 3,
-      });
-      const assignedAt = new Date();
-      for (const q of defaultQuests) {
-        const existingAssignment = await tx.userQuest.findFirst({
-          where: { userId: user.userId, questId: q.questId },
-        });
-        if (!existingAssignment) {
-          await tx.userQuest.create({
-            data: {
-              userId: user.userId,
-              questId: q.questId,
-              status: 'ACTIVE',
-              assignedAt,
-              expiresAt: new Date(
-                assignedAt.getTime() + q.durationDays * 24 * 60 * 60 * 1000,
-              ),
-            },
-          });
-        }
-      }
-
       return {
         success: true,
         citizenId: user.citizenId,

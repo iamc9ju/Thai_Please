@@ -325,13 +325,9 @@ export function AdminDashboard({
         selectedConsumerId,
         createUuidV4(),
       );
-      const questTitle = result.title || 'ภารกิจเฉพาะบุคคล';
-      const points =
-        typeof result.rewardPoints === 'number' ? result.rewardPoints : 0;
-      const genRef = result.generationId ?? 'สำเร็จ';
       setActionBanner({
-        type: 'success',
-        message: `สร้างและมอบหมายภารกิจ "${questTitle}" (+${points} พอยต์) สำเร็จ (Generation #${genRef})`,
+        type: result.status === 'FAILED' ? 'error' : 'success',
+        message: th.adminPortal.questProposalStatus[result.status],
       });
       const refreshed = await getQuestGenerationLogs();
       setQuestLogsData(refreshed);
@@ -1333,6 +1329,46 @@ export function AdminDashboard({
                             <p className="mt-1 text-xs text-slate-600">
                               เหตุผลการคัดเลือก: {log.selectionReason}
                             </p>
+                          )}
+                          {(log.proposals?.length ?? 0) > 0 && (
+                            <div className="mt-2 text-xs text-slate-700">
+                              <p className="font-semibold">
+                                {copy.questAudit.proposals}
+                              </p>
+                              <ul>
+                                {log.proposals?.map((proposal) => (
+                                  <li key={proposal.id}>
+                                    {proposal.type} ·{' '}
+                                    {proposal.targetId
+                                      ? `${copy.questAudit.category} ${proposal.targetId}`
+                                      : copy.questAudit.allCategories}
+                                    {' · '}
+                                    {copy.questAudit.personalTarget}:{' '}
+                                    {formatBaht(
+                                      Number(proposal.minimumSpendMinor) / 100,
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(log.validation?.attempts.length ?? 0) > 0 && (
+                            <details className="mt-2 text-xs text-slate-600">
+                              <summary>{copy.questAudit.validation}</summary>
+                              {log.validation?.attempts.map((attempt) => (
+                                <p key={attempt.call}>
+                                  {copy.questAudit.call} {attempt.call}:{' '}
+                                  {copy.questAudit.accepted}{' '}
+                                  {attempt.acceptedCount}
+                                  {' · '}
+                                  {attempt.rejections.join(', ') ||
+                                    copy.questAudit.noRejections}
+                                </p>
+                              ))}
+                              {(log.validation?.rejections.length ?? 0) > 0 && (
+                                <p>{log.validation?.rejections.join(', ')}</p>
+                              )}
+                            </details>
                           )}
                         </div>
 
