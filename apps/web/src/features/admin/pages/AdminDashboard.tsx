@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import {
   Activity,
   AlertCircle,
@@ -10,11 +16,8 @@ import {
   Coins,
   FileText,
   Gift,
-  Layers,
-  LogOut,
   Plus,
   RefreshCw,
-  ShieldCheck,
   Sparkles,
   Store,
   Target,
@@ -24,6 +27,17 @@ import {
   XCircle,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { ApiError } from '../../../lib/api-client';
+import { AdminShell, type AdminTab } from '../components/AdminShell';
+import '../admin.css';
+import {
+  MerchantActionDialog,
+  type MerchantConfirmation,
+} from '../components/MerchantActionDialog';
+import { merchantActionsCopy } from '../merchant-actions.copy';
+import { QuestGenerationDetails } from '../components/QuestGenerationDetails';
+import { SubsidyProgramEditor } from '../components/SubsidyProgramEditor';
+import { adminManagementCopy } from '../admin-management.copy';
 import {
   createSubsidyProgram,
   getAdminMerchants,
@@ -50,14 +64,7 @@ import type {
   SubsidyProgramItem,
 } from '../admin.types';
 
-type AdminTab =
-  | 'overview'
-  | 'merchants'
-  | 'programs'
-  | 'quests'
-  | 'rewards'
-  | 'socialImpact'
-  | 'admins';
+const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
 
 export interface AdminDashboardProps {
   adminName?: string;
@@ -76,6 +83,7 @@ function formatDateTime(iso: string | null): string {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
   return parsed.toLocaleString('th-TH', {
+    timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -88,6 +96,7 @@ function formatShortDate(iso: string): string {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
   return parsed.toLocaleDateString('th-TH', {
+    timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -109,13 +118,15 @@ function createUuidV4(): string {
 }
 
 export function AdminDashboard({
-  adminName = 'ผู้ดูแลระบบกลาง',
+  adminName = th.adminPortal.shell.defaultName,
   onLogout,
 }: AdminDashboardProps) {
   const copy = th.adminPortal;
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const loadSequence = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isForbidden, setIsForbidden] = useState(false);
   const [actionBanner, setActionBanner] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -127,6 +138,38 @@ export function AdminDashboard({
   );
   const [merchants, setMerchants] = useState<AdminMerchantItem[]>([]);
   const [merchantFilter, setMerchantFilter] = useState<string>('ALL');
+  const [merchantSearch, setMerchantSearch] = useState('');
+  const [merchantTypeFilter, setMerchantTypeFilter] = useState('');
+  const merchantSearchQuery = merchantSearch.trim().toLocaleLowerCase('th-TH');
+  const merchantTypeOptions = [
+    ...new Set([
+      ...th.registration.merchantTypes,
+      ...merchants.flatMap((merchant) =>
+        merchant.merchantType ? [merchant.merchantType] : [],
+      ),
+    ]),
+  ];
+  const visibleMerchants = merchants.filter((merchant) => {
+    const typeMatches =
+      !merchantTypeFilter ||
+      (merchant.merchantType ?? '') === merchantTypeFilter ||
+      (merchantTypeFilter === UNSPECIFIED_MERCHANT_TYPE &&
+        !merchant.merchantType);
+    const searchText = [
+      merchant.merchantName,
+      merchant.owner.fullName,
+      merchant.phone,
+      merchant.owner.phone,
+      merchant.address,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('th-TH');
+    return (
+      typeMatches &&
+      (!merchantSearchQuery || searchText.includes(merchantSearchQuery))
+    );
+  });
   const [merchantActionReason, setMerchantActionReason] = useState<
     Record<string, string>
   >({});
@@ -134,20 +177,43 @@ export function AdminDashboard({
     string | null
   >(null);
 
+  const [merchantConfirmation, setMerchantConfirmation] =
+    useState<MerchantConfirmation | null>(null);
+  const [isMerchantSubmitting, setIsMerchantSubmitting] = useState(false);
+  const [merchantCompleted, setMerchantCompleted] = useState(0);
+  const merchantSubmissionLock = useRef(false);
+
   const [programs, setPrograms] = useState<SubsidyProgramItem[]>([]);
   const [newProgram, setNewProgram] = useState({
     programName: '',
-    initialGrant: '1000',
-    subsidyPercentage: '50',
-    dailySubsidyLimit: '200',
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
+    initialGrant: '',
+    subsidyPercentage: '',
+    dailySubsidyLimit: '',
+    startDate: '',
+    endDate: '',
   });
   const [isSavingProgram, setIsSavingProgram] = useState(false);
+  const [processingProgramId, setProcessingProgramId] = useState<string | null>(
+    null,
+  );
 
   const [questLogsData, setQuestLogsData] =
     useState<QuestGenerationLogsResponse | null>(null);
   const [selectedConsumerId, setSelectedConsumerId] = useState<string>('');
+  const [consumerSegment, setConsumerSegment] = useState<
+    'ALL_ELIGIBLE' | 'NO_ACTIVE_QUEST'
+  >('ALL_ELIGIBLE');
+  const selectableConsumers =
+    questLogsData?.eligibleConsumers.filter(
+      (consumer) =>
+        consumerSegment === 'ALL_ELIGIBLE' || consumer.activeQuestsCount === 0,
+    ) ?? [];
+  const effectiveConsumerId = selectableConsumers.some(
+    (consumer) => consumer.userId === selectedConsumerId,
+  )
+    ? selectedConsumerId
+    : (selectableConsumers[0]?.userId ?? '');
+  const selectedConsumerIsEligible = effectiveConsumerId !== '';
   const [isGeneratingQuest, setIsGeneratingQuest] = useState(false);
 
   const [rewardMonitoring, setRewardMonitoring] =
@@ -166,51 +232,72 @@ export function AdminDashboard({
 
   const loadActiveTabData = useCallback(
     async (tab: AdminTab) => {
+      const requestId = ++loadSequence.current;
       setIsLoading(true);
       setError(null);
+      setIsForbidden(false);
       try {
         if (tab === 'overview') {
           const res = await getPlatformOverview();
+          if (requestId !== loadSequence.current) return;
           setOverview(res);
         } else if (tab === 'merchants') {
           const items = await getAdminMerchants(merchantFilter);
+          if (requestId !== loadSequence.current) return;
           setMerchants(items);
         } else if (tab === 'programs') {
           const items = await getSubsidyPrograms();
+          if (requestId !== loadSequence.current) return;
           setPrograms(items);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
+          if (requestId !== loadSequence.current) return;
           setQuestLogsData(res);
-          if (!selectedConsumerId && res.eligibleConsumers[0]) {
-            setSelectedConsumerId(res.eligibleConsumers[0].userId);
-          }
+          setSelectedConsumerId((previous) =>
+            res.eligibleConsumers.some(
+              (consumer) => consumer.userId === previous,
+            )
+              ? previous
+              : (res.eligibleConsumers[0]?.userId ?? ''),
+          );
         } else if (tab === 'rewards') {
           const res = await getRewardMonitoring();
+          if (requestId !== loadSequence.current) return;
           setRewardMonitoring(res);
         } else if (tab === 'socialImpact') {
           const res = await getSocialImpactDashboard(impactDays);
+          if (requestId !== loadSequence.current) return;
           setSocialImpact(res);
         } else if (tab === 'admins') {
           const res = await getAdminUsersAndRoles();
+          if (requestId !== loadSequence.current) return;
           setAdminUsersData(res);
         }
       } catch (err) {
+        if (requestId !== loadSequence.current) return;
+        setIsForbidden(err instanceof ApiError && err.status === 403);
         setError(err instanceof Error ? err.message : copy.errorTitle);
       } finally {
-        setIsLoading(false);
+        if (requestId === loadSequence.current) setIsLoading(false);
       }
     },
-    [copy.errorTitle, impactDays, merchantFilter, selectedConsumerId],
+    [copy.errorTitle, impactDays, merchantFilter],
   );
 
   useEffect(() => {
     void loadActiveTabData(activeTab);
+    return () => {
+      loadSequence.current += 1;
+    };
   }, [activeTab, loadActiveTabData]);
 
   const handleMerchantAction = async (
     merchantId: string,
     action: 'approve' | 'reject' | 'suspend' | 'activate',
   ) => {
+    if (merchantSubmissionLock.current) return;
+    merchantSubmissionLock.current = true;
+    setIsMerchantSubmitting(true);
     setProcessingMerchantId(merchantId);
     setActionBanner(null);
     try {
@@ -236,12 +323,119 @@ export function AdminDashboard({
       });
     } finally {
       setProcessingMerchantId(null);
+      merchantSubmissionLock.current = false;
+      setIsMerchantSubmitting(false);
+    }
+  };
+
+  const requestMerchantAction = (
+    merchantId: string,
+    action: 'approve' | 'reject' | 'suspend' | 'activate',
+  ) => {
+    if (merchantSubmissionLock.current) return;
+    if (action === 'approve' || action === 'reject') {
+      const merchant = merchants.find((item) => item.merchantId === merchantId);
+      if (merchant)
+        setMerchantConfirmation({
+          action,
+          bulk: false,
+          merchants: [
+            {
+              merchantId: merchant.merchantId,
+              merchantName: merchant.merchantName,
+              status: merchant.status,
+            },
+          ],
+        });
+    } else {
+      void handleMerchantAction(merchantId, action);
+    }
+  };
+
+  const confirmMerchantAction = async () => {
+    if (!merchantConfirmation || merchantSubmissionLock.current) return;
+    const confirmation = merchantConfirmation;
+    merchantSubmissionLock.current = true;
+    setIsMerchantSubmitting(true);
+    setMerchantCompleted(0);
+    setActionBanner(null);
+    let succeeded = 0;
+    const failures: string[] = [];
+    try {
+      for (const [index, merchant] of confirmation.merchants.entries()) {
+        try {
+          const result = await updateMerchantApprovalStatus(
+            merchant.merchantId,
+            confirmation.action,
+            merchantActionReason[merchant.merchantId]?.trim() || undefined,
+            merchant.status,
+          );
+          succeeded += 1;
+          setMerchants((previous) =>
+            previous.flatMap((item) =>
+              item.merchantId !== result.merchantId
+                ? [item]
+                : merchantFilter === 'PENDING'
+                  ? []
+                  : [
+                      {
+                        ...item,
+                        status: result.status,
+                        updatedAt: result.updatedAt,
+                      },
+                    ],
+            ),
+          );
+        } catch (error) {
+          failures.push(merchant.merchantName);
+          if (
+            error instanceof ApiError &&
+            (error.status === 401 || error.status === 403)
+          ) {
+            failures.push(
+              ...confirmation.merchants
+                .slice(index + 1)
+                .map((item) => item.merchantName),
+            );
+            break;
+          }
+        } finally {
+          setMerchantCompleted(index + 1);
+        }
+      }
+      let message = confirmation.bulk
+        ? merchantActionsCopy.bulkResult(succeeded, failures)
+        : succeeded > 0
+          ? merchantActionsCopy.updated(
+              confirmation.merchants[0]?.merchantName ?? '',
+            )
+          : merchantActionsCopy.failed;
+      try {
+        setMerchants(await getAdminMerchants(merchantFilter));
+      } catch {
+        message += ` · ${merchantActionsCopy.refreshFailed}`;
+      }
+      setActionBanner({
+        type: failures.length > 0 ? 'error' : 'success',
+        message,
+      });
+    } finally {
+      setMerchantConfirmation(null);
+      merchantSubmissionLock.current = false;
+      setIsMerchantSubmitting(false);
     }
   };
 
   const handleCreateProgram = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!newProgram.programName.trim()) return;
+    if (!newProgram.programName.trim() || isSavingProgram) return;
+    if (newProgram.startDate > newProgram.endDate) {
+      setActionBanner({
+        type: 'error',
+        message: adminManagementCopy.dateOrder,
+      });
+      return;
+    }
     setIsSavingProgram(true);
     setActionBanner(null);
     try {
@@ -278,6 +472,8 @@ export function AdminDashboard({
     programId: string,
     status: ProgramStatus,
   ) => {
+    if (processingProgramId !== null) return;
+    setProcessingProgramId(programId);
     setActionBanner(null);
     try {
       const updated = await updateSubsidyProgramStatus(programId, status);
@@ -295,16 +491,18 @@ export function AdminDashboard({
             ? err.message
             : 'ไม่สามารถเปลี่ยนสถานะโครงการได้',
       });
+    } finally {
+      setProcessingProgramId(null);
     }
   };
 
   const handleTriggerQuestGeneration = async () => {
-    if (!selectedConsumerId || isGeneratingQuest) return;
+    if (!selectedConsumerIsEligible || isGeneratingQuest) return;
     setIsGeneratingQuest(true);
     setActionBanner(null);
     try {
       const result = await triggerQuestGeneration(
-        selectedConsumerId,
+        effectiveConsumerId,
         createUuidV4(),
       );
       const questTitle = result.title || 'ภารกิจเฉพาะบุคคล';
@@ -382,119 +580,33 @@ export function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-['Kanit',sans-serif] text-slate-900">
-      {/* Blue Theme Top Navigation Header */}
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] text-white shadow-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-              <ShieldCheck className="size-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white sm:text-lg">
-                  {adminName}
-                </h1>
-                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                  {copy.roleBadge}
-                </span>
-              </div>
-              <p className="text-xs text-blue-100">{copy.brandSubtitle}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActionBanner(null);
-                void loadActiveTabData(activeTab);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25"
-            >
-              <RefreshCw className="size-3.5" />
-              {copy.refresh}
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-blue-100 ring-1 ring-white/20 transition hover:bg-red-500/80 hover:text-white"
-            >
-              <LogOut className="size-3.5" />
-              {copy.logout}
-            </button>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="border-t border-white/15 bg-[#003d82]/60">
-          <div className="mx-auto flex max-w-7xl gap-1.5 overflow-x-auto px-4 py-2 sm:px-6">
-            {(
-              [
-                {
-                  key: 'overview',
-                  label: copy.nav.overview,
-                  icon: Layers,
-                },
-                {
-                  key: 'merchants',
-                  label: copy.nav.merchants,
-                  icon: Store,
-                },
-                {
-                  key: 'programs',
-                  label: copy.nav.programs,
-                  icon: Coins,
-                },
-                {
-                  key: 'quests',
-                  label: copy.nav.quests,
-                  icon: Sparkles,
-                },
-                {
-                  key: 'rewards',
-                  label: copy.nav.rewards,
-                  icon: Award,
-                },
-                {
-                  key: 'socialImpact',
-                  label: copy.nav.socialImpact,
-                  icon: BarChart3,
-                },
-                {
-                  key: 'admins',
-                  label: copy.nav.admins,
-                  icon: UserCheck,
-                },
-              ] as const
-            ).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    setActionBanner(null);
-                    setActiveTab(tab.key);
-                  }}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-white text-[#0056b3] shadow-sm'
-                      : 'text-blue-100 hover:bg-white/15 hover:text-white'
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+    <AdminShell
+      activeTab={activeTab}
+      adminName={adminName}
+      isLoading={isLoading}
+      onNavigate={(tab) => {
+        setActionBanner(null);
+        setActiveTab(tab);
+      }}
+      onRefresh={() => {
+        setActionBanner(null);
+        void loadActiveTabData(activeTab);
+      }}
+      onLogout={onLogout}
+    >
+      <div className="space-y-6">
+        {merchantConfirmation && (
+          <MerchantActionDialog
+            confirmation={merchantConfirmation}
+            busy={isMerchantSubmitting}
+            completed={merchantCompleted}
+            onConfirm={() => void confirmMerchantAction()}
+            onCancel={() => {
+              if (!merchantSubmissionLock.current)
+                setMerchantConfirmation(null);
+            }}
+          />
+        )}
         {actionBanner && (
           <div
             role="status"
@@ -527,7 +639,7 @@ export function AdminDashboard({
             role="status"
             className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
           >
-            <div className="mb-4 size-10 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
+            <div className="mb-4 size-10 animate-spin rounded-full border-4 border-brand border-r-transparent" />
             <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
           </div>
         ) : error ? (
@@ -537,13 +649,15 @@ export function AdminDashboard({
           >
             <AlertCircle className="mx-auto mb-3 size-10 text-red-600" />
             <h2 className="text-base font-bold text-red-900">
-              {copy.errorTitle}
+              {isForbidden ? copy.shell.forbiddenTitle : copy.errorTitle}
             </h2>
-            <p className="mt-1 text-sm text-red-700">{error}</p>
+            <p className="mt-1 text-sm text-red-700">
+              {isForbidden ? copy.shell.forbiddenDescription : error}
+            </p>
             <button
               type="button"
               onClick={() => void loadActiveTabData(activeTab)}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#003d82]"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong"
             >
               <RefreshCw className="size-4" />
               {copy.retry}
@@ -554,25 +668,59 @@ export function AdminDashboard({
         {/* TAB 1: FR-A01 Platform Overview */}
         {!isLoading && !error && activeTab === 'overview' && overview && (
           <section className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+            <div className="admin-section-hero">
               <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
-                {copy.overview.eyebrow}
+                {copy.shell.overviewBadge}
               </p>
               <h2 className="mt-1 text-xl font-bold sm:text-2xl">
-                {copy.overview.title}
+                {copy.shell.welcome}
               </h2>
               <p className="mt-1 text-sm text-blue-100">
-                {copy.overview.description}
+                {copy.shell.welcomeDescription}
               </p>
             </div>
 
+            <div className="admin-overview-toolbar">
+              <h3>{copy.shell.quickActions}</h3>
+              <span>
+                <Clock size={14} aria-hidden="true" />
+                {copy.shell.updatedAt} {formatDateTime(overview.asOf)}
+              </span>
+            </div>
+            <div className="admin-shortcuts">
+              <button type="button" onClick={() => setActiveTab('merchants')}>
+                <span className="admin-shortcut-icon">
+                  <Store aria-hidden="true" />
+                </span>
+                <span>
+                  <strong>{copy.shell.merchantAction}</strong>
+                  <small>{copy.shell.merchantActionDescription}</small>
+                </span>
+                <span className="admin-count">
+                  {overview.merchants.pending.toLocaleString('th-TH')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('socialImpact')}
+              >
+                <span className="admin-shortcut-icon">
+                  <TrendingUp aria-hidden="true" />
+                </span>
+                <span>
+                  <strong>{copy.shell.impactAction}</strong>
+                  <small>{copy.shell.impactActionDescription}</small>
+                </span>
+                <BarChart3 size={18} aria-hidden="true" />
+              </button>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500">
                     {copy.overview.usersCard}
                   </span>
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3]">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-brand">
                     <Users className="size-5" />
                   </div>
                 </div>
@@ -630,7 +778,7 @@ export function AdminDashboard({
                     <TrendingUp className="size-5" />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-extrabold text-[#0056b3]">
+                <p className="mt-3 text-2xl font-extrabold text-brand">
                   {formatBaht(overview.orders.totalFinalSpend)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
@@ -699,7 +847,7 @@ export function AdminDashboard({
                   <span className="text-xs font-semibold text-slate-500">
                     {copy.overview.questsCard}
                   </span>
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3]">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-brand">
                     <Target className="size-5" />
                   </div>
                 </div>
@@ -713,11 +861,19 @@ export function AdminDashboard({
               </div>
             </div>
 
+            {!overview.activeProgram && (
+              <div
+                role="status"
+                className="rounded-2xl border border-dashed border-line bg-panel p-6 text-sm text-muted"
+              >
+                {copy.shell.noProgram}
+              </div>
+            )}
             {overview.activeProgram && (
               <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0056b3] px-3 py-0.5 text-xs font-semibold text-white">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-0.5 text-xs font-semibold text-white">
                       {copy.overview.activeProgramTitle}
                     </span>
                     <h3 className="mt-2 text-lg font-bold text-slate-900">
@@ -732,7 +888,7 @@ export function AdminDashboard({
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="rounded-xl bg-white px-4 py-2.5 shadow-sm">
                       <p className="text-xs text-slate-500">วงเงินตั้งต้น</p>
-                      <p className="font-bold text-[#0056b3]">
+                      <p className="font-bold text-brand">
                         {formatBaht(overview.activeProgram.initialGrant)}
                       </p>
                     </div>
@@ -758,7 +914,7 @@ export function AdminDashboard({
         {/* TAB 2: FR-A02 & FR-M01 Merchant Approval */}
         {!isLoading && !error && activeTab === 'merchants' && (
           <section className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+            <div className="admin-section-hero">
               <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                 {copy.merchants.eyebrow}
               </p>
@@ -770,6 +926,69 @@ export function AdminDashboard({
               </p>
             </div>
 
+            <div className="grid gap-4 rounded-2xl border border-line bg-panel p-4 sm:grid-cols-2">
+              <label
+                className="text-xs font-semibold"
+                htmlFor="merchant-search"
+              >
+                {merchantActionsCopy.searchLabel}
+                <input
+                  id="merchant-search"
+                  type="search"
+                  value={merchantSearch}
+                  onChange={(event) => setMerchantSearch(event.target.value)}
+                  disabled={isMerchantSubmitting}
+                  placeholder={merchantActionsCopy.searchPlaceholder}
+                  className="mt-2 w-full rounded-xl border border-line px-3 py-2.5 text-sm"
+                />
+              </label>
+              <label
+                className="text-xs font-semibold"
+                htmlFor="merchant-type-filter"
+              >
+                {merchantActionsCopy.typeLabel}
+                <select
+                  id="merchant-type-filter"
+                  value={merchantTypeFilter}
+                  onChange={(event) =>
+                    setMerchantTypeFilter(event.target.value)
+                  }
+                  disabled={isMerchantSubmitting}
+                  className="mt-2 w-full rounded-xl border border-line bg-panel px-3 py-2.5 text-sm"
+                >
+                  <option value="">{merchantActionsCopy.allTypes}</option>
+                  {merchantTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  <option value={UNSPECIFIED_MERCHANT_TYPE}>
+                    {merchantActionsCopy.unknownType}
+                  </option>
+                </select>
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
+                <p role="status" className="text-xs text-muted">
+                  {merchantActionsCopy.searchResult(
+                    visibleMerchants.length,
+                    merchants.length,
+                  )}
+                </p>
+                {(merchantSearch || merchantTypeFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMerchantSearch('');
+                      setMerchantTypeFilter('');
+                    }}
+                    disabled={isMerchantSubmitting}
+                    className="text-xs font-semibold text-brand-strong underline"
+                  >
+                    {merchantActionsCopy.clearFilters}
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               {[
                 { key: 'ALL', label: copy.merchants.filterAll },
@@ -781,10 +1000,12 @@ export function AdminDashboard({
                 <button
                   key={filter.key}
                   type="button"
+                  aria-pressed={merchantFilter === filter.key}
+                  disabled={isMerchantSubmitting}
                   onClick={() => setMerchantFilter(filter.key)}
                   className={`rounded-xl px-4 py-2 text-xs font-semibold transition ${
                     merchantFilter === filter.key
-                      ? 'bg-[#0056b3] text-white shadow-sm'
+                      ? 'bg-brand text-white shadow-sm'
                       : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -793,14 +1014,55 @@ export function AdminDashboard({
               ))}
             </div>
 
-            {merchants.length === 0 ? (
+            {merchantFilter === 'PENDING' && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-panel p-4">
+                <p className="text-sm font-semibold">
+                  {merchantActionsCopy.total(
+                    visibleMerchants.filter(
+                      (merchant) => merchant.status === 'PENDING',
+                    ).length,
+                  )}
+                </p>
+                <button
+                  type="button"
+                  disabled={
+                    isMerchantSubmitting ||
+                    !visibleMerchants.some(
+                      (merchant) => merchant.status === 'PENDING',
+                    )
+                  }
+                  onClick={() =>
+                    setMerchantConfirmation({
+                      action: 'approve',
+                      bulk: true,
+                      merchants: visibleMerchants
+                        .filter((merchant) => merchant.status === 'PENDING')
+                        .map((merchant) => ({
+                          merchantId: merchant.merchantId,
+                          merchantName: merchant.merchantName,
+                          status: merchant.status,
+                        })),
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  <CheckCircle2 size={17} aria-hidden="true" />
+                  {merchantActionsCopy.approveAll}
+                </button>
+              </div>
+            )}
+            {visibleMerchants.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-                {copy.merchants.empty}
+                {merchants.length === 0
+                  ? copy.merchants.empty
+                  : merchantActionsCopy.noMatches}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {merchants.map((merchant) => {
-                  const isBusy = processingMerchantId === merchant.merchantId;
+                {visibleMerchants.map((merchant) => {
+                  const isBusy =
+                    isMerchantSubmitting ||
+                    processingMerchantId === merchant.merchantId;
                   return (
                     <div
                       key={merchant.merchantId}
@@ -809,7 +1071,7 @@ export function AdminDashboard({
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Building2 className="size-4 text-[#0056b3]" />
+                            <Building2 className="size-4 text-brand" />
                             <h3 className="text-base font-bold text-slate-900">
                               {merchant.merchantName}
                             </h3>
@@ -825,6 +1087,11 @@ export function AdminDashboard({
                               {merchant.status}
                             </span>
                           </div>
+                          <p className="text-xs text-muted">
+                            {merchantActionsCopy.typeLabel}:{' '}
+                            {merchant.merchantType ||
+                              merchantActionsCopy.unknownType}
+                          </p>
                           {merchant.description && (
                             <p className="text-xs text-slate-600">
                               {merchant.description}
@@ -845,7 +1112,7 @@ export function AdminDashboard({
                         <div className="flex flex-wrap gap-3 text-xs">
                           <div className="rounded-xl bg-slate-50 px-3 py-2">
                             <span className="text-slate-500">ยอดขายสะสม</span>
-                            <p className="font-bold text-[#0056b3]">
+                            <p className="font-bold text-brand">
                               {formatBaht(merchant.totalSales)}
                             </p>
                           </div>
@@ -872,6 +1139,9 @@ export function AdminDashboard({
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
                         <input
                           type="text"
+                          aria-label={`${merchantActionsCopy.reasonLabel} ${merchant.merchantName}`}
+                          disabled={isMerchantSubmitting}
+                          maxLength={500}
                           value={
                             merchantActionReason[merchant.merchantId] ?? ''
                           }
@@ -881,8 +1151,8 @@ export function AdminDashboard({
                               [merchant.merchantId]: e.target.value,
                             }))
                           }
-                          placeholder="ระบุหมายเหตุการตรวจสอบ (บันทึกใน Audit Event)..."
-                          className="min-w-[240px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#0056b3] focus:outline-none"
+                          placeholder={merchantActionsCopy.reasonPlaceholder}
+                          className="min-w-[240px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-brand focus:outline-none"
                         />
 
                         <div className="flex flex-wrap gap-2">
@@ -891,7 +1161,7 @@ export function AdminDashboard({
                               type="button"
                               disabled={isBusy}
                               onClick={() =>
-                                void handleMerchantAction(
+                                requestMerchantAction(
                                   merchant.merchantId,
                                   merchant.status === 'SUSPENDED'
                                     ? 'activate'
@@ -912,7 +1182,7 @@ export function AdminDashboard({
                               type="button"
                               disabled={isBusy}
                               onClick={() =>
-                                void handleMerchantAction(
+                                requestMerchantAction(
                                   merchant.merchantId,
                                   'reject',
                                 )
@@ -929,7 +1199,7 @@ export function AdminDashboard({
                               type="button"
                               disabled={isBusy}
                               onClick={() =>
-                                void handleMerchantAction(
+                                requestMerchantAction(
                                   merchant.merchantId,
                                   'suspend',
                                 )
@@ -953,7 +1223,7 @@ export function AdminDashboard({
         {/* TAB 3: FR-A04 Subsidy Program Management */}
         {!isLoading && !error && activeTab === 'programs' && (
           <section className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+            <div className="admin-section-hero">
               <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                 {copy.programs.eyebrow}
               </p>
@@ -971,7 +1241,7 @@ export function AdminDashboard({
                 className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-5"
               >
                 <div className="flex items-center gap-2">
-                  <Plus className="size-5 text-[#0056b3]" />
+                  <Plus className="size-5 text-brand" />
                   <h3 className="text-base font-bold text-slate-900">
                     {copy.programs.createTitle}
                   </h3>
@@ -995,12 +1265,15 @@ export function AdminDashboard({
                         programName: e.target.value,
                       }))
                     }
-                    placeholder="เช่น โครงการไทยช่วยไทยพลีส (ระยะที่ 2)"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:border-[#0056b3] focus:outline-none"
+                    placeholder={copy.programs.programNameLabel}
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <p className="text-xs text-muted">
+                  {adminManagementCopy.supportedPolicy}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
                     <label
                       htmlFor="program-grant-input"
@@ -1120,7 +1393,7 @@ export function AdminDashboard({
                 <button
                   type="submit"
                   disabled={isSavingProgram}
-                  className="w-full rounded-xl bg-[#0056b3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#003d82] disabled:opacity-50"
+                  className="w-full rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-strong disabled:opacity-50"
                 >
                   {copy.programs.createBtn}
                 </button>
@@ -1130,6 +1403,11 @@ export function AdminDashboard({
                 <h3 className="text-base font-bold text-slate-900">
                   {copy.programs.listTitle}
                 </h3>
+                {programs.length === 0 && (
+                  <p className="rounded-xl border border-dashed border-line bg-panel p-6 text-sm text-muted">
+                    {adminManagementCopy.noPrograms}
+                  </p>
+                )}
                 {programs.map((program) => (
                   <div
                     key={program.programId}
@@ -1162,6 +1440,7 @@ export function AdminDashboard({
                         {program.status !== 'ACTIVE' && (
                           <button
                             type="button"
+                            disabled={processingProgramId !== null}
                             onClick={() =>
                               void handleProgramStatusChange(
                                 program.programId,
@@ -1176,6 +1455,7 @@ export function AdminDashboard({
                         {program.status === 'ACTIVE' && (
                           <button
                             type="button"
+                            disabled={processingProgramId !== null}
                             onClick={() =>
                               void handleProgramStatusChange(
                                 program.programId,
@@ -1193,7 +1473,7 @@ export function AdminDashboard({
                     <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3 text-xs">
                       <div>
                         <span className="text-slate-500">วงเงินตั้งต้น</span>
-                        <p className="font-bold text-[#0056b3]">
+                        <p className="font-bold text-brand">
                           {formatBaht(program.initialGrant)}
                         </p>
                       </div>
@@ -1213,6 +1493,18 @@ export function AdminDashboard({
                         </p>
                       </div>
                     </div>
+                    <SubsidyProgramEditor
+                      program={program}
+                      onSaved={(updated) =>
+                        setPrograms((previous) =>
+                          previous.map((item) =>
+                            item.programId === updated.programId
+                              ? updated
+                              : item,
+                          ),
+                        )
+                      }
+                    />
                   </div>
                 ))}
               </div>
@@ -1223,7 +1515,7 @@ export function AdminDashboard({
         {/* TAB 4: FR-A05 & FR-S04 AI Quest Generation & Logs */}
         {!isLoading && !error && activeTab === 'quests' && questLogsData && (
           <section className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+            <div className="admin-section-hero">
               <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                 {copy.quests.eyebrow}
               </p>
@@ -1237,14 +1529,51 @@ export function AdminDashboard({
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
-                <Sparkles className="size-5 text-[#0056b3]" />
+                <Sparkles className="size-5 text-brand" />
                 <h3 className="text-base font-bold text-slate-900">
                   {copy.quests.generateCardTitle}
                 </h3>
               </div>
 
               <div className="mt-4 flex flex-wrap items-end gap-4">
-                <div className="min-w-[260px] flex-1">
+                <div className="w-full">
+                  <label
+                    htmlFor="quest-consumer-segment"
+                    className="block text-xs font-semibold text-slate-700"
+                  >
+                    {adminManagementCopy.segment}
+                  </label>
+                  <select
+                    id="quest-consumer-segment"
+                    value={consumerSegment}
+                    disabled={isGeneratingQuest}
+                    onChange={(event) => {
+                      const segment =
+                        event.target.value === 'NO_ACTIVE_QUEST'
+                          ? 'NO_ACTIVE_QUEST'
+                          : 'ALL_ELIGIBLE';
+                      setConsumerSegment(segment);
+                      const available = questLogsData.eligibleConsumers.filter(
+                        (consumer) =>
+                          segment === 'ALL_ELIGIBLE' ||
+                          consumer.activeQuestsCount === 0,
+                      );
+                      setSelectedConsumerId(available[0]?.userId ?? '');
+                    }}
+                    className="mt-1 w-full rounded-xl border border-line bg-panel px-3 py-2.5 text-sm"
+                  >
+                    <option value="ALL_ELIGIBLE">
+                      {adminManagementCopy.allEligible}
+                    </option>
+                    <option value="NO_ACTIVE_QUEST">
+                      {adminManagementCopy.noActiveQuest}
+                    </option>
+                  </select>
+                  <p className="mt-2 text-xs text-muted">
+                    {adminManagementCopy.segmentHint}
+                  </p>
+                </div>
+                <div className="min-w-0 flex-1">
                   <label
                     htmlFor="select-consumer-quest"
                     className="block text-xs font-semibold text-slate-700"
@@ -1253,11 +1582,17 @@ export function AdminDashboard({
                   </label>
                   <select
                     id="select-consumer-quest"
-                    value={selectedConsumerId}
+                    value={effectiveConsumerId}
+                    disabled={
+                      isGeneratingQuest || selectableConsumers.length === 0
+                    }
                     onChange={(e) => setSelectedConsumerId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm focus:border-[#0056b3] focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none"
                   >
-                    {questLogsData.eligibleConsumers.map((consumer) => (
+                    {selectableConsumers.length === 0 && (
+                      <option value="">{adminManagementCopy.noRecords}</option>
+                    )}
+                    {selectableConsumers.map((consumer) => (
                       <option key={consumer.userId} value={consumer.userId}>
                         {consumer.fullName} ({consumer.citizenIdMasked}) ·
                         บิลชำระแล้ว {consumer.paidOrdersCount} · ภารกิจกำลังทำ{' '}
@@ -1269,9 +1604,9 @@ export function AdminDashboard({
 
                 <button
                   type="button"
-                  disabled={!selectedConsumerId || isGeneratingQuest}
+                  disabled={!selectedConsumerIsEligible || isGeneratingQuest}
                   onClick={() => void handleTriggerQuestGeneration()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#003d82] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-strong disabled:opacity-50"
                 >
                   <Sparkles className="size-4" />
                   {isGeneratingQuest
@@ -1300,10 +1635,10 @@ export function AdminDashboard({
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-lg bg-[#0056b3] px-2.5 py-0.5 text-xs font-semibold text-white">
+                            <span className="rounded-lg bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
                               Log #{log.generationId}
                             </span>
-                            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
                               {log.status}
                             </span>
                             <span className="text-xs font-semibold text-slate-700">
@@ -1326,16 +1661,27 @@ export function AdminDashboard({
 
                         <div className="text-right text-xs text-slate-500">
                           <p>
-                            Provider: <strong>{log.provider}</strong> (
-                            {log.modelVersion})
+                            Provider:{' '}
+                            <strong>
+                              {log.provider ?? adminManagementCopy.notRecorded}
+                            </strong>{' '}
+                            (
+                            {log.modelVersion ??
+                              adminManagementCopy.notRecorded}
+                            )
                           </p>
                           <p>
-                            Prompt {log.promptVersion} · Policy{' '}
-                            {log.policyVersion}
+                            Prompt{' '}
+                            {log.promptVersion ??
+                              adminManagementCopy.notRecorded}{' '}
+                            · Policy{' '}
+                            {log.policyVersion ??
+                              adminManagementCopy.notRecorded}
                           </p>
                           <p>{formatDateTime(log.generatedAt)}</p>
                         </div>
                       </div>
+                      <QuestGenerationDetails log={log} />
                     </div>
                   ))}
                 </div>
@@ -1350,7 +1696,7 @@ export function AdminDashboard({
           activeTab === 'rewards' &&
           rewardMonitoring && (
             <section className="space-y-6">
-              <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+              <div className="admin-section-hero">
                 <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                   {copy.rewards.eyebrow}
                 </p>
@@ -1362,12 +1708,15 @@ export function AdminDashboard({
                 </p>
               </div>
 
+              <p className="text-xs text-muted">
+                {adminManagementCopy.rewardPeriodHint}
+              </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <span className="text-xs font-semibold text-slate-500">
                     อัตราทำภารกิจสำเร็จ (Quest Completion)
                   </span>
-                  <p className="mt-2 text-2xl font-extrabold text-[#0056b3]">
+                  <p className="mt-2 text-2xl font-extrabold text-brand">
                     {rewardMonitoring.summary.questCompletionRate}%
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -1440,10 +1789,11 @@ export function AdminDashboard({
                   <button
                     key={t.key}
                     type="button"
+                    aria-pressed={rewardSubTab === t.key}
                     onClick={() => setRewardSubTab(t.key)}
                     className={`rounded-xl px-4 py-2 text-xs font-semibold transition ${
                       rewardSubTab === t.key
-                        ? 'bg-[#0056b3] text-white shadow-sm'
+                        ? 'bg-brand text-white shadow-sm'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -1455,6 +1805,11 @@ export function AdminDashboard({
               {rewardSubTab === 'quests' && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="space-y-3">
+                    {rewardMonitoring.recentQuestAssignments.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted">
+                        {adminManagementCopy.noRecords}
+                      </p>
+                    )}
                     {rewardMonitoring.recentQuestAssignments.map((item) => (
                       <div
                         key={item.userQuestId}
@@ -1469,6 +1824,12 @@ export function AdminDashboard({
                             {formatDateTime(item.assignedAt)} · หมดอายุ{' '}
                             {formatDateTime(item.expiresAt)}
                           </p>
+                          {item.completedAt && (
+                            <p className="text-muted">
+                              {adminManagementCopy.completedAt}:{' '}
+                              {formatDateTime(item.completedAt)}
+                            </p>
+                          )}
                         </div>
                         <span
                           className={`rounded-full px-2.5 py-0.5 font-semibold ${
@@ -1476,7 +1837,7 @@ export function AdminDashboard({
                               ? 'bg-emerald-50 text-emerald-700'
                               : item.status === 'EXPIRED'
                                 ? 'bg-slate-200 text-slate-600'
-                                : 'bg-blue-50 text-[#0056b3]'
+                                : 'bg-blue-50 text-brand'
                           }`}
                         >
                           {item.status}
@@ -1490,6 +1851,11 @@ export function AdminDashboard({
               {rewardSubTab === 'points' && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="space-y-3">
+                    {rewardMonitoring.recentPointTransactions.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted">
+                        {adminManagementCopy.noRecords}
+                      </p>
+                    )}
                     {rewardMonitoring.recentPointTransactions.map((pt) => (
                       <div
                         key={pt.pointTransactionId}
@@ -1502,6 +1868,12 @@ export function AdminDashboard({
                           <p className="text-slate-500">
                             ผู้ใช้: {pt.userFullName} ·{' '}
                             {formatDateTime(pt.createdAt)}
+                          </p>
+                          <p className="text-muted">
+                            {adminManagementCopy.expiresAt}:{' '}
+                            {pt.expiresAt
+                              ? formatDateTime(pt.expiresAt)
+                              : adminManagementCopy.noExpiry}
                           </p>
                         </div>
                         <span
@@ -1522,6 +1894,11 @@ export function AdminDashboard({
               {rewardSubTab === 'coupons' && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="space-y-3">
+                    {rewardMonitoring.recentCouponRedemptions.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted">
+                        {adminManagementCopy.noRecords}
+                      </p>
+                    )}
                     {rewardMonitoring.recentCouponRedemptions.map((uc) => (
                       <div
                         key={uc.userCouponId}
@@ -1536,6 +1913,12 @@ export function AdminDashboard({
                             {formatDateTime(uc.redeemedAt)} · หมดอายุ{' '}
                             {formatDateTime(uc.expiresAt)}
                           </p>
+                          {uc.usedAt && (
+                            <p className="text-muted">
+                              {adminManagementCopy.usedAt}:{' '}
+                              {formatDateTime(uc.usedAt)}
+                            </p>
+                          )}
                         </div>
                         <span
                           className={`rounded-full px-2.5 py-0.5 font-semibold ${
@@ -1543,7 +1926,7 @@ export function AdminDashboard({
                               ? 'bg-emerald-50 text-emerald-700'
                               : uc.status === 'EXPIRED'
                                 ? 'bg-slate-200 text-slate-600'
-                                : 'bg-blue-50 text-[#0056b3]'
+                                : 'bg-blue-50 text-brand'
                           }`}
                         >
                           {uc.status}
@@ -1562,7 +1945,7 @@ export function AdminDashboard({
           activeTab === 'socialImpact' &&
           socialImpact && (
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-4 admin-section-hero">
                 <div>
                   <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                     {copy.socialImpact.eyebrow}
@@ -1586,10 +1969,11 @@ export function AdminDashboard({
                     <button
                       key={item.days}
                       type="button"
+                      aria-pressed={impactDays === item.days}
                       onClick={() => setImpactDays(item.days)}
                       className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                         impactDays === item.days
-                          ? 'bg-white text-[#0056b3]'
+                          ? 'bg-white text-brand'
                           : 'text-blue-100 hover:bg-white/10'
                       }`}
                     >
@@ -1599,6 +1983,9 @@ export function AdminDashboard({
                 </div>
               </div>
 
+              <p className="text-xs text-muted">
+                {adminManagementCopy.impactPeriodHint}
+              </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <span className="text-xs font-semibold text-slate-500">
@@ -1617,7 +2004,7 @@ export function AdminDashboard({
                   <span className="text-xs font-semibold text-slate-500">
                     เงินหมุนเวียนสู่ชุมชนรวม (Total Final Spend)
                   </span>
-                  <p className="mt-2 text-2xl font-extrabold text-[#0056b3]">
+                  <p className="mt-2 text-2xl font-extrabold text-brand">
                     {formatBaht(socialImpact.totalFinalSpend)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -1660,13 +2047,18 @@ export function AdminDashboard({
                     {copy.socialImpact.salesByMerchantTitle}
                   </h3>
                   <div className="mt-4 space-y-3">
+                    {socialImpact.salesByMerchant.length === 0 && (
+                      <p className="py-6 text-sm text-muted">
+                        {adminManagementCopy.noRecords}
+                      </p>
+                    )}
                     {socialImpact.salesByMerchant.map((m, idx) => (
                       <div
                         key={m.merchantId}
                         className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-xs"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="flex size-7 items-center justify-center rounded-lg bg-[#0056b3] font-bold text-white">
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-brand font-bold text-white">
                             {idx + 1}
                           </span>
                           <div>
@@ -1680,7 +2072,7 @@ export function AdminDashboard({
                             </p>
                           </div>
                         </div>
-                        <span className="text-sm font-extrabold text-[#0056b3]">
+                        <span className="text-sm font-extrabold text-brand">
                           {formatBaht(m.totalSales)}
                         </span>
                       </div>
@@ -1693,23 +2085,31 @@ export function AdminDashboard({
                   <h3 className="text-base font-bold text-slate-900">
                     {copy.socialImpact.salesByCategoryTitle}
                   </h3>
+                  <p className="mt-2 text-xs text-muted">
+                    {adminManagementCopy.categoryGrossHint}
+                  </p>
                   <div className="mt-4 space-y-4">
+                    {socialImpact.salesByCategory.length === 0 && (
+                      <p className="py-6 text-sm text-muted">
+                        {adminManagementCopy.noRecords}
+                      </p>
+                    )}
                     {socialImpact.salesByCategory.map((cat) => (
                       <div key={cat.categoryId} className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-slate-800">
                             {cat.categoryName} ({cat.itemCount} ชิ้น)
                           </span>
-                          <span className="font-semibold text-[#0056b3]">
+                          <span className="font-semibold text-brand">
                             {formatBaht(cat.totalSales)} ({cat.sharePercentage}
                             %)
                           </span>
                         </div>
                         <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                           <div
-                            className="h-full rounded-full bg-[#0056b3]"
+                            className="h-full rounded-full bg-brand"
                             style={{
-                              width: `${Math.max(4, cat.sharePercentage)}%`,
+                              width: `${Math.min(100, Math.max(0, cat.sharePercentage))}%`,
                             }}
                           />
                         </div>
@@ -1741,7 +2141,7 @@ export function AdminDashboard({
                       <p className="font-semibold text-slate-600">
                         {formatShortDate(day.date)}
                       </p>
-                      <p className="mt-1 text-sm font-extrabold text-[#0056b3]">
+                      <p className="mt-1 text-sm font-extrabold text-brand">
                         {formatBaht(day.totalSales)}
                       </p>
                       <p className="text-[11px] text-slate-500">
@@ -1757,7 +2157,7 @@ export function AdminDashboard({
         {/* TAB 7: FR-A03 & FR-AUTH-05 Admin Management */}
         {!isLoading && !error && activeTab === 'admins' && adminUsersData && (
           <section className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg">
+            <div className="admin-section-hero">
               <p className="text-xs font-medium tracking-wide text-blue-100 uppercase">
                 {copy.admins.eyebrow}
               </p>
@@ -1775,7 +2175,7 @@ export function AdminDashboard({
                   {copy.admins.currentAdminsTitle} (เปิดใช้งานอยู่{' '}
                   {adminUsersData.activeAdminCount} คน)
                 </h3>
-                <Activity className="size-4 text-[#0056b3]" />
+                <Activity className="size-4 text-brand" />
               </div>
 
               <div className="mt-4 space-y-3">
@@ -1874,7 +2274,7 @@ export function AdminDashboard({
                         type="button"
                         disabled={processingUserId === u.userId}
                         onClick={() => void handleGrantAdmin(u.userId)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#0056b3] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#003d82] disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-semibold text-white hover:bg-brand-strong disabled:opacity-50"
                       >
                         <UserCheck className="size-3.5" />
                         {copy.admins.grantAdminBtn}
@@ -1885,7 +2285,7 @@ export function AdminDashboard({
             </div>
           </section>
         )}
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   );
 }
