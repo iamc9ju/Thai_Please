@@ -63,6 +63,7 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
     questGenerationLog: {
       findMany: ReturnType<typeof vi.fn>;
     };
+    $queryRaw: ReturnType<typeof vi.fn>;
     $transaction: ReturnType<typeof vi.fn>;
   };
 
@@ -120,6 +121,7 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
       questGenerationLog: {
         findMany: vi.fn(),
       },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
         callback(prismaMock),
       ),
@@ -404,6 +406,7 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
         startDate: new Date('2026-01-01T00:00:00.000Z'),
         endDate: new Date('2026-12-31T00:00:00.000Z'),
         status: 'ACTIVE',
+        _count: { orders: 0, wallets: 0, walletTransactions: 0 },
       });
       prismaMock.subsidyProgram.update.mockResolvedValue({
         programId: 1n,

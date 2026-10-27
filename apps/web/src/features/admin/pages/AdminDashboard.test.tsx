@@ -8,6 +8,9 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin.api';
 import { AdminDashboard } from './AdminDashboard';
+import { th } from '../../../i18n/th';
+import { merchantActionsCopy as merchantCopy } from '../merchant-actions.copy';
+import { ApiError } from '../../../lib/api-client';
 
 vi.mock('../api/admin.api', () => ({
   getPlatformOverview: vi.fn(),
@@ -20,6 +23,7 @@ vi.mock('../api/admin.api', () => ({
   triggerQuestGeneration: vi.fn(),
   getRewardMonitoring: vi.fn(),
   getSocialImpactDashboard: vi.fn(),
+  updateSubsidyProgram: vi.fn(),
   getAdminUsersAndRoles: vi.fn(),
   grantAdminRole: vi.fn(),
   updateAdminRoleStatus: vi.fn(),
@@ -32,6 +36,13 @@ afterEach(() => {
 describe('AdminDashboard (FR-A01 through FR-A07)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // jsdom does not implement native modal dialogs; keep open semantics for tests.
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
 
     vi.mocked(adminApi.getPlatformOverview).mockResolvedValue({
       users: { total: 10, consumers: 7, merchants: 2, admins: 1 },
@@ -202,12 +213,18 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /อนุมัติร้านค้า$/i }));
+    expect(
+      screen.getByRole('dialog', { name: merchantCopy.confirmApprove }),
+    ).toBeInTheDocument();
+    expect(adminApi.updateMerchantApprovalStatus).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: merchantCopy.approve }));
 
     await waitFor(() => {
       expect(adminApi.updateMerchantApprovalStatus).toHaveBeenCalledWith(
         '11',
         'approve',
         undefined,
+        'PENDING',
       );
     });
 
@@ -228,5 +245,478 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     expect(await screen.findByText('ร้านป้าศรี ข้าวแกง')).toBeInTheDocument();
     expect(screen.getByText(/อาหารและเครื่องดื่ม/i)).toBeInTheDocument();
     expect(screen.getByText(/Metric Version: 1.0.0/i)).toBeInTheDocument();
+  });
+
+  it('provides branded navigation, shortcuts, refresh and logout (FR-A01, FR-A02)', async () => {
+    const onLogout = vi.fn();
+    render(<AdminDashboard adminName="แอดมินทดสอบ" onLogout={onLogout} />);
+    await screen.findByText('10 บัญชี');
+    expect(screen.getByRole('img', { name: th.brand })).toHaveAttribute(
+      'src',
+      '/images/brand-logo.png',
+    );
+    expect(
+      screen.getByRole('navigation', { name: th.adminPortal.shell.navigation }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: th.adminPortal.nav.overview }),
+    ).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.refresh }),
+    );
+    await waitFor(() =>
+      expect(adminApi.getPlatformOverview).toHaveBeenCalledTimes(2),
+    );
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: /ตรวจสอบร้านค้าที่รออนุมัติ/ }),
+    );
+    await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
+    expect(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    ).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.logout }),
+    );
+    expect(onLogout).toHaveBeenCalledOnce();
+  });
+
+  it('recovers from loading errors through retry (FR-A01)', async () => {
+    vi.mocked(adminApi.getPlatformOverview).mockRejectedValueOnce(
+      new Error('connection unavailable'),
+    );
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      th.adminPortal.loading,
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      th.adminPortal.errorTitle,
+    );
+    fireEvent.click(screen.getByRole('button', { name: th.adminPortal.retry }));
+    expect(await screen.findByText('10 บัญชี')).toBeInTheDocument();
+  });
+
+  it('explains permission denial without displaying internal errors (FR-A03)', async () => {
+    vi.mocked(adminApi.getPlatformOverview).mockRejectedValueOnce(
+      new ApiError(403, 'internal permission details'),
+    );
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      th.adminPortal.shell.forbiddenTitle,
+    );
+    expect(
+      screen.queryByText('internal permission details'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows an empty merchant result for the selected status (FR-A02)', async () => {
+    vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([]);
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    expect(
+      await screen.findByText(th.adminPortal.merchants.empty),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.adminPortal.merchants.filterPending,
+      }),
+    );
+    await waitFor(() =>
+      expect(adminApi.getAdminMerchants).toHaveBeenLastCalledWith('PENDING'),
+    );
+  });
+
+  it('shows when no subsidy program is active (FR-A01, FR-A04)', async () => {
+    const overview = await adminApi.getPlatformOverview();
+    vi.mocked(adminApi.getPlatformOverview).mockResolvedValue({
+      ...overview,
+      activeProgram: null,
+    });
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    expect(
+      await screen.findByText(th.adminPortal.shell.noProgram),
+    ).toBeInTheDocument();
+  });
+  it('keeps the current tab loaded when an older request finishes late (FR-A01/FR-A02)', async () => {
+    let rejectOld: (reason: Error) => void = () => undefined;
+    vi.mocked(adminApi.getPlatformOverview).mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectOld = reject;
+      }),
+    );
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
+    rejectOld(new Error('stale error from overview'));
+    await waitFor(() =>
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม')).toBeInTheDocument();
+  });
+
+  it('filters quest consumers without refetching logs when a user is selected (FR-A05)', async () => {
+    vi.mocked(adminApi.getQuestGenerationLogs).mockResolvedValue({
+      logs: [],
+      eligibleConsumers: [
+        {
+          userId: '51',
+          fullName: 'ผู้ใช้มีภารกิจ',
+          citizenIdMasked: 'X-XXXX',
+          pointBalance: 0,
+          paidOrdersCount: 1,
+          activeQuestsCount: 1,
+        },
+        {
+          userId: '52',
+          fullName: 'ผู้ใช้ไม่มีภารกิจ',
+          citizenIdMasked: 'X-XXXX',
+          pointBalance: 0,
+          paidOrdersCount: 1,
+          activeQuestsCount: 0,
+        },
+      ],
+    });
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.quests }),
+    );
+    const selector = await screen.findByLabelText(
+      th.adminPortal.quests.selectConsumerLabel,
+    );
+    fireEvent.change(selector, { target: { value: '52' } });
+    expect(adminApi.getQuestGenerationLogs).toHaveBeenCalledOnce();
+    fireEvent.change(screen.getByLabelText('กรองกลุ่มผู้บริโภค'), {
+      target: { value: 'NO_ACTIVE_QUEST' },
+    });
+    expect(
+      screen.queryByRole('option', { name: /ผู้ใช้มีภารกิจ/ }),
+    ).not.toBeInTheDocument();
+    expect(selector).toHaveValue('52');
+    expect(adminApi.getQuestGenerationLogs).toHaveBeenCalledOnce();
+  });
+
+  it('opens the API-backed program editor (FR-A04)', async () => {
+    vi.mocked(adminApi.getSubsidyPrograms).mockResolvedValue([
+      {
+        programId: '21',
+        programName: 'โครงการทดสอบ',
+        initialGrant: 1000,
+        subsidyPercentage: 60,
+        userPercentage: 40,
+        dailySubsidyLimit: 200,
+        currency: 'THB',
+        timezone: 'Asia/Bangkok',
+        status: 'ACTIVE',
+        startDate: '2026-10-01T00:00:00.000Z',
+        endDate: '2026-12-31T00:00:00.000Z',
+        createdAt: '2026-10-01T00:00:00.000Z',
+      },
+    ]);
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.programs }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'แก้ไขโครงการ' }),
+    );
+    expect(
+      screen.getByRole('form', { name: /แก้ไขรายละเอียดโครงการ/ }),
+    ).toBeInTheDocument();
+  });
+  it('shows reward histories, expiry and explicit empty states (FR-A06)', async () => {
+    vi.mocked(adminApi.getRewardMonitoring).mockResolvedValue({
+      summary: {
+        questsAssigned: 1,
+        questsActive: 1,
+        questsCompleted: 0,
+        questsExpired: 0,
+        questCompletionRate: 0,
+        pointsIssued: 10,
+        pointsRedeemed: 0,
+        pointsExpired: 0,
+        currentPointLiability: 10,
+        couponsCatalogueCount: 0,
+        couponsIssued: 0,
+        couponsAvailable: 0,
+        couponsUsed: 0,
+        couponsExpired: 0,
+        couponUsageRate: 0,
+      },
+      recentQuestAssignments: [],
+      recentPointTransactions: [
+        {
+          pointTransactionId: '1',
+          userId: '51',
+          userFullName: 'ผู้ใช้ทดสอบ',
+          transactionType: 'QUEST_REWARD',
+          points: 10,
+          sourceName: 'ภารกิจชุมชนทดสอบ',
+          createdAt: '2026-10-28T00:00:00.000Z',
+          expiresAt: '2026-11-28T00:00:00.000Z',
+        },
+      ],
+      recentCouponRedemptions: [],
+      asOf: '2026-10-28T00:00:00.000Z',
+    });
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.rewards }),
+    );
+    expect(
+      await screen.findByText('ยังไม่มีรายการในหมวดนี้'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/รายการล่าสุดไม่เกิน 40 รายการต่อหมวด/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/ช่วงวันที่เลือกมีผลต่อแนวโน้ม/),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.rewards.pointsTab }),
+    );
+    expect(await screen.findByText(/ภารกิจชุมชนทดสอบ/)).toBeInTheDocument();
+    expect(screen.getByText(/หมดอายุ:.*28/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.rewards.couponsTab }),
+    );
+    expect(screen.getByText('ยังไม่มีรายการในหมวดนี้')).toBeInTheDocument();
+  });
+
+  it('labels cumulative metrics and requests the selected trend period (FR-A07)', async () => {
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.socialImpact }),
+    );
+    await screen.findByText('ร้านป้าศรี ข้าวแกง');
+    expect(
+      screen.getByText(/ตัวชี้วัดสรุปเป็นยอดสะสมทั้งหมด/),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.socialImpact.days30 }),
+    );
+    await waitFor(() =>
+      expect(adminApi.getSocialImpactDashboard).toHaveBeenLastCalledWith(30),
+    );
+    expect(
+      screen.getByRole('button', { name: th.adminPortal.socialImpact.days30 }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+  it('requires confirmation for rejection and cancellation sends no request (FR-A02)', async () => {
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.merchants.rejectBtn }),
+    );
+    expect(
+      screen.getByRole('dialog', { name: merchantCopy.confirmReject }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: merchantCopy.cancel }));
+    expect(adminApi.updateMerchantApprovalStatus).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.merchants.rejectBtn }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: merchantCopy.reject }));
+    await waitFor(() =>
+      expect(adminApi.updateMerchantApprovalStatus).toHaveBeenCalledWith(
+        '11',
+        'reject',
+        undefined,
+        'PENDING',
+      ),
+    );
+  });
+
+  it('confirms only pending merchants and reports partial bulk failure (FR-A02)', async () => {
+    const [base] = await adminApi.getAdminMerchants();
+    if (!base) throw new Error('Missing merchant fixture');
+    vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([
+      base,
+      { ...base, merchantId: '12', merchantName: 'ร้านทดสอบที่สอง' },
+      {
+        ...base,
+        merchantId: '13',
+        merchantName: 'ร้านที่เปิดอยู่',
+        status: 'ACTIVE',
+      },
+    ]);
+    const approvedResult = await adminApi.updateMerchantApprovalStatus(
+      '11',
+      'approve',
+    );
+    vi.mocked(adminApi.updateMerchantApprovalStatus)
+      .mockRejectedValueOnce(new ApiError(409, 'status changed'))
+      .mockResolvedValueOnce(approvedResult);
+    vi.mocked(adminApi.updateMerchantApprovalStatus).mockClear();
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText(base.merchantName);
+    expect(
+      screen.queryByRole('button', { name: merchantCopy.approveAll }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.adminPortal.merchants.filterPending,
+      }),
+    );
+    const bulk = await screen.findByRole('button', {
+      name: merchantCopy.approveAll,
+    });
+    await waitFor(() => expect(bulk).toBeEnabled());
+    fireEvent.click(bulk);
+    expect(
+      screen.getByRole('dialog', { name: merchantCopy.confirmBulk }),
+    ).toHaveTextContent('ร้านค้าที่รออนุมัติ 2 ร้าน');
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('ร้านที่เปิดอยู่');
+    expect(adminApi.updateMerchantApprovalStatus).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: merchantCopy.approve }));
+    await waitFor(() =>
+      expect(adminApi.updateMerchantApprovalStatus).toHaveBeenCalledTimes(2),
+    );
+    expect(adminApi.updateMerchantApprovalStatus).toHaveBeenNthCalledWith(
+      1,
+      '11',
+      'approve',
+      undefined,
+      'PENDING',
+    );
+    expect(adminApi.updateMerchantApprovalStatus).toHaveBeenNthCalledWith(
+      2,
+      '12',
+      'approve',
+      undefined,
+      'PENDING',
+    );
+    expect(
+      await screen.findByText(/อนุมัติสำเร็จ 1 ร้าน.*ไม่สำเร็จ 1 ร้าน/),
+    ).toBeInTheDocument();
+  });
+
+  it('disables approve all when no merchant is pending (FR-A02)', async () => {
+    vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([]);
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText(th.adminPortal.merchants.empty);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.adminPortal.merchants.filterPending,
+      }),
+    );
+    expect(
+      await screen.findByRole('button', { name: merchantCopy.approveAll }),
+    ).toBeDisabled();
+  });
+
+  it('submits a confirmation only once while the request is pending (FR-A02)', async () => {
+    const result = await adminApi.updateMerchantApprovalStatus('11', 'approve');
+    let complete: (value: typeof result) => void = () => undefined;
+    vi.mocked(adminApi.updateMerchantApprovalStatus)
+      .mockClear()
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+      );
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.merchants.approveBtn }),
+    );
+    const confirm = screen.getByRole('button', { name: merchantCopy.approve });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(adminApi.updateMerchantApprovalStatus).toHaveBeenCalledOnce();
+    expect(confirm).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: merchantCopy.cancel }),
+    ).toBeDisabled();
+    complete(result);
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+  });
+  it('searches merchants and combines type filtering with the confirmed bulk snapshot (FR-A02)', async () => {
+    const [base] = await adminApi.getAdminMerchants();
+    if (!base) throw new Error('Missing merchant fixture');
+    vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([
+      { ...base, merchantType: 'อาหารและเครื่องดื่ม' },
+      {
+        ...base,
+        merchantId: '12',
+        merchantName: 'ร้านของชำทดสอบ',
+        merchantType: 'ร้านขายของชำ',
+      },
+      {
+        ...base,
+        merchantId: '13',
+        merchantName: 'ร้านเก่าที่ไม่ระบุประเภท',
+        merchantType: null,
+      },
+    ]);
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+    );
+    await screen.findByText('ร้านของชำทดสอบ');
+    fireEvent.change(screen.getByLabelText(merchantCopy.searchLabel), {
+      target: { value: '  ของชำ  ' },
+    });
+    expect(screen.getByText('ร้านของชำทดสอบ')).toBeInTheDocument();
+    expect(screen.queryByText(base.merchantName)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
+      target: { value: 'อาหารและเครื่องดื่ม' },
+    });
+    expect(screen.getByText(merchantCopy.noMatches)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: merchantCopy.clearFilters }),
+    );
+    expect(screen.getByText(base.merchantName)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
+      target: { value: 'ร้านขายของชำ' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.adminPortal.merchants.filterPending,
+      }),
+    );
+    const bulk = await screen.findByRole('button', {
+      name: merchantCopy.approveAll,
+    });
+    fireEvent.click(bulk);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('ร้านของชำทดสอบ');
+    expect(dialog).not.toHaveTextContent(base.merchantName);
+    expect(dialog).toHaveTextContent('ร้านค้าที่รออนุมัติ 1 ร้าน');
+    fireEvent.click(screen.getByRole('button', { name: merchantCopy.cancel }));
+    fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
+      target: { value: '__UNSPECIFIED__' },
+    });
+    expect(screen.getByText('ร้านเก่าที่ไม่ระบุประเภท')).toBeInTheDocument();
+    expect(screen.queryByText('ร้านของชำทดสอบ')).not.toBeInTheDocument();
   });
 });
