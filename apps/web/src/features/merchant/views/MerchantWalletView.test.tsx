@@ -110,6 +110,27 @@ describe('MerchantWalletView (FR-M06)', () => {
     expect(screen.getByText(/สมชาย ใจดี/)).toBeInTheDocument();
   });
 
+  it('filters order incomes and wallet transactions using the selected month', async () => {
+    render(<MerchantWalletView />);
+
+    fireEvent.change(
+      await screen.findByLabelText('เดือนที่แสดงในกระเป๋าร้านค้า'),
+      { target: { value: '2026-10' } },
+    );
+
+    await waitFor(() => {
+      expect(mockGetMerchantWalletOverview).toHaveBeenLastCalledWith({
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-31',
+      });
+      expect(mockGetMerchantWalletTransactions).toHaveBeenLastCalledWith({
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-31',
+        limit: 20,
+      });
+    });
+  });
+
   it('submits withdrawal and refreshes balances on success', async () => {
     mockWithdrawMerchantWallet.mockResolvedValueOnce({
       success: true,

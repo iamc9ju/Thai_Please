@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createOrder,
@@ -96,6 +102,9 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
 
     expect(await screen.findByText('ข้าวกะเพราหมูสับ')).toBeInTheDocument();
     expect(mockedGetMyProducts).toHaveBeenCalledWith(true);
+    expect(
+      screen.queryByRole('button', { name: /QR รับเงิน/ }),
+    ).not.toBeInTheDocument();
 
     // Default filter is ACTIVE, so inactive product is hidden initially
     expect(screen.queryByText('ข้าวไข่เจียวสมุนไพร')).not.toBeInTheDocument();
@@ -103,6 +112,80 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
     // Switch to INACTIVE filter
     fireEvent.click(screen.getByRole('button', { name: /ปิดการขาย \(1\)/ }));
     expect(await screen.findByText('ข้าวไข่เจียวสมุนไพร')).toBeInTheDocument();
+  });
+
+  it('hides the category filter when the API returns no categories', async () => {
+    mockedGetCategories.mockResolvedValueOnce([]);
+
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    expect(await screen.findByText('ข้าวกะเพราหมูสับ')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: 'ตัวกรองหมวดหมู่สินค้า' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not show the all-categories button when only one category exists', async () => {
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    const categoryFilter = await screen.findByRole('group', {
+      name: 'ตัวกรองหมวดหมู่สินค้า',
+    });
+    expect(categoryFilter).toHaveTextContent('อาหารตามสั่ง');
+    expect(
+      screen.queryByRole('button', { name: 'ทั้งหมด' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the all-categories button when multiple categories exist', async () => {
+    mockedGetCategories.mockResolvedValueOnce([
+      ...mockCategories,
+      {
+        categoryId: '2',
+        categoryName: 'เครื่องดื่ม',
+        description: 'เครื่องดื่มชุมชน',
+      },
+    ]);
+    mockedGetMyProducts.mockResolvedValueOnce([
+      ...mockProducts,
+      {
+        productId: '12',
+        productName: 'น้ำสมุนไพร',
+        description: 'เครื่องดื่มชุมชน',
+        price: 25,
+        status: 'ACTIVE',
+        categoryId: '2',
+        categoryName: 'เครื่องดื่ม',
+      },
+    ]);
+
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    expect(
+      await screen.findByRole('button', { name: 'ทั้งหมด' }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides categories that have no products in the current product query', async () => {
+    mockedGetCategories.mockResolvedValueOnce([
+      ...mockCategories,
+      {
+        categoryId: '2',
+        categoryName: 'เครื่องดื่ม',
+        description: 'ยังไม่มีสินค้า',
+      },
+    ]);
+
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    const categoryFilter = await screen.findByRole('group', {
+      name: 'ตัวกรองหมวดหมู่สินค้า',
+    });
+    expect(categoryFilter).toHaveTextContent('อาหารตามสั่ง');
+    expect(categoryFilter).not.toHaveTextContent('เครื่องดื่ม');
+    expect(
+      screen.queryByRole('button', { name: 'ทั้งหมด' }),
+    ).not.toBeInTheDocument();
   });
 
   it('edits product name and price via Edit Product Modal and updates cart item (FR-M02)', async () => {
@@ -170,11 +253,81 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
       screen.getByRole('button', { name: 'ปิดการขาย ข้าวกะเพราหมูสับ' }),
     );
 
+    expect(mockedUpdateProductStatus).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('dialog', { name: 'ยืนยันปิดการขาย' }),
+    ).toHaveTextContent('ข้าวกะเพราหมูสับ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันปิดการขาย' }));
+
     expect(mockedUpdateProductStatus).toHaveBeenCalledWith('10', 'INACTIVE');
     expect(await screen.findByRole('status')).toHaveTextContent(
       'ปิดการขายสินค้า "ข้าวกะเพราหมูสับ" ชั่วคราวเรียบร้อยแล้ว',
     );
     // Cart should now be empty since product became INACTIVE
     expect(screen.queryByText('ล้างทั้งหมด')).not.toBeInTheDocument();
+  });
+
+  it('cancels product deactivation without calling the API', async () => {
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    expect(await screen.findByText('ข้าวกะเพราหมูสับ')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ปิดการขาย ข้าวกะเพราหมูสับ' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }));
+
+    expect(mockedUpdateProductStatus).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('dialog', { name: 'ยืนยันปิดการขาย' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows an expired pending order as cancelled with an appropriate status icon', async () => {
+    mockedGetMerchantOrders.mockResolvedValueOnce([
+      {
+        orderId: '900',
+        status: 'PENDING',
+        subtotal: 120,
+        discountAmount: 0,
+        finalAmount: 120,
+        subsidyAmount: 0,
+        userPaidAmount: 120,
+        consumerName: null,
+        itemCount: 2,
+        createdAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+        qrExpiresAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+        paidAt: null,
+      },
+    ]);
+
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /ประวัติคำสั่งซื้อ/ }),
+    );
+
+    expect(
+      await screen.findByLabelText('สถานะยกเลิกการชำระ'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/QR หมดอายุ/)).toBeInTheDocument();
+  });
+
+  it('requests merchant orders using the selected month', async () => {
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /ประวัติคำสั่งซื้อ/ }),
+    );
+    fireEvent.change(await screen.findByLabelText('เดือนที่แสดง'), {
+      target: { value: '2026-10' },
+    });
+
+    await waitFor(() => {
+      expect(mockedGetMerchantOrders).toHaveBeenLastCalledWith({
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-31',
+      });
+    });
   });
 });

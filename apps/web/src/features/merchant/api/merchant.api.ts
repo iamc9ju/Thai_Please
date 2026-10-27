@@ -72,8 +72,17 @@ export function createOrder(data: {
   return apiClient.post<CreateOrderResponse>(`${MERCHANT_API}/orders`, data);
 }
 
-export function getMerchantOrders(): Promise<MerchantOrder[]> {
-  return apiClient.get<MerchantOrder[]>(`${MERCHANT_API}/orders`);
+export function getMerchantOrders(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<MerchantOrder[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
+  const query = searchParams.toString();
+  return apiClient.get<MerchantOrder[]>(
+    `${MERCHANT_API}/orders${query ? `?${query}` : ''}`,
+  );
 }
 
 export function getMerchantOrderReceipt(
@@ -86,8 +95,17 @@ export function getMerchantOrderReceipt(
 
 // ── FR-M06: Merchant Wallet & Withdrawal ─────────────────────────────────────
 
-export function getMerchantWalletOverview(): Promise<MerchantWalletOverview> {
-  return apiClient.get<MerchantWalletOverview>(`${MERCHANT_API}/wallet`);
+export function getMerchantWalletOverview(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<MerchantWalletOverview> {
+  const searchParams = new URLSearchParams();
+  if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
+  const query = searchParams.toString();
+  return apiClient.get<MerchantWalletOverview>(
+    `${MERCHANT_API}/wallet${query ? `?${query}` : ''}`,
+  );
 }
 
 export function getMerchantWalletTransactions(params?: {

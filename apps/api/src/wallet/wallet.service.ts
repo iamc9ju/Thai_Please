@@ -768,6 +768,7 @@ export class WalletService {
     userId: bigint,
     activeMerchantId: bigint | null,
     requestedMerchantId?: bigint,
+    query: Pick<WalletTransactionsQueryDto, 'dateFrom' | 'dateTo'> = {},
   ) {
     const merchantId = this.resolveAuthorizedMerchantId(
       activeMerchantId,
@@ -821,6 +822,23 @@ export class WalletService {
         },
       },
       orderBy: [{ paidAt: 'desc' }, { orderId: 'desc' }],
+    });
+
+    if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) {
+      throw new BadRequestException('WALLET_TRANSACTION_DATE_RANGE_INVALID');
+    }
+    const incomeDateFrom = query.dateFrom
+      ? this.parseBangkokDateBoundary(query.dateFrom, false)
+      : null;
+    const incomeDateTo = query.dateTo
+      ? this.parseBangkokDateBoundary(query.dateTo, true)
+      : null;
+    const filteredPaidOrders = paidOrders.filter((order) => {
+      const paidAt = order.paidAt ?? order.createdAt;
+      return (
+        (!incomeDateFrom || paidAt >= incomeDateFrom) &&
+        (!incomeDateTo || paidAt < incomeDateTo)
+      );
     });
 
     const totalSalesIncome = Number(
@@ -914,7 +932,7 @@ export class WalletService {
           hasConsumerRole &&
           hasActiveConsumerWallet,
       },
-      orderIncomes: paidOrders.slice(0, 20).map((order) => ({
+      orderIncomes: filteredPaidOrders.slice(0, 20).map((order) => ({
         orderId: order.orderId.toString(),
         receiptNumber: `TP-${order.orderId.toString().padStart(6, '0')}`,
         subtotal: Number(order.subtotal),

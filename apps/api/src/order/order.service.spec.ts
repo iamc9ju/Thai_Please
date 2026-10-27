@@ -425,6 +425,49 @@ describe('OrderService payment', () => {
   });
 
   describe('FR-C06 & FR-M08: Orders and Receipts', () => {
+    it('listMerchantOrders exposes QR expiry for pending-payment history', async () => {
+      const createdAt = new Date('2026-10-27T12:00:00.000Z');
+      const qrExpiresAt = new Date('2026-10-27T12:10:00.000Z');
+      prismaMock.order.findMany.mockResolvedValueOnce([
+        {
+          orderId: 20n,
+          status: 'PENDING',
+          subtotal: '80.00',
+          discountAmount: '0.00',
+          finalAmount: '80.00',
+          subsidyAmount: '0.00',
+          userPaidAmount: '80.00',
+          createdAt,
+          qrExpiresAt,
+          paidAt: null,
+          user: null,
+          orderItems: [{ orderItemId: 201n }],
+        },
+      ]);
+
+      const result = await service.listMerchantOrders(1n, {
+        dateFrom: '2026-10-27',
+        dateTo: '2026-10-27',
+      });
+
+      expect(result[0]).toMatchObject({
+        orderId: '20',
+        status: 'PENDING',
+        qrExpiresAt,
+      });
+      expect(prismaMock.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            merchantId: 1n,
+            createdAt: {
+              gte: new Date('2026-10-26T17:00:00.000Z'),
+              lte: new Date('2026-10-27T16:59:59.999Z'),
+            },
+          },
+        }),
+      );
+    });
+
     it('listConsumerOrders returns mapped orders with items and merchant snapshot', async () => {
       const now = new Date();
       prismaMock.order.findMany.mockResolvedValueOnce([

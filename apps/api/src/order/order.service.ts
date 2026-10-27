@@ -179,6 +179,38 @@ export class OrderService {
     return { startOfDayUtc, endOfDayUtc };
   }
 
+  private parseBangkokDateBoundary(value: string, endOfDay: boolean): Date {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) {
+      throw new BadRequestException('รูปแบบวันที่ต้องเป็น YYYY-MM-DD');
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const validationDate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      validationDate.getUTCFullYear() !== year ||
+      validationDate.getUTCMonth() !== month - 1 ||
+      validationDate.getUTCDate() !== day
+    ) {
+      throw new BadRequestException('วันที่ไม่ถูกต้อง');
+    }
+
+    const offsetMs = BANGKOK_TZ_OFFSET_HOURS * 60 * 60 * 1000;
+    return new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        endOfDay ? 23 : 0,
+        endOfDay ? 59 : 0,
+        endOfDay ? 59 : 0,
+        endOfDay ? 999 : 0,
+      ) - offsetMs,
+    );
+  }
+
   private applyCouponDiscount(
     subtotal: Prisma.Decimal,
     coupon: CouponWithDetails | null,
@@ -743,9 +775,30 @@ export class OrderService {
   }
 
   /** FR-M02: Merchant ดูรายการ orders ของร้าน */
-  async listMerchantOrders(merchantId: bigint) {
+  async listMerchantOrders(
+    merchantId: bigint,
+    filter?: { dateFrom?: string; dateTo?: string },
+  ) {
+    const createdAt: Prisma.DateTimeFilter = {};
+    if (filter?.dateFrom) {
+      createdAt.gte = this.parseBangkokDateBoundary(filter.dateFrom, false);
+    }
+    if (filter?.dateTo) {
+      createdAt.lte = this.parseBangkokDateBoundary(filter.dateTo, true);
+    }
+    if (
+      createdAt.gte instanceof Date &&
+      createdAt.lte instanceof Date &&
+      createdAt.gte > createdAt.lte
+    ) {
+      throw new BadRequestException('วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด');
+    }
+
     const orders = await this.prisma.order.findMany({
-      where: { merchantId },
+      where: {
+        merchantId,
+        ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
+      },
       include: {
         orderItems: true,
         user: { select: { fullName: true } },
@@ -765,6 +818,7 @@ export class OrderService {
       consumerName: order.user?.fullName ?? null,
       itemCount: order.orderItems.length,
       createdAt: order.createdAt,
+      qrExpiresAt: order.qrExpiresAt,
       paidAt: order.paidAt,
     }));
   }

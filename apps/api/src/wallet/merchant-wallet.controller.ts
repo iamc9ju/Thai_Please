@@ -39,11 +39,16 @@ export class MerchantWalletController {
    */
   @Get(['merchant/wallet', 'merchants/:id/wallet'])
   @Roles('MERCHANT')
-  async getMerchantWallet(@Req() req: Request, @Param('id') id?: string) {
+  async getMerchantWallet(
+    @Req() req: Request,
+    @Query() query: WalletTransactionsQueryDto,
+    @Param('id') id?: string,
+  ) {
     return this.walletService.getMerchantWalletOverview(
       req.user!.userId,
       req.user!.activeMerchantId,
       parseOptionalMerchantId(id),
+      query,
     );
   }
 
