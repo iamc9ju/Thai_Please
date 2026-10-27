@@ -105,11 +105,14 @@ export type TopUpResponse = {
 
 export type ConsumerQuest = {
   id: string;
+  amountBasis?: 'PERSONAL_AFTER_DISCOUNT' | 'FINAL_AFTER_DISCOUNT';
   questName?: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED';
+  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
   assignedAt: string;
   expiresAt: string;
   completedAt: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
   completedOrderId?: string | null;
   receiptNumber?: string | null;
   type: 'MIN_SPEND' | 'CATEGORY_SPEND' | 'MERCHANT_SPEND' | 'PRODUCT_PURCHASE';
@@ -126,6 +129,30 @@ export type ConsumerQuest = {
 export type ConsumerQuestListResponse = {
   items: ConsumerQuest[];
   nextCursor: string | null;
+};
+
+export type ConsumerQuestProposal = {
+  id: string;
+  type: 'MIN_SPEND' | 'CATEGORY_SPEND';
+  targetCategoryId: string | null;
+  targetCategoryName: string | null;
+  minimumSpend: string;
+  rewardPoints: number;
+  durationDays: number;
+};
+
+export type ConsumerQuestProposalsResponse = {
+  status: 'READY' | 'PENDING' | 'COOLDOWN' | 'ELIGIBLE' | 'FAILED';
+  requestKey: string | null;
+  expiresAt: string | null;
+  nextEligibleAt: string | null;
+  reason: string | null;
+  items: ConsumerQuestProposal[];
+};
+
+export type ConsumerQuestSelectionResponse = {
+  assignmentId: string;
+  nextEligibleAt: string;
 };
 
 export type ConsumerQuestLoadState =

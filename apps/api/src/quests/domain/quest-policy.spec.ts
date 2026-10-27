@@ -4,95 +4,90 @@ import {
   parseQuestPolicy,
   QUEST_COMPLETION_INVARIANTS,
 } from './quest-policy.js';
-
 function fixture() {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL('../config/quest-policy.json', import.meta.url),
-      'utf8',
+  return parseQuestPolicy(
+    JSON.parse(
+      readFileSync(
+        new URL('../config/quest-policy.json', import.meta.url),
+        'utf8',
+      ),
     ),
   );
-  return parseQuestPolicy(raw);
 }
-
-describe('FR-C07 / FR-S03 quest policy', () => {
-  it('loads the committed versioned policy with exact rational multipliers', () => {
-    const policy = fixture();
-    expect(policy.version).toBe('quest-policy-v1');
-    expect(policy.candidates.spendMultipliers).toEqual([
-      { numerator: 1, denominator: 1 },
-      { numerator: 3, denominator: 2 },
-    ]);
-    expect(QUEST_COMPLETION_INVARIANTS.receiptCount).toBe(1);
+describe('FR-C07 / FR-S03 proposal policy', () => {
+  it('uses personal contribution, selection and bounded generation', () => {
+    const p = fixture();
+    expect(p.version).toBe('quest-policy-v3');
+    expect(p.proposals.maximumCalls).toBe(2);
+    expect(p.assignment.cycleDays).toBe(7);
+    expect(QUEST_COMPLETION_INVARIANTS.amountBasis).toBe(
+      'PERSONAL_AFTER_DISCOUNT',
+    );
+    expect(QUEST_COMPLETION_INVARIANTS.assignmentMode).toBe(
+      'CONSUMER_SELECTION',
+    );
   });
-  it('rejects unknown properties and attempts to override invariants', () => {
+  it.each(['PRODUCT_PURCHASE', 'MERCHANT_SPEND'])(
+    'rejects retired type %s',
+    (type) => {
+      const p = fixture();
+      expect(() =>
+        parseQuestPolicy({
+          ...p,
+          candidates: { ...p.candidates, types: [type] },
+        }),
+      ).toThrow();
+    },
+  );
+  it('rejects hidden policy fields and obsolete candidate caps', () => {
+    const p = fixture();
     expect(() =>
-      parseQuestPolicy({ ...fixture(), allowMultipleReceipts: true }),
+      parseQuestPolicy({ ...p, allowMultipleReceipts: true }),
     ).toThrow();
     expect(() =>
       parseQuestPolicy({
-        ...fixture(),
-        completion: {
-          ...fixture().completion,
-          receiptCount: 2,
-        },
+        ...p,
+        candidates: { ...p.candidates, maximumTotal: 8 },
       }),
     ).toThrow();
   });
-  it('rejects unsupported types and duplicate types', () => {
+  it('rejects unbounded calls, invalid histogram and inconsistent reward policy', () => {
     const p = fixture();
     expect(() =>
       parseQuestPolicy({
         ...p,
-        candidates: { ...p.candidates, types: ['VISITS'] },
+        proposals: { ...p.proposals, maximumCalls: 3 },
       }),
     ).toThrow();
-    p.candidates.types = ['MIN_SPEND', 'MIN_SPEND'];
-    expect(() => parseQuestPolicy(p)).toThrow();
+    expect(() =>
+      parseQuestPolicy({
+        ...p,
+        proposals: {
+          ...p.proposals,
+          distributionUpperMinorUnits: [10000, 5000],
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseQuestPolicy({
+        ...p,
+        rewards: {
+          ...p.rewards,
+          pointsByType: { MIN_SPEND: 20, CATEGORY_SPEND: 40 },
+        },
+      }),
+    ).toThrow();
   });
-  it('rejects zero and fractional denominators', () => {
-    for (const denominator of [0, 1.5]) {
-      const p = fixture();
-      p.candidates.spendMultipliers = [{ numerator: 1, denominator }];
-      expect(() => parseQuestPolicy(p)).toThrow();
-    }
-  });
-  it('rejects contradictory windows, spend bounds and candidate caps', () => {
+  it('rejects reward budgets below one reward and inconsistent cycles', () => {
     const p = fixture();
-    p.candidates.recentHistoryDays = p.candidates.historyDays + 1;
-    expect(() => parseQuestPolicy(p)).toThrow();
-    const q = fixture();
-    q.candidates.minimumSpendMinorUnits =
-      q.candidates.maximumSpendMinorUnits + 1;
-    expect(() => parseQuestPolicy(q)).toThrow();
-    const r = fixture();
-    r.candidates.maximumTotal = r.candidates.maximumPerType - 1;
-    expect(() => parseQuestPolicy(r)).toThrow();
-  });
-  it('rejects budgets too small to fund an allowed reward', () => {
-    for (const field of [
-      'globalDailyReservationBudgetPoints',
-      'globalOutstandingReservationBudgetPoints',
-    ] as const) {
-      const p = fixture();
-      p.rewards[field] = 1;
-      expect(() => parseQuestPolicy(p)).toThrow();
-    }
-  });
-  it('rejects invalid schedules and unbounded provider attempts', () => {
-    const p = fixture();
-    p.assignment.dailyHour = 24;
-    expect(() => parseQuestPolicy(p)).toThrow();
-    const q = fixture();
-    q.selection.maximumAttemptsPerGeneration = 4;
-    expect(() => parseQuestPolicy(q)).toThrow();
-  });
-  it('rejects unsafe monetary integers and negative points', () => {
-    const p = fixture();
-    p.candidates.maximumSpendMinorUnits = Number.MAX_SAFE_INTEGER + 1;
-    expect(() => parseQuestPolicy(p)).toThrow();
-    const q = fixture();
-    q.rewards.pointsByType.MIN_SPEND = -20;
-    expect(() => parseQuestPolicy(q)).toThrow();
+    expect(() =>
+      parseQuestPolicy({
+        ...p,
+        rewards: { ...p.rewards, globalDailyReservationBudgetPoints: 1 },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseQuestPolicy({ ...p, assignment: { ...p.assignment, cycleDays: 1 } }),
+    ).toThrow();
   });
 });

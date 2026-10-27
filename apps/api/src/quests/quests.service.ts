@@ -2,15 +2,22 @@ import {
   Injectable,
   HttpException,
   Logger,
-  ServiceUnavailableException,
+  type OnModuleInit,
+  type OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { readFileSync } from 'node:fs';
 import { parseQuestPolicy } from './domain/quest-policy.js';
 import { GeminiQuestProvider } from './gemini.provider.js';
-import { buildQuestInput, type Candidate } from './quest-candidates.js';
-import { QuestsRepository, type GenerationRun } from './quests.repository.js';
-const PROVIDER_RETRY_DELAY_MS = 250;
+import type { Candidate } from './quest-candidates.js';
+import {
+  buildProposalSummary,
+  proposalRules,
+  validateProposals,
+  type Proposal,
+} from './quest-proposals.js';
+import { QuestsRepository } from './quests.repository.js';
+
 const SAFE_PROVIDER_CODES = new Set([
   'QUEST_AI_INPUT_INVALID',
   'QUEST_AI_CONFIGURATION_UNAVAILABLE',
@@ -22,9 +29,19 @@ const SAFE_PROVIDER_CODES = new Set([
   'QUEST_AI_MODEL_NOT_FOUND',
   'QUEST_AI_TIMEOUT',
 ]);
+function providerCode(error: unknown): string {
+  const payload = error instanceof HttpException ? error.getResponse() : null;
+  return typeof payload === 'object' &&
+    payload !== null &&
+    'code' in payload &&
+    typeof payload.code === 'string' &&
+    SAFE_PROVIDER_CODES.has(payload.code)
+    ? payload.code
+    : 'QUEST_AI_UNAVAILABLE';
+}
 
 @Injectable()
-export class QuestsService {
+export class QuestsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QuestsService.name);
   private readonly policy = parseQuestPolicy(
     JSON.parse(
@@ -34,6 +51,9 @@ export class QuestsService {
       ),
     ) as unknown,
   );
+  private timer: ReturnType<typeof setInterval> | undefined;
+  private running: Promise<void> | undefined;
+  private stopping = false;
 
   constructor(
     private readonly repository: QuestsRepository,
@@ -41,48 +61,55 @@ export class QuestsService {
     private readonly config: ConfigService,
   ) {}
 
-  private result(run: GenerationRun) {
-    return {
-      requestKey: run.request_key,
-      status: run.status,
-      reason: run.reason,
-      assignmentId: run.assignment_id?.toString() ?? null,
-    };
+  onModuleInit() {
+    // Logs are the durable queue; transactional claiming owns each job.
+    this.timer = setInterval(
+      () => this.wake(),
+      this.policy.proposals.workerPollMilliseconds,
+    );
+    this.timer.unref();
+    this.wake();
+  }
+
+  async onModuleDestroy() {
+    this.stopping = true;
+    if (this.timer) clearInterval(this.timer);
+    await this.running;
+  }
+
+  private wake() {
+    if (this.stopping || this.running) return;
+    this.running = this.processNextGeneration()
+      .catch(() =>
+        this.logger.error({
+          event: 'quest_worker_failed',
+          code: 'QUEST_WORKER_STORAGE_UNAVAILABLE',
+        }),
+      )
+      .finally(() => {
+        this.running = undefined;
+      });
+  }
+
+  async proposals(userId: bigint) {
+    return this.repository.proposalState(userId, new Date(), this.policy);
   }
 
   async generate(userId: bigint, actorId: bigint, key: string) {
     const asOf = new Date();
     const existing = await this.repository.replay(key, userId, actorId, asOf);
-    if (existing) return this.result(existing);
+    if (existing) return this.proposals(userId);
+    const state = await this.proposals(userId);
+    if (state.status !== 'ELIGIBLE') return state;
     const history = await this.repository.history(userId, asOf, this.policy);
-    const input = buildQuestInput(
+    const summary = buildProposalSummary(
       history.facts,
       history.catalog,
       history.prior,
       this.policy,
       asOf,
     );
-    const targetIds = new Set(
-      input.candidates.map((c) => c.targetId).filter((id) => id !== null),
-    );
-    const summary = {
-      ...input.summary,
-      categories: input.summary.categories.filter((s) => targetIds.has(s.id)),
-      merchants: input.summary.merchants.filter((s) => targetIds.has(s.id)),
-      products: input.summary.products.filter((s) => targetIds.has(s.id)),
-      questHistory: {
-        active: history.prior.filter(
-          (q) => q.status === 'ACTIVE' && q.expiresAt > asOf,
-        ).length,
-        completed: history.prior.filter(
-          (q) => q.completedAt !== null && q.completedAt < asOf,
-        ).length,
-        expired: history.prior.filter(
-          (q) => q.completedAt === null && q.expiresAt <= asOf,
-        ).length,
-      },
-    };
-    const claim = await this.repository.claim({
+    await this.repository.claim({
       key,
       userId,
       actorId,
@@ -90,71 +117,145 @@ export class QuestsService {
       policy: this.policy,
       model: this.config.get<string>('GEMINI_MODEL') || 'UNCONFIGURED',
       summary,
-      candidates: input.candidates,
     });
-    if (!claim.claimed) return this.result(claim.run);
-    let scores: { candidateId: string; suitabilityScore: number }[];
-    try {
-      // Only minimized aggregates and approved candidate facts cross the AI boundary.
-      scores = await this.rankWithRetry(summary, input.candidates);
-    } catch (error: unknown) {
-      const payload =
-        error instanceof HttpException ? error.getResponse() : null;
-      const reason =
-        typeof payload === 'object' &&
-        payload !== null &&
-        'code' in payload &&
-        typeof payload.code === 'string' &&
-        SAFE_PROVIDER_CODES.has(payload.code)
-          ? payload.code
-          : 'PROVIDER_UNAVAILABLE_OR_INVALID';
-      await this.repository.fail(key, reason, new Date());
-      this.logger.warn({
-        event: 'quest_generation_failed',
-        correlationId: key,
-        code: reason,
-      });
-      return {
-        requestKey: key,
-        status: 'FAILED',
-        reason,
-        assignmentId: null,
-      };
-    }
-    const scoreMap = new Map(
-      scores.map((s) => [s.candidateId, s.suitabilityScore]),
+    return this.proposals(userId);
+  }
+
+  /** One persisted job, separately testable for recovery and provider call limits. */
+  async processNextGeneration(): Promise<void> {
+    const job = await this.repository.takeGenerationJob(
+      new Date(),
+      this.policy,
     );
-    const compare = (a: Candidate, b: Candidate) => {
-      const score = (scoreMap.get(b.id) ?? -1) - (scoreMap.get(a.id) ?? -1);
-      if (score !== 0) return score;
-      const aSpend = BigInt(a.minimumSpendMinor ?? '0');
-      const bSpend = BigInt(b.minimumSpendMinor ?? '0');
-      if (aSpend !== bSpend) return aSpend < bSpend ? -1 : 1;
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-    };
-    const selected = [...input.candidates].sort(compare)[0];
-    if (!selected) {
-      await this.repository.fail(key, 'NO_CANDIDATES', new Date());
-      return {
-        requestKey: key,
-        status: 'FAILED',
-        reason: 'NO_CANDIDATES',
-        assignmentId: null,
-      };
+    if (!job) return;
+    const accepted: Candidate[] = [];
+    const attempts: {
+      call: number;
+      acceptedCount: number;
+      rejections: string[];
+    }[] = [];
+    let failure = 'QUEST_AI_INVALID_RESPONSE';
+    try {
+      const history = await this.repository.history(
+        job.userId,
+        job.asOf,
+        this.policy,
+      );
+      if (
+        history.facts.filter((fact) => fact.personalMinor > 0n).length <
+        this.policy.candidates.minimumHistoryOrders
+      ) {
+        await this.repository.fail(job.key, 'INSUFFICIENT_HISTORY', new Date());
+        return;
+      }
+      const rules = proposalRules(
+        history.catalog,
+        history.prior,
+        this.policy,
+        job.asOf,
+      );
+      for (
+        let call = 1;
+        call <= this.policy.proposals.maximumCalls;
+        call += 1
+      ) {
+        try {
+          const priorAccepted: Proposal[] = [];
+          for (const p of accepted) {
+            if (p.minimumSpendMinor === null) continue;
+            if (p.type === 'MIN_SPEND')
+              priorAccepted.push({
+                type: p.type,
+                targetId: null,
+                minimumSpendMinor: p.minimumSpendMinor,
+              });
+            else if (p.targetId !== null)
+              priorAccepted.push({
+                type: p.type,
+                targetId: p.targetId,
+                minimumSpendMinor: p.minimumSpendMinor,
+              });
+          }
+          const raw = await this.provider.propose(
+            job.summary,
+            rules,
+            this.policy.proposals.desiredCount - accepted.length,
+            priorAccepted,
+            attempts.flatMap((a) => a.rejections),
+          );
+          const checked = validateProposals(
+            raw,
+            history.catalog,
+            history.prior,
+            this.policy,
+            new Date(),
+            accepted,
+          );
+          accepted.splice(0, accepted.length, ...checked.accepted);
+          attempts.push({
+            call,
+            acceptedCount: accepted.length,
+            rejections: checked.rejections,
+          });
+        } catch (error: unknown) {
+          failure = providerCode(error);
+          attempts.push({
+            call,
+            acceptedCount: accepted.length,
+            rejections: [failure],
+          });
+          // A second call fills invalid/missing proposals, not an immediate
+          // network retry. Dependency failures use the persisted cooldown.
+          if (failure !== 'QUEST_AI_INVALID_RESPONSE') break;
+        }
+        if (accepted.length >= this.policy.proposals.desiredCount) break;
+      }
+      if (accepted.length > 0) {
+        await this.repository.saveProposals(
+          job.key,
+          accepted,
+          this.policy,
+          new Date(),
+          { attempts },
+        );
+      } else {
+        await this.repository.fail(job.key, failure, new Date(), {
+          output: { attempts },
+          rejections: [],
+        });
+      }
+      this.logger.log({
+        event: 'quest_proposals_finished',
+        correlationId: job.key,
+        acceptedCount: accepted.length,
+      });
+    } catch (error: unknown) {
+      await this.repository.fail(job.key, providerCode(error), new Date(), {
+        output: { attempts },
+        rejections: [],
+      });
+      this.logger.warn({
+        event: 'quest_proposals_failed',
+        correlationId: job.key,
+        code: providerCode(error),
+      });
     }
-    const run = await this.repository.finalize(
+  }
+
+  async select(
+    userId: bigint,
+    key: string,
+    proposalId: string,
+    idempotencyKey: string,
+  ) {
+    return this.repository.select(
+      userId,
       key,
-      selected,
-      { scores, selectedCandidateId: selected.id },
+      proposalId,
+      idempotencyKey,
       this.policy,
       new Date(),
     );
-    this.logger.log({
-      event: 'quest_generation_finished',
-      correlationId: key,
-      status: run.status,
-    });
-    return this.result(run);
   }
 
   async list(userId: bigint, cursor?: bigint) {
@@ -165,50 +266,17 @@ export class QuestsService {
     };
   }
 
-  private async rankWithRetry(
-    summary: unknown,
-    candidates: readonly Candidate[],
-  ) {
-    for (let attempt = 1; ; attempt += 1) {
-      try {
-        return await this.provider.rank(summary, candidates);
-      } catch (error: unknown) {
-        const response =
-          error instanceof ServiceUnavailableException
-            ? error.getResponse()
-            : null;
-        const retryable =
-          typeof response === 'object' &&
-          response !== null &&
-          'code' in response &&
-          (response.code === 'QUEST_AI_UNAVAILABLE' ||
-            response.code === 'QUEST_AI_TIMEOUT');
-        if (
-          !retryable ||
-          attempt >= this.policy.selection.maximumAttemptsPerGeneration
-        )
-          throw error;
-        await new Promise<void>((resolve) =>
-          setTimeout(resolve, PROVIDER_RETRY_DELAY_MS * attempt),
-        );
-      }
-    }
-  }
-
   async evaluateOrder(orderId: bigint) {
     const result = await this.repository.evaluateAndCompleteOrder(
       orderId,
       this.policy,
     );
-    if (result) {
+    if (result)
       this.logger.log({
         event: 'quest_completed',
         orderId: orderId.toString(),
-        userQuestId: result.userQuestId,
-        questId: result.questId,
-        rewardPoints: result.rewardPoints,
+        ...result,
       });
-    }
     return result;
   }
 }

@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowDownLeft,
@@ -13,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
 import type { ReceiptDetail } from '../../consumer/consumer.types';
 import {
@@ -89,6 +91,7 @@ export function MerchantWalletView() {
       currency: 'THB',
     }).format(n);
 
+  const beginRequest = useLatestRequest();
   const loadWalletData = useCallback(
     async (monthValue = selectedMonth) => {
       setIsLoading(true);
@@ -102,15 +105,17 @@ export function MerchantWalletView() {
             limit: 20,
           }),
         ]);
+        if (!isCurrent()) return;
         setOverview(walletOverview);
         setLedgerItems(txPage.items);
         setNextCursor(txPage.nextCursor);
       } catch (caughtError: unknown) {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error ? caughtError.message : copy.errorTitle,
         );
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
     [copy.errorTitle, selectedMonth],
@@ -206,12 +211,7 @@ export function MerchantWalletView() {
   };
 
   if (isLoading && !overview) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
-        <div className="size-9 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-        <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-      </div>
-    );
+    return <LoadingState label={copy.loading} />;
   }
 
   if (error && !overview) {

@@ -1,6 +1,8 @@
-# Backend เควสและ Gemini
+# Backend เควสและ Gemini v2 (ประวัติ)
 
-สถานะ: มีตัวสรุปประวัติ ตัวสร้าง candidate, Gemini REST adapter, Admin generate และ Consumer list พร้อม generation-run audit/transactional reservation. ยังไม่มีหน้าเว็บ งานเวลา 08:00 หรือการตรวจ completion/ออกแต้มใน increment นี้. เปลี่ยนแนวทาง online จาก CatBoost เป็น Gemini ranking ตามผู้ใช้สั่ง ไม่ใช้ model artifact และไม่อ้าง probability; ไฟล์แผน CatBoost เก่าเป็นบริบทเดิม ไม่ใช่คู่มือ online flow นี้
+> API generation และ flow ด้านล่างถูกแทนที่ด้วย [คู่มือเควส v3](QUEST_PROPOSALS_RUNBOOK_TH.md) ซึ่งให้ consumer เลือกข้อเสนอก่อน assignment
+
+สถานะ: มีตัวสรุปประวัติ ตัวสร้าง candidate, Gemini REST adapter, Admin generate และ Consumer list พร้อม generation-run audit/transactional reservation. มีหน้า Consumer แสดงเควสและตรวจ completion/ออกแต้มหลัง PAID แล้ว; ยังไม่เปิดงานเวลา 08:00. เปลี่ยนแนวทาง online จาก CatBoost เป็น Gemini ranking ตามผู้ใช้สั่ง ไม่ใช้ model artifact และไม่อ้าง probability; ไฟล์แผน CatBoost เก่าเป็นบริบทเดิม ไม่ใช่คู่มือ online flow นี้
 
 ## เริ่มใช้งาน
 
@@ -50,10 +52,16 @@ API prefix/role guards ยึดระบบเดิม. Generation ใช้ U
 - FR-S02/03: provider schema/coverage, errors, timeout และ exact conditions; HTTP rejects extra fields/untrusted origin
 - FR-S04: migration/audit snapshot, failure result และ selected-candidate snapshot check
 - FR-C07/FR-S05/FR-A05: Admin generation, automatic assignment, owner-only read, idempotency/concurrency/budget/lease integration tests
-- FR-S06/BR-POINT: ไม่ได้ implement completion/reward ใน increment นี้; ห้ามอ้างว่า quest journey เสร็จครบ
+- FR-S06/BR-POINT: evaluator ตรวจสองประเภทหลัง PAID และออกแต้มใน transaction; PostgreSQL tests ยืนยันข้ามร้านและ concurrent retry ไม่ออกซ้ำ. รอบอัตโนมัติยังไม่เปิด
 
 DB tests opt-in: PowerShell `$env:QUEST_RUN_DATABASE_TESTS='1'` แล้ว `pnpm --filter @thai-please/api test -- src/quests/quests.repository.integration.spec.ts`. ใช้ `QUEST_TEST_DATABASE_URL` ถ้ามี มิฉะนั้น DATABASE_URL จาก environment/.env; สร้าง random schema ใช้ migrations/fixtures เฉพาะ schema นั้น แล้วลบทิ้ง ไม่ query ข้อมูลส่วนตัวเดิม. ต้องใช้บัญชี development ที่อนุญาตสร้าง schema. Migration ถูกทดสอบบน schema ว่าง ไม่ได้ apply ใน schema แอปจริง
 
 ยังไม่ได้ยิง Gemini จริง/ประเมินคุณภาพกับข้อมูลสมชาย เพราะไม่มีการกำหนด model/key สำหรับการทดสอบสด. Provider tests ใช้ HTTP mock และ DB integration tests ใช้ PostgreSQL จริงคนละชั้น ไม่อ้าง mock แทน transaction
 
 อ้างอิง protocol: https://ai.google.dev/api/generate-content และ https://ai.google.dev/gemini-api/docs/structured-output
+
+## Policy v2: เหลือสองประเภท (27 ตุลาคม 2026)
+
+Generation รับเฉพาะ MIN_SPEND/CATEGORY_SPEND ซื้อข้ามร้านได้ ไม่มี product/name matching หรือ merchant-only condition. รวมไม่เกิน 8 ตัวเลือก (4 ต่อประเภท). Provider payload ตัดสถิติสินค้า/ร้านที่ไม่เกี่ยวข้อง; หมวดกลางใช้ category ID. Completion ตรวจหนึ่ง PAID Order หลังส่วนลดและ category snapshot ไม่ใช้ชื่อสินค้า.
+
+Migration `20261027090000_retire_product_merchant_quests` เพิ่ม cancellation metadata และยกเลิก ACTIVE legacy PRODUCT_PURCHASE/MERCHANT_SPEND ที่ยังไม่หมดอายุ พร้อม reason QUEST_TYPE_RETIRED_POLICY_V2 โดยไม่ลบหรือแก้ประวัติสำเร็จ/แต้ม. API list คืน CANCELLED/cancelledAt/cancellationReason เพื่อแสดงในประวัติ. ไม่คืนโควตารายวันย้อนหลัง ไม่มอบเควสใหม่อัตโนมัติ. หยุด worker เก่า → apply migration → restart; agent ไม่ apply กับฐานข้อมูลแอปจริง. Constraint NOT VALID บน quests รักษาแถวเก่าแต่บังคับทุก insert/update ใหม่ให้เป็นกฎสองแบบ ไม่มี product/merchant binding; ไม่ VALIDATE constraint จนกว่าจะมีแผน archive ประวัติเก่า.

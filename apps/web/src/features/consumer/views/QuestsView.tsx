@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   Award,
   CheckCircle2,
@@ -15,6 +16,7 @@ import { ApiError } from '../../../lib/api-client';
 import { getConsumerQuests, getOrderReceipt } from '../api/consumer.api';
 import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
+import { QuestProposalsPanel } from '../components/QuestProposalsPanel';
 import type {
   ConsumerQuest,
   ConsumerQuestLoadState,
@@ -46,6 +48,14 @@ function formatBahtMinor(minorString: string | null): string {
 function getQuestDescription(quest: ConsumerQuest): string {
   const copy = th.consumerPortal.quests;
   const amount = formatBahtMinor(quest.minimumSpendMinor);
+  if (quest.amountBasis === 'PERSONAL_AFTER_DISCOUNT') {
+    return quest.type === 'CATEGORY_SPEND'
+      ? copy.personalCategoryCondition(
+          quest.targetCategoryName ?? quest.targetCategoryId ?? '',
+          amount,
+        )
+      : copy.personalSpendCondition(amount);
+  }
   switch (quest.type) {
     case 'CATEGORY_SPEND':
       return copy.categorySpendCondition(
@@ -65,6 +75,18 @@ function getQuestDescription(quest: ConsumerQuest): string {
     default:
       return copy.spendMinSpendCondition(amount);
   }
+}
+
+function isRetiredQuestType(quest: ConsumerQuest): boolean {
+  return quest.type === 'MERCHANT_SPEND' || quest.type === 'PRODUCT_PURCHASE';
+}
+
+function getCancellationReason(quest: ConsumerQuest): string {
+  const copy = th.consumerPortal.quests;
+  if (quest.cancellationReason === 'QUEST_TYPE_RETIRED_POLICY_V2') {
+    return copy.cancellationReasons.QUEST_TYPE_RETIRED_POLICY_V2;
+  }
+  return copy.cancellationReasons.unknown;
 }
 
 function getQuestTitle(quest: ConsumerQuest): string {
@@ -118,6 +140,15 @@ export function QuestsView() {
     }
   };
 
+  const refreshAfterSelection = async () => {
+    try {
+      const data = await getConsumerQuests();
+      setLoadState({ status: 'success', data });
+    } catch (error: unknown) {
+      applyQuestError(error);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     let isCurrent = true;
@@ -148,14 +179,7 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div
-          aria-live="polite"
-          className="flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm"
-          role="status"
-        >
-          <div className="mb-3 inline-block size-8 animate-spin rounded-full border-3 border-solid border-[#0056b3] border-r-transparent" />
-          <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-        </div>
+        <LoadingState label={copy.loading} />
       </section>
     );
   }
@@ -213,7 +237,10 @@ export function QuestsView() {
   const quests = loadState.data.items;
   const activeQuests = quests.filter((q) => q.status === 'ACTIVE');
   const historyQuests = quests.filter(
-    (q) => q.status === 'COMPLETED' || q.status === 'EXPIRED',
+    (q) =>
+      q.status === 'COMPLETED' ||
+      q.status === 'EXPIRED' ||
+      q.status === 'CANCELLED',
   );
   const completedQuestsCount = quests.filter(
     (q) => q.status === 'COMPLETED',
@@ -276,6 +303,8 @@ export function QuestsView() {
       </div>
 
       {/* Tabs */}
+      <QuestProposalsPanel onSelected={refreshAfterSelection} />
+
       <div
         className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-xs w-fit"
         aria-label={copy.tabsLabel}
@@ -344,46 +373,62 @@ export function QuestsView() {
             className="grid grid-cols-1 gap-4 md:grid-cols-2"
             role="tabpanel"
           >
-            {activeQuests.map((quest) => (
-              <article
-                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
-                key={quest.id}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#0056b3] border border-blue-200/60">
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                      {copy.active}
-                    </span>
-                    <strong className="inline-flex items-center rounded-xl bg-gradient-to-r from-[#0056b3] to-[#0073e6] px-3 py-1 text-xs font-extrabold text-white shadow-xs">
-                      {copy.rewardPrefix}
-                      {quest.rewardPoints} {copy.pointsSuffix}
-                    </strong>
+            {activeQuests.map((quest) => {
+              const isLegacyActive = isRetiredQuestType(quest);
+
+              return (
+                <article
+                  className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all ${
+                    isLegacyActive
+                      ? 'border-amber-200 bg-amber-50/40'
+                      : 'hover:border-blue-300 hover:shadow-md'
+                  }`}
+                  key={quest.id}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
+                          isLegacyActive
+                            ? 'border-amber-200 bg-amber-50 text-amber-800'
+                            : 'border-blue-200/60 bg-blue-50 text-[#0056b3]'
+                        }`}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                        {isLegacyActive ? copy.legacyInactive : copy.active}
+                      </span>
+                      <strong className="inline-flex items-center rounded-xl bg-gradient-to-r from-[#0056b3] to-[#0073e6] px-3 py-1 text-xs font-extrabold text-white shadow-xs">
+                        {copy.rewardPrefix}
+                        {quest.rewardPoints} {copy.pointsSuffix}
+                      </strong>
+                    </div>
+
+                    <h2 className="mt-4 text-lg font-extrabold text-slate-900">
+                      {getQuestTitle(quest)}
+                    </h2>
+                    <p className="mt-1.5 text-sm font-medium text-slate-600 leading-relaxed">
+                      {isLegacyActive
+                        ? copy.legacyActiveExplanation
+                        : getQuestDescription(quest)}
+                    </p>
                   </div>
 
-                  <h2 className="mt-4 text-lg font-extrabold text-slate-900">
-                    {getQuestTitle(quest)}
-                  </h2>
-                  <p className="mt-1.5 text-sm font-medium text-slate-600 leading-relaxed">
-                    {getQuestDescription(quest)}
-                  </p>
-                </div>
-
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs font-medium text-slate-500">
-                  <span className="inline-flex items-center gap-1.5 text-slate-600">
-                    <Clock3
-                      className="h-3.5 w-3.5 text-[#0056b3]"
-                      aria-hidden="true"
-                    />
-                    {copy.expiryPrefix}{' '}
-                    {dateFormatter.format(new Date(quest.expiresAt))}
-                  </span>
-                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600 font-semibold">
-                    {copy.defaultProgress}
-                  </span>
-                </div>
-              </article>
-            ))}
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs font-medium text-slate-500">
+                    <span className="inline-flex items-center gap-1.5 text-slate-600">
+                      <Clock3
+                        className="h-3.5 w-3.5 text-[#0056b3]"
+                        aria-hidden="true"
+                      />
+                      {copy.expiryPrefix}{' '}
+                      {dateFormatter.format(new Date(quest.expiresAt))}
+                    </span>
+                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600 font-semibold">
+                      {copy.defaultProgress}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )
       ) : historyQuests.length === 0 ? (
@@ -403,6 +448,7 @@ export function QuestsView() {
           <div className="space-y-3">
             {historyQuests.map((quest) => {
               const isCompleted = quest.status === 'COMPLETED';
+              const isCancelled = quest.status === 'CANCELLED';
               const receiptRef =
                 quest.receiptNumber ??
                 (quest.completedOrderId
@@ -419,11 +465,15 @@ export function QuestsView() {
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                         isCompleted
                           ? 'bg-emerald-50 text-emerald-600'
-                          : 'bg-slate-100 text-slate-500'
+                          : isCancelled
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-slate-100 text-slate-500'
                       }`}
                     >
                       {isCompleted ? (
                         <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+                      ) : isCancelled ? (
+                        <Info className="h-6 w-6" aria-hidden="true" />
                       ) : (
                         <Clock3 className="h-6 w-6" aria-hidden="true" />
                       )}
@@ -434,10 +484,16 @@ export function QuestsView() {
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
                             isCompleted
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-600'
+                              : isCancelled
+                                ? 'border border-amber-200 bg-amber-50 text-amber-800'
+                                : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {isCompleted ? copy.completed : copy.expiredStatus}
+                          {isCompleted
+                            ? copy.completed
+                            : isCancelled
+                              ? copy.cancelled
+                              : copy.expiredStatus}
                         </span>
                         {receiptRef && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-[#0056b3]">
@@ -452,11 +508,18 @@ export function QuestsView() {
                       <p className="mt-0.5 text-sm text-slate-600">
                         {getQuestDescription(quest)}
                       </p>
+                      {isCancelled && (
+                        <p className="mt-1 text-sm font-medium text-amber-800">
+                          {getCancellationReason(quest)}
+                        </p>
+                      )}
                       <small className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
                         <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
                         {quest.completedAt
                           ? `${copy.completedPrefix} ${dateTimeFormatter.format(new Date(quest.completedAt))}`
-                          : `${copy.expiryPrefix} ${dateFormatter.format(new Date(quest.expiresAt))}`}
+                          : quest.cancelledAt
+                            ? `${copy.cancelledPrefix} ${dateTimeFormatter.format(new Date(quest.cancelledAt))}`
+                            : `${copy.expiryPrefix} ${dateFormatter.format(new Date(quest.expiresAt))}`}
                       </small>
                     </div>
                   </div>
@@ -467,8 +530,9 @@ export function QuestsView() {
                         isCompleted ? 'text-[#0056b3]' : 'text-slate-400'
                       }`}
                     >
-                      {copy.rewardPrefix}
-                      {quest.rewardPoints} {copy.pointsSuffix}
+                      {isCancelled
+                        ? copy.cancelledReward
+                        : `${copy.rewardPrefix}${quest.rewardPoints} ${copy.pointsSuffix}`}
                     </strong>
                     {quest.completedOrderId && (
                       <button

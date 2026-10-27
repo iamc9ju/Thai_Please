@@ -94,11 +94,11 @@ These rules are business-critical and must be enforced server-side inside databa
 - Never update wallet or point balances without a corresponding ledger entry in the same transaction.
 - Coupon redemption is single-use, ownership-bound, status-checked, expiry-checked, and atomic with payment.
 - Discounts are applied before calculating the final payable amount.
-- Spend-based quest evaluation uses the final amount after all discounts.
+- New spend-based quests use the consumer's personal contribution after all discounts, excluding state subsidy, for both history and completion. Historical quest amount bases must remain explicit and reproducible.
 - One quest completion must be proven by one successful receipt; do not aggregate multiple receipts unless requirements are explicitly changed.
 - AI may generate or recommend a quest, but only a deterministic Quest Rule Engine may validate completion and issue a reward.
 - Quest, point, and coupon expiration must be explicit, timezone-safe, testable, and processed idempotently.
-- A quest is automatically assigned and visible to its consumer; the prototype does not require an accept action.
+- The system generates up to three validated quest proposals; the consumer selects exactly one before assignment. Selection is ownership-bound and idempotent and starts a seven-day entitlement cycle. Proposal generation alone does not assign a quest or earn points.
 - Quest completion creates at most one point-ledger reward for the relevant quest assignment and receipt.
 - Points are redeemed only for discount coupons under the current scope.
 - Financial and reward amounts must never use binary floating-point arithmetic.

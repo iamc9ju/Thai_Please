@@ -30,6 +30,9 @@ const environmentSchema = z
       .min(1000)
       .max(30000)
       .default(15000),
+    QUEST_GENERATION_RATE_LIMIT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true'),
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,8 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { parseCorsOrigins } from '../config/environment.js';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/authorization/roles.decorator.js';
@@ -31,6 +34,9 @@ function parseBigIntId(rawId: string, label: string): bigint {
   if (!/^[1-9]\d{0,18}$/.test(rawId)) {
     throw new BadRequestException(`รหัส${label}ไม่ถูกต้อง`);
   }
+  if (BigInt(rawId) > 9223372036854775807n) {
+    throw new BadRequestException(`รหัส${label}ไม่ถูกต้อง`);
+  }
   return BigInt(rawId);
 }
 
@@ -38,7 +44,10 @@ function parseBigIntId(rawId: string, label: string): bigint {
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly config: ConfigService,
+  ) {}
 
   private requireAdminId(req: Request): bigint {
     if (!req.user?.userId || req.user.role !== 'ADMIN') {
@@ -188,11 +197,22 @@ export class AdminController {
 
   /** FR-A05 & FR-S04: Quest Generation & Logs */
   @Post(ADMIN_ROUTES.generatePersonalizedQuest)
+  @HttpCode(HttpStatus.ACCEPTED)
   async generatePersonalizedQuest(
     @Req() req: Request,
     @Body() dto: AdminGenerateQuestDto,
   ) {
     const adminId = this.requireAdminId(req);
+    const origin = req.get('origin');
+    if (
+      !origin ||
+      !parseCorsOrigins(
+        this.config.getOrThrow<string>('CORS_ORIGINS'),
+      ).includes(origin) ||
+      !req.is('application/json')
+    ) {
+      throw new ForbiddenException('QUEST_ORIGIN_REJECTED');
+    }
     return this.adminService.generatePersonalizedQuestForConsumer(
       parseBigIntId(dto.userId, 'ผู้บริโภค'),
       adminId,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   allocateNetAcrossItems,
+  allocatePersonalAcrossItems,
   evaluateReceiptForQuests,
   isQuestConditionSatisfied,
   type ActiveQuestAssignment,
@@ -52,6 +53,52 @@ describe('Quest Evaluation (FR-S06)', () => {
     assignedAt,
     expiresAt,
     ...overrides,
+  });
+
+  it('personal quests exclude subsidy and fail closed when contribution is missing', () => {
+    const quest = createQuest({
+      spendBasis: 'PERSONAL_AFTER_DISCOUNT',
+      minimumSpendMinor: 6000n,
+    });
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 5000n })),
+    ).toBe(false);
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 6000n })),
+    ).toBe(true);
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 0n })),
+    ).toBe(false);
+    expect(isQuestConditionSatisfied(quest, createReceipt())).toBe(false);
+  });
+
+  it('personal category quests allocate only the personal part, not the entire bill', () => {
+    const quest = createQuest({
+      spendBasis: 'PERSONAL_AFTER_DISCOUNT',
+      type: 'CATEGORY_SPEND',
+      targetCategoryId: '1',
+      minimumSpendMinor: 4000n,
+    });
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 5000n })),
+    ).toBe(false);
+    expect(
+      isQuestConditionSatisfied(
+        { ...quest, minimumSpendMinor: 3000n },
+        createReceipt({ personalMinor: 5000n }),
+      ),
+    ).toBe(true);
+  });
+
+  it('personal allocation conserves satang after discount and uses deterministic tie-breaks', () => {
+    const items = createReceipt().items;
+    const shares = allocatePersonalAcrossItems(items, 8001n, 5001n);
+    expect([...shares.values()].reduce((sum, value) => sum + value, 0n)).toBe(
+      5001n,
+    );
+    expect(shares.get('1')).toBe(3001n);
+    expect(shares.get('2')).toBe(2000n);
+    expect(() => allocatePersonalAcrossItems(items, 8001n, 9000n)).toThrow();
   });
 
   describe('allocateNetAcrossItems', () => {
@@ -126,6 +173,38 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('CATEGORY_SPEND Evaluation', () => {
+    it('does not reinterpret a legacy category quest that had a merchant binding', () => {
+      const quest = createQuest({
+        type: 'CATEGORY_SPEND',
+        targetCategoryId: '1',
+        targetMerchantId: '10',
+        minimumSpendMinor: 1000n,
+      });
+      expect(isQuestConditionSatisfied(quest, createReceipt())).toBe(false);
+    });
+    it('accepts the same category from different shops and product IDs', () => {
+      const quest = createQuest({
+        type: 'CATEGORY_SPEND',
+        targetCategoryId: '1',
+        minimumSpendMinor: 5000n,
+      });
+      for (const merchantId of ['10', '99']) {
+        const receipt = createReceipt({
+          merchantId,
+          finalMinor: 9000n,
+          items: [
+            {
+              id: '1',
+              productId: merchantId === '10' ? '201' : '999',
+              categoryId: '1',
+              lineMinor: 10000n,
+              quantity: 1,
+            },
+          ],
+        });
+        expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      }
+    });
     it('satisfies quest when net category spend meets threshold', () => {
       const quest = createQuest({
         type: 'CATEGORY_SPEND',
@@ -161,14 +240,14 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('MERCHANT_SPEND Evaluation', () => {
-    it('satisfies quest when merchant matches and spend meets threshold', () => {
+    it('rejects retired merchant quests even when the merchant matches', () => {
       const quest = createQuest({
         type: 'MERCHANT_SPEND',
         targetMerchantId: '10',
         minimumSpendMinor: 8000n,
       });
       const receipt = createReceipt({ merchantId: '10', finalMinor: 8000n });
-      expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      expect(isQuestConditionSatisfied(quest, receipt)).toBe(false);
     });
 
     it('fails when merchant does not match even if spend is enough', () => {
@@ -183,13 +262,13 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('PRODUCT_PURCHASE Evaluation', () => {
-    it('satisfies quest when targeted product is purchased with quantity >= 1', () => {
+    it('rejects retired product quests even when the product matches', () => {
       const quest = createQuest({
         type: 'PRODUCT_PURCHASE',
         targetProductId: '201',
       });
       const receipt = createReceipt();
-      expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      expect(isQuestConditionSatisfied(quest, receipt)).toBe(false);
     });
 
     it('fails when targeted product is not in the receipt', () => {

@@ -1,100 +1,77 @@
 import { z } from 'zod';
 
-// Fixed invariants (FR-C07 / FR-S06) are not policy switches.
 export const QUEST_COMPLETION_INVARIANTS = {
   receiptStatus: 'PAID',
   receiptCount: 1,
-  amountBasis: 'AFTER_DISCOUNTS_BEFORE_SUBSIDY_SPLIT',
+  amountBasis: 'PERSONAL_AFTER_DISCOUNT',
   categoryBasis: 'ORDER_ITEM_SNAPSHOT',
   expiryBoundary: 'EXCLUSIVE',
-  assignmentMode: 'AUTOMATIC',
+  assignmentMode: 'CONSUMER_SELECTION',
   rewardMode: 'TRANSACTIONAL_EXACTLY_ONCE',
 } as const;
-
-export const QuestTypeSchema = z.enum([
-  'MIN_SPEND',
-  'CATEGORY_SPEND',
-  'PRODUCT_PURCHASE',
-  'MERCHANT_SPEND',
-]);
+export const QuestTypeSchema = z.enum(['MIN_SPEND', 'CATEGORY_SPEND']);
 const positiveInteger = z
   .number()
   .int()
   .positive()
   .max(Number.MAX_SAFE_INTEGER);
-const pointMap = z.strictObject({
-  MIN_SPEND: positiveInteger,
-  CATEGORY_SPEND: positiveInteger,
-  PRODUCT_PURCHASE: positiveInteger,
-  MERCHANT_SPEND: positiveInteger,
-});
-
 export const QuestPolicySchema = z
   .strictObject({
     version: z.string().regex(/^quest-policy-v[1-9][0-9]*$/),
+    proposals: z.strictObject({
+      desiredCount: z.literal(3),
+      maximumCalls: positiveInteger.max(2),
+      offerValidityHours: positiveInteger.max(168),
+      retryCooldownMinutes: positiveInteger,
+      maximumSetsPerDay: positiveInteger,
+      historyDays: positiveInteger,
+      recentHistoryLimit: positiveInteger.max(100),
+      spendStepMinorUnits: z.literal(1000),
+      workerPollMilliseconds: z.number().int().min(100).max(60000),
+      distributionUpperMinorUnits: z
+        .array(positiveInteger)
+        .min(1)
+        .max(20)
+        .refine(
+          (values) =>
+            values.every(
+              (value, index) => index === 0 || value > (values[index - 1] ?? 0),
+            ),
+          'Distribution bounds must increase',
+        ),
+    }),
     candidates: z.strictObject({
       types: z
         .array(QuestTypeSchema)
         .min(1)
-        .max(4)
+        .max(2)
         .refine(
           (types) => new Set(types).size === types.length,
           'Duplicate quest types',
         ),
       historyDays: positiveInteger,
-      recentHistoryDays: positiveInteger,
       minimumHistoryOrders: positiveInteger,
-      minimumTargetOrders: positiveInteger,
-      spendMultipliers: z
-        .array(
-          z.strictObject({
-            numerator: positiveInteger,
-            denominator: positiveInteger,
-          }),
-        )
-        .min(1),
-      spendBasis: z.strictObject({
-        MIN_SPEND: z.literal('WHOLE_ORDER_AVERAGE'),
-        CATEGORY_SPEND: z.literal('TARGET_CATEGORY_AVERAGE'),
-        MERCHANT_SPEND: z.literal('TARGET_MERCHANT_AVERAGE'),
-      }),
       currency: z.literal('THB'),
       minorUnitsPerMajor: z.literal(100),
-      minimumSpendMinorUnits: positiveInteger,
-      maximumSpendMinorUnits: positiveInteger,
-      rounding: z.literal('CEIL_MINOR_UNIT'),
-      targetSelection: z.literal('PREVIOUSLY_PURCHASED_ACTIVE_ONLY'),
-      targetOrdering: z.literal('FREQUENCY_DESC_LAST_PURCHASE_DESC_ID_ASC'),
-      maximumPerType: positiveInteger,
-      maximumTotal: positiveInteger,
-      insufficientHistory: z.literal('DEFER'),
-    }),
-    selection: z.strictObject({
-      scoreMinimum: z.literal(0),
-      scoreMaximum: z.literal(100),
-      criteria: z.literal('PURCHASE_RELEVANCE_AND_ACHIEVABLE_CHALLENGE'),
-      tieBreak: z.literal('LOWER_SPEND_THEN_CANDIDATE_ID_ASC'),
-      providerFailure: z.literal('DEFER'),
-      maximumAttemptsPerGeneration: positiveInteger.max(3),
     }),
     assignment: z.strictObject({
-      maximumActivePerUser: positiveInteger,
-      maximumNewPerUserPerDay: positiveInteger,
-      scheduleTimezone: z.literal('Asia/Bangkok'),
-      dailyHour: z.number().int().min(0).max(23),
-      dailyMinute: z.number().int().min(0).max(59),
+      cycleDays: positiveInteger,
+      maximumActivePerUser: z.literal(1),
       durationDays: positiveInteger,
       duplicateCooldownDays: z
         .number()
         .int()
-        .min(0)
+        .nonnegative()
         .max(Number.MAX_SAFE_INTEGER),
-      duplicateIdentity: z.literal('TYPE_AND_TARGET'),
+      duplicateIdentity: z.literal('TYPE_TARGET_AND_AMOUNT'),
       cooldownStartsAt: z.literal('COMPLETION_OR_EXPIRY'),
-      nextQuest: z.literal('NEXT_DAILY_RUN_AFTER_FINALIZATION'),
+      nextQuest: z.literal('NEXT_CYCLE_AFTER_SELECTION'),
     }),
     rewards: z.strictObject({
-      pointsByType: pointMap,
+      pointsByType: z.strictObject({
+        MIN_SPEND: positiveInteger,
+        CATEGORY_SPEND: positiveInteger,
+      }),
       pointValidityDays: positiveInteger,
       globalDailyReservationBudgetPoints: positiveInteger,
       globalOutstandingReservationBudgetPoints: positiveInteger,
@@ -102,57 +79,41 @@ export const QuestPolicySchema = z
       reserveAt: z.literal('ASSIGNMENT'),
       releaseAt: z.literal('EXPIRY_OR_REWARD_ISSUANCE'),
     }),
-    completion: z.strictObject({
-      maximumAssignmentsPerReceipt: positiveInteger,
-    }),
+    completion: z.strictObject({ maximumAssignmentsPerReceipt: z.literal(1) }),
   })
   .superRefine((policy, ctx) => {
-    const reject = (path: string[], message: string) =>
-      ctx.addIssue({ code: 'custom', path, message });
-    const c = policy.candidates;
-    if (c.recentHistoryDays > c.historyDays)
-      reject(
-        ['candidates', 'recentHistoryDays'],
-        'Recent window exceeds history window',
-      );
-    if (c.minimumSpendMinorUnits > c.maximumSpendMinorUnits)
-      reject(['candidates', 'maximumSpendMinorUnits'], 'Invalid spend range');
-    if (c.maximumTotal < c.maximumPerType)
-      reject(
-        ['candidates', 'maximumTotal'],
-        'Total limit is below per-type limit',
-      );
-    if (c.spendMultipliers.some((ratio) => ratio.numerator < ratio.denominator))
-      reject(
-        ['candidates', 'spendMultipliers'],
-        'Spend multiplier must be at least one',
-      );
-    const largestReward = Math.max(
-      ...c.types.map((type) => policy.rewards.pointsByType[type]),
-    );
-    if (policy.rewards.globalDailyReservationBudgetPoints < largestReward)
-      reject(
-        ['rewards', 'globalDailyReservationBudgetPoints'],
-        'Budget cannot fund one quest',
-      );
-    if (policy.rewards.globalOutstandingReservationBudgetPoints < largestReward)
-      reject(
-        ['rewards', 'globalOutstandingReservationBudgetPoints'],
-        'Outstanding budget cannot fund one quest',
-      );
+    if (policy.assignment.durationDays > policy.assignment.cycleDays)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['assignment', 'durationDays'],
+        message: 'Quest duration exceeds cycle',
+      });
     if (
-      policy.completion.maximumAssignmentsPerReceipt >
-      policy.assignment.maximumActivePerUser
+      policy.rewards.pointsByType.MIN_SPEND !==
+      policy.rewards.pointsByType.CATEGORY_SPEND
     )
-      reject(
-        ['completion', 'maximumAssignmentsPerReceipt'],
-        'Receipt limit exceeds active limit',
-      );
+      ctx.addIssue({
+        code: 'custom',
+        path: ['rewards', 'pointsByType'],
+        message: 'Quest proposals must have equal rewards',
+      });
+    const reward = Math.max(
+      ...policy.candidates.types.map(
+        (type) => policy.rewards.pointsByType[type],
+      ),
+    );
+    for (const field of [
+      'globalDailyReservationBudgetPoints',
+      'globalOutstandingReservationBudgetPoints',
+    ] as const)
+      if (policy.rewards[field] < reward)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['rewards', field],
+          message: 'Budget cannot fund one quest',
+        });
   });
-
 export type QuestPolicy = z.infer<typeof QuestPolicySchema>;
-
-/** Trust boundary: callers load JSON; domain code owns validation, not filesystem I/O. */
 export function parseQuestPolicy(input: unknown): QuestPolicy {
   return QuestPolicySchema.parse(input);
 }

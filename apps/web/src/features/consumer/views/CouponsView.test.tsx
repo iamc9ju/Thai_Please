@@ -1,10 +1,12 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
@@ -114,6 +116,57 @@ describe('CouponsView (FR-C08 & FR-C09)', () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it('ignores a canceled StrictMode load while the current load is pending (NFR-UI-01)', async () => {
+    mockedGetConsumerPoints.mockImplementationOnce(
+      (signal) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(new Error('Wrapped cancellation')),
+          );
+        }),
+    );
+    let resolvePoints: ((data: ConsumerPointsResponse) => void) | undefined;
+    mockedGetConsumerPoints.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePoints = resolve;
+        }),
+    );
+    mockedGetConsumerCoupons.mockResolvedValue(mockCouponsData);
+
+    render(
+      <StrictMode>
+        <CouponsView />
+      </StrictMode>,
+    );
+    await act(async () => {});
+    expect(
+      screen.getByText(th.consumerPortal.rewards.loading),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(th.consumerPortal.rewards.loadError),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolvePoints?.(mockPointsData);
+    });
+    expect(screen.getByText('160')).toBeInTheDocument();
+  });
+
+  it('shows a genuine load error and recovers when retried', async () => {
+    mockedGetConsumerPoints.mockRejectedValueOnce(new Error('Network failed'));
+    mockedGetConsumerCoupons.mockResolvedValue(mockCouponsData);
+    render(<CouponsView />);
+    expect(
+      await screen.findByText(th.consumerPortal.rewards.loadError),
+    ).toBeInTheDocument();
+    mockedGetConsumerPoints.mockResolvedValueOnce(mockPointsData);
+    fireEvent.click(
+      screen.getByRole('button', { name: th.consumerPortal.rewards.retry }),
+    );
+    expect(await screen.findByText('160')).toBeInTheDocument();
   });
 
   it('renders point balance, point history, owned coupons, and coupon catalogue', async () => {

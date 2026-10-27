@@ -1,4 +1,6 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
   Activity,
   AlertCircle,
@@ -164,43 +166,59 @@ export function AdminDashboard({
     useState<AdminUsersListResponse | null>(null);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
 
+  const beginRequest = useLatestRequest();
   const loadActiveTabData = useCallback(
     async (tab: AdminTab) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
         if (tab === 'overview') {
           const res = await getPlatformOverview();
+          if (!isCurrent()) return;
           setOverview(res);
         } else if (tab === 'merchants') {
           const items = await getAdminMerchants(merchantFilter);
+          if (!isCurrent()) return;
           setMerchants(items);
         } else if (tab === 'programs') {
           const items = await getSubsidyPrograms();
+          if (!isCurrent()) return;
           setPrograms(items);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
+          if (!isCurrent()) return;
           setQuestLogsData(res);
           if (!selectedConsumerId && res.eligibleConsumers[0]) {
             setSelectedConsumerId(res.eligibleConsumers[0].userId);
           }
         } else if (tab === 'rewards') {
           const res = await getRewardMonitoring();
+          if (!isCurrent()) return;
           setRewardMonitoring(res);
         } else if (tab === 'socialImpact') {
           const res = await getSocialImpactDashboard(impactDays);
+          if (!isCurrent()) return;
           setSocialImpact(res);
         } else if (tab === 'admins') {
           const res = await getAdminUsersAndRoles();
+          if (!isCurrent()) return;
           setAdminUsersData(res);
         }
       } catch (err) {
+        if (!isCurrent()) return;
         setError(err instanceof Error ? err.message : copy.errorTitle);
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, impactDays, merchantFilter, selectedConsumerId],
+    [
+      beginRequest,
+      copy.errorTitle,
+      impactDays,
+      merchantFilter,
+      selectedConsumerId,
+    ],
   );
 
   useEffect(() => {
@@ -307,13 +325,9 @@ export function AdminDashboard({
         selectedConsumerId,
         createUuidV4(),
       );
-      const questTitle = result.title || 'ภารกิจเฉพาะบุคคล';
-      const points =
-        typeof result.rewardPoints === 'number' ? result.rewardPoints : 0;
-      const genRef = result.generationId ?? 'สำเร็จ';
       setActionBanner({
-        type: 'success',
-        message: `สร้างและมอบหมายภารกิจ "${questTitle}" (+${points} พอยต์) สำเร็จ (Generation #${genRef})`,
+        type: result.status === 'FAILED' ? 'error' : 'success',
+        message: th.adminPortal.questProposalStatus[result.status],
       });
       const refreshed = await getQuestGenerationLogs();
       setQuestLogsData(refreshed);
@@ -523,13 +537,7 @@ export function AdminDashboard({
         )}
 
         {isLoading ? (
-          <div
-            role="status"
-            className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
-          >
-            <div className="mb-4 size-10 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-            <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-          </div>
+          <LoadingState label={copy.loading} />
         ) : error ? (
           <div
             role="alert"
@@ -1321,6 +1329,46 @@ export function AdminDashboard({
                             <p className="mt-1 text-xs text-slate-600">
                               เหตุผลการคัดเลือก: {log.selectionReason}
                             </p>
+                          )}
+                          {(log.proposals?.length ?? 0) > 0 && (
+                            <div className="mt-2 text-xs text-slate-700">
+                              <p className="font-semibold">
+                                {copy.questAudit.proposals}
+                              </p>
+                              <ul>
+                                {log.proposals?.map((proposal) => (
+                                  <li key={proposal.id}>
+                                    {proposal.type} ·{' '}
+                                    {proposal.targetId
+                                      ? `${copy.questAudit.category} ${proposal.targetId}`
+                                      : copy.questAudit.allCategories}
+                                    {' · '}
+                                    {copy.questAudit.personalTarget}:{' '}
+                                    {formatBaht(
+                                      Number(proposal.minimumSpendMinor) / 100,
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(log.validation?.attempts.length ?? 0) > 0 && (
+                            <details className="mt-2 text-xs text-slate-600">
+                              <summary>{copy.questAudit.validation}</summary>
+                              {log.validation?.attempts.map((attempt) => (
+                                <p key={attempt.call}>
+                                  {copy.questAudit.call} {attempt.call}:{' '}
+                                  {copy.questAudit.accepted}{' '}
+                                  {attempt.acceptedCount}
+                                  {' · '}
+                                  {attempt.rejections.join(', ') ||
+                                    copy.questAudit.noRejections}
+                                </p>
+                              ))}
+                              {(log.validation?.rejections.length ?? 0) > 0 && (
+                                <p>{log.validation?.rejections.join(', ')}</p>
+                              )}
+                            </details>
                           )}
                         </div>
 

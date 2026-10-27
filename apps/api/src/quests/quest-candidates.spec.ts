@@ -1,289 +1,211 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { parseQuestPolicy } from './domain/quest-policy.js';
 import {
-  buildQuestInput,
-  type EligibleCatalog,
-  type PurchaseFact,
-} from './quest-candidates.js';
-
-it('accepts zero-priced snapshot lines without dividing by zero', () => {
-  const asOf = new Date('2026-10-16T01:00:00Z');
-  const input = buildQuestInput(
-    [
-      {
-        id: '1',
-        merchantId: '1',
-        paidAt: new Date('2026-10-15T01:00:00Z'),
-        finalMinor: 0n,
-        items: [{ id: '1', productId: '1', categoryId: '1', lineMinor: 0n }],
-      },
-    ],
-    {
-      products: new Set(['1']),
-      merchants: new Set(['1']),
-      categories: new Set(['1']),
-    },
-    [],
-    policy,
-    asOf,
-  );
-  expect(input.summary.totalSpendMinor).toBe('0');
-  expect(input.candidates).toEqual([]);
-});
-
-const policy = parseQuestPolicy({
-  version: 'quest-policy-v1',
-  candidates: {
-    types: [
-      'MIN_SPEND',
-      'CATEGORY_SPEND',
-      'PRODUCT_PURCHASE',
-      'MERCHANT_SPEND',
-    ],
-    historyDays: 30,
-    recentHistoryDays: 7,
-    minimumHistoryOrders: 3,
-    minimumTargetOrders: 2,
-    spendMultipliers: [
-      { numerator: 1, denominator: 1 },
-      { numerator: 3, denominator: 2 },
-    ],
-    spendBasis: {
-      MIN_SPEND: 'WHOLE_ORDER_AVERAGE',
-      CATEGORY_SPEND: 'TARGET_CATEGORY_AVERAGE',
-      MERCHANT_SPEND: 'TARGET_MERCHANT_AVERAGE',
-    },
-    currency: 'THB',
-    minorUnitsPerMajor: 100,
-    minimumSpendMinorUnits: 1,
-    maximumSpendMinorUnits: 100_000,
-    rounding: 'CEIL_MINOR_UNIT',
-    targetSelection: 'PREVIOUSLY_PURCHASED_ACTIVE_ONLY',
-    targetOrdering: 'FREQUENCY_DESC_LAST_PURCHASE_DESC_ID_ASC',
-    maximumPerType: 4,
-    maximumTotal: 16,
-    insufficientHistory: 'DEFER',
-  },
-  selection: {
-    scoreMinimum: 0,
-    scoreMaximum: 100,
-    criteria: 'PURCHASE_RELEVANCE_AND_ACHIEVABLE_CHALLENGE',
-    tieBreak: 'LOWER_SPEND_THEN_CANDIDATE_ID_ASC',
-    providerFailure: 'DEFER',
-    maximumAttemptsPerGeneration: 2,
-  },
-  assignment: {
-    maximumActivePerUser: 1,
-    maximumNewPerUserPerDay: 1,
-    scheduleTimezone: 'Asia/Bangkok',
-    dailyHour: 8,
-    dailyMinute: 0,
-    durationDays: 7,
-    duplicateCooldownDays: 7,
-    duplicateIdentity: 'TYPE_AND_TARGET',
-    cooldownStartsAt: 'COMPLETION_OR_EXPIRY',
-    nextQuest: 'NEXT_DAILY_RUN_AFTER_FINALIZATION',
-  },
-  rewards: {
-    pointsByType: {
-      MIN_SPEND: 20,
-      CATEGORY_SPEND: 20,
-      PRODUCT_PURCHASE: 20,
-      MERCHANT_SPEND: 20,
-    },
-    pointValidityDays: 90,
-    globalDailyReservationBudgetPoints: 2000,
-    globalOutstandingReservationBudgetPoints: 14000,
-    budgetExhausted: 'DEFER',
-    reserveAt: 'ASSIGNMENT',
-    releaseAt: 'EXPIRY_OR_REWARD_ISSUANCE',
-  },
-  completion: { maximumAssignmentsPerReceipt: 1 },
-});
-
-const catalog: EligibleCatalog = {
-  merchants: new Set(['1', '2']),
-  products: new Set(['11', '12']),
-  categories: new Set(['101', '102']),
+  buildProposalSummary,
+  validateProposals,
+  proposalRules,
+} from './quest-proposals.js';
+import type { PurchaseFact, PriorQuest } from './quest-candidates.js';
+const policy = parseQuestPolicy(
+  JSON.parse(
+    readFileSync(
+      new URL('./config/quest-policy.json', import.meta.url),
+      'utf8',
+    ),
+  ),
+);
+const now = new Date('2026-10-28T00:00:00Z');
+const catalog = {
+  categories: new Set(['1', '2']),
+  categoryNames: new Map([
+    ['1', 'Food'],
+    ['2', 'Goods'],
+  ]),
 };
-const asOf = new Date('2026-10-16T00:00:00.000Z');
-
-function receipt(
+function fact(
   id: string,
-  daysAgo: number,
-  finalMinor: bigint,
-  merchantId = '1',
-  items: PurchaseFact['items'] = [
-    { id: `${id}-a`, productId: '11', categoryId: '101', lineMinor: 100n },
-  ],
+  personal: bigint,
+  final = personal,
+  paidAt = new Date('2026-10-20T00:00:00Z'),
 ): PurchaseFact {
   return {
     id,
-    merchantId,
-    paidAt: new Date(asOf.getTime() - daysAgo * 86_400_000),
-    finalMinor,
-    items,
+    merchantId: '1',
+    paidAt,
+    personalMinor: personal,
+    finalMinor: final,
+    items: [{ id, productId: '1', categoryId: '1', lineMinor: final }],
   };
 }
-
-describe('buildQuestInput', () => {
-  it('uses only the [asOf - 30 days, asOf) receipt window and reports the recent count', () => {
-    const result = buildQuestInput(
-      [
-        receipt('1', 30, 100n),
-        receipt('2', 29, 100n),
-        receipt('3', 7, 100n),
-        receipt('4', 6, 100n),
-        receipt('5', 0, 100n),
-      ],
+const total = (amount: string) => ({
+  type: 'MIN_SPEND',
+  targetId: null,
+  minimumSpendMinor: amount,
+});
+describe('FR-S01 minimized proposal summary', () => {
+  it('shows the normal distribution despite large bills, using personal amounts only', () => {
+    const amounts = [
+      4000, 4500, 5000, 5000, 5500, 6000, 6000, 6500, 6500, 7000, 7500, 8500,
+      4000, 5000, 6000, 7000, 8000, 9000, 11000, 14000, 300000, 300000, 300000,
+      300000, 300000,
+    ];
+    const summary = buildProposalSummary(
+      amounts.map((a, i) => fact(String(i + 1), BigInt(a), BigInt(a) * 2n)),
       catalog,
       [],
       policy,
-      asOf,
+      now,
     );
-    expect(result.summary.purchases30d).toBe(4);
-    expect(result.summary.purchases7d).toBe(2);
-    expect(result.summary.totalSpendMinor).toBe('400');
-  });
-
-  it('allocates a discounted receipt with largest remainder so category totals equal the final total', () => {
-    const split = receipt('1', 3, 101n, '1', [
-      { id: '1-a', productId: '11', categoryId: '101', lineMinor: 100n },
-      { id: '1-b', productId: '12', categoryId: '102', lineMinor: 100n },
+    expect(summary.purchases.receiptCount).toBe(25);
+    expect(summary.purchases.averagePersonalMinor).toBe('65440');
+    expect(summary.purchases.medianPersonalMinor).toBe('7000');
+    expect(summary.purchases.distribution.map((b) => b.receiptCount)).toEqual([
+      18, 2, 0, 5,
     ]);
-    const result = buildQuestInput(
-      [split, receipt('2', 2, 100n), receipt('3', 1, 100n)],
+    expect(JSON.stringify(summary)).not.toContain('merchantId');
+  });
+  it('allocates discounted personal contribution once across mixed categories', () => {
+    const r = fact('1', 5001n, 8001n);
+    r.items = [
+      { id: '1', productId: '1', categoryId: '1', lineMinor: 6000n },
+      { id: '2', productId: '2', categoryId: '2', lineMinor: 4000n },
+    ];
+    const s = buildProposalSummary([r], catalog, [], policy, now);
+    expect(s.purchases.categories.map((c) => c.averagePersonalMinor)).toEqual([
+      '3001',
+      '2000',
+    ]);
+    expect(s.purchases.averagePersonalMinor).toBe('5001');
+  });
+  it('uses inclusive history start and exclusive asOf, and supports empty facts honestly', () => {
+    const start = new Date(now.getTime() - 30 * 86400000);
+    const s = buildProposalSummary(
+      [
+        fact('1', 1000n, 1000n, start),
+        fact('2', 1000n, 1000n, now),
+        fact('3', 1000n, 1000n, new Date(start.getTime() - 1)),
+      ],
       catalog,
       [],
       policy,
-      asOf,
+      now,
     );
-    const categories = new Map(
-      result.summary.categories.map((entry) => [
-        entry.id,
-        entry.totalSpendMinor,
-      ]),
-    );
-    expect(categories.get('101')).toBe('251');
-    expect(categories.get('102')).toBe('50');
+    expect(s.purchases.receiptCount).toBe(1);
     expect(
-      [...categories.values()].map(BigInt).reduce((a, b) => a + b, 0n),
-    ).toBe(301n);
+      buildProposalSummary([], catalog, [], policy, now).purchases
+        .medianPersonalMinor,
+    ).toBeNull();
   });
-
-  it('applies the ratio before rounding a fractional average for every spend candidate type', () => {
-    const facts = [
-      receipt('1', 2, 5000n, '1', [
-        { id: '1-a', productId: '11', categoryId: '101', lineMinor: 5000n },
-      ]),
-      receipt('2', 1, 5001n, '1', [
-        { id: '2-a', productId: '11', categoryId: '101', lineMinor: 5001n },
-      ]),
-      receipt('3', 1, 5000n, '2', [
-        { id: '3-a', productId: '12', categoryId: '102', lineMinor: 5000n },
-      ]),
-    ];
-    const result = buildQuestInput(facts, catalog, [], policy, asOf);
-    const byType = (type: string) =>
-      result.candidates.filter((candidate) => candidate.type === type);
-
-    expect(
-      byType('MIN_SPEND').map((candidate) => candidate.minimumSpendMinor),
-    ).toContain('7501');
-    expect(
-      byType('CATEGORY_SPEND')
-        .filter((candidate) => candidate.targetId === '101')
-        .map((candidate) => candidate.minimumSpendMinor),
-    ).toContain('7501');
-    expect(
-      byType('MERCHANT_SPEND')
-        .filter((candidate) => candidate.targetId === '1')
-        .map((candidate) => candidate.minimumSpendMinor),
-    ).toContain('7501');
-  });
-
-  it('blocks an active duplicate and a completed duplicate during its cooldown', () => {
-    const facts = [
-      receipt('1', 3, 100n),
-      receipt('2', 2, 100n),
-      receipt('3', 1, 100n),
-    ];
-    const result = buildQuestInput(
-      facts,
+  it('keeps old basis separate and cancellation out of failures', () => {
+    const q: PriorQuest = {
+      type: 'MIN_SPEND',
+      targetId: null,
+      minimumSpendMinor: '6000',
+      assignedAt: new Date('2026-10-01T00:00:00Z'),
+      expiresAt: new Date('2026-10-08T00:00:00Z'),
+      completedAt: null,
+      status: 'CANCELLED',
+      ruleVersion: 'FINAL_AFTER_DISCOUNT',
+    };
+    const s = buildProposalSummary(
+      [],
       catalog,
       [
+        q,
         {
-          type: 'CATEGORY_SPEND',
-          targetId: '101',
-          status: 'ACTIVE',
-          expiresAt: new Date('2026-10-20T00:00:00.000Z'),
-          completedAt: null,
-        },
-        {
-          type: 'PRODUCT_PURCHASE',
-          targetId: '11',
+          ...q,
           status: 'COMPLETED',
-          expiresAt: new Date('2026-10-10T00:00:00.000Z'),
-          completedAt: new Date('2026-10-14T00:00:00.000Z'),
+          completedAt: new Date('2026-10-02T00:00:00Z'),
+          ruleVersion: 'PERSONAL_AFTER_DISCOUNT',
         },
       ],
       policy,
-      asOf,
+      now,
     );
-    expect(
-      result.candidates.some(
-        (candidate) =>
-          candidate.type === 'CATEGORY_SPEND' && candidate.targetId === '101',
-      ),
-    ).toBe(false);
-    expect(
-      result.candidates.some(
-        (candidate) =>
-          candidate.type === 'PRODUCT_PURCHASE' && candidate.targetId === '11',
-      ),
-    ).toBe(false);
-  });
-
-  it('limits candidates per type and overall after deterministic frequency ordering', () => {
-    const broadCatalog: EligibleCatalog = {
-      merchants: new Set(['1', '2', '3']),
-      products: new Set(['11', '12', '13']),
-      categories: new Set(['101', '102', '103']),
-    };
-    const facts = [
-      receipt('1', 5, 100n, '1', [
-        { id: 'a', productId: '11', categoryId: '101', lineMinor: 100n },
-      ]),
-      receipt('2', 4, 100n, '2', [
-        { id: 'b', productId: '12', categoryId: '102', lineMinor: 100n },
-      ]),
-      receipt('3', 3, 100n, '3', [
-        { id: 'c', productId: '13', categoryId: '103', lineMinor: 100n },
-      ]),
-      receipt('4', 2, 100n, '1', [
-        { id: 'd', productId: '11', categoryId: '101', lineMinor: 100n },
-      ]),
-      receipt('5', 1, 100n, '2', [
-        { id: 'e', productId: '12', categoryId: '102', lineMinor: 100n },
-      ]),
-      receipt('6', 1, 100n, '3', [
-        { id: 'f', productId: '13', categoryId: '103', lineMinor: 100n },
-      ]),
-    ];
-    const constrained = parseQuestPolicy({
-      ...policy,
-      candidates: { ...policy.candidates, maximumPerType: 2, maximumTotal: 3 },
+    expect(s.questHistory.outcomes).toHaveLength(2);
+    expect(s.questHistory.outcomes[0]).toMatchObject({
+      cancelled: 1,
+      expired: 0,
     });
-    const result = buildQuestInput(facts, broadCatalog, [], constrained, asOf);
-    expect(result.candidates).toHaveLength(3);
+  });
+});
+describe('FR-S03 proposal validation', () => {
+  it('accepts targets above 100 THB, enriches only from server policy and filters individual failures', () => {
+    const result = validateProposals(
+      [
+        total('150000'),
+        total('9313'),
+        { ...total('6000'), rewardPoints: 200 },
+        { type: 'CATEGORY_SPEND', targetId: '99', minimumSpendMinor: '6000' },
+        total('6000'),
+        total('6000'),
+      ],
+      catalog,
+      [],
+      policy,
+      now,
+    );
+    expect(result.accepted.map((c) => c.minimumSpendMinor)).toEqual([
+      '150000',
+      '6000',
+    ]);
+    expect(result.accepted[0]).toMatchObject({
+      rewardPoints: 20,
+      durationDays: 7,
+    });
+    expect(result.rejections).toHaveLength(4);
+  });
+  it('retains existing valid proposals while filling only missing slots', () => {
+    const first = validateProposals([total('6000')], catalog, [], policy, now);
+    const next = validateProposals(
+      [total('6000'), total('7000'), total('8000'), total('9000')],
+      catalog,
+      [],
+      policy,
+      now,
+      first.accepted,
+    );
+    expect(next.accepted.map((c) => c.minimumSpendMinor)).toEqual([
+      '6000',
+      '7000',
+      '8000',
+    ]);
+    expect(next.rejections).toEqual(['PROPOSAL_DUPLICATE', 'PROPOSAL_LIMIT']);
+  });
+  it('blocks exact type, target and amount until cooldown boundary', () => {
+    const q: PriorQuest = {
+      type: 'MIN_SPEND',
+      targetId: null,
+      minimumSpendMinor: '6000',
+      expiresAt: new Date(now.getTime() - 86400000),
+      completedAt: new Date(now.getTime() - 86400000),
+      status: 'COMPLETED',
+    };
     expect(
-      result.candidates.filter((candidate) => candidate.type === 'MIN_SPEND'),
-    ).toHaveLength(2);
+      validateProposals(
+        [total('6000'), total('7000')],
+        catalog,
+        [q],
+        policy,
+        now,
+      ).accepted.map((c) => c.minimumSpendMinor),
+    ).toEqual(['7000']);
+    const boundary = new Date(now.getTime() + 6 * 86400000);
+    expect(
+      validateProposals([total('6000')], catalog, [q], policy, boundary)
+        .accepted,
+    ).toHaveLength(1);
+    expect(
+      proposalRules(catalog, [q], policy, now).blockedProposals,
+    ).toHaveLength(1);
   });
-
-  it('rejects receipts whose final total cannot be explained by positive line amounts', () => {
-    expect(() =>
-      buildQuestInput([receipt('1', 1, 101n)], catalog, [], policy, asOf),
-    ).toThrow('exceeds item total');
-  });
+  it.each(['0', '-1000', '100.00', '1000000000000'])(
+    'rejects nonrepresentable target %s',
+    (value) => {
+      expect(
+        validateProposals([total(value)], catalog, [], policy, now).accepted,
+      ).toHaveLength(0);
+    },
+  );
 });

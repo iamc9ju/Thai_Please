@@ -418,14 +418,16 @@ export const th = {
       eyebrow: 'FR-C07',
       title: 'ภารกิจสำหรับคุณ',
       description:
-        'ภารกิจถูกมอบหมายอัตโนมัติ และต้องสำเร็จด้วยใบเสร็จหนึ่งรายการ',
+        'เลือกหนึ่งภารกิจสำหรับคุณ แล้วทำให้สำเร็จด้วยเงินส่วนตัวหลังส่วนลดในใบเสร็จหนึ่งรายการ',
       active: 'กำลังทำ',
       completed: 'สำเร็จแล้ว',
+      cancelled: 'ยกเลิกแล้ว',
+      legacyInactive: 'ดำเนินการต่อไม่ได้',
       tabsLabel: 'มุมมองภารกิจ',
       activeTab: 'กำลังทำ',
       historyTab: 'ประวัติภารกิจ',
       historyDescription:
-        'ภารกิจที่สำเร็จแล้วหรือหมดอายุ พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
+        'ภารกิจที่สำเร็จแล้ว หมดอายุ หรือยกเลิก พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
       receiptLabel: 'ใบเสร็จอ้างอิง',
       viewReceipt: 'ดูใบเสร็จ',
       emptyActive: 'ยังไม่มีภารกิจที่กำลังทำในขณะนี้',
@@ -435,6 +437,14 @@ export const th = {
       retry: 'ลองใหม่อีกครั้ง',
       permissionDenied: 'ไม่มีสิทธิ์เข้าถึงข้อมูลภารกิจ',
       expiredStatus: 'หมดอายุ',
+      cancelledPrefix: 'ยกเลิกเมื่อ',
+      cancelledReward: 'ไม่ได้รับรางวัล',
+      cancellationReasons: {
+        QUEST_TYPE_RETIRED_POLICY_V2: 'ยกเลิกภารกิจรูปแบบเดิมตามนโยบายระบบใหม่',
+        unknown: 'ยกเลิกภารกิจตามนโยบายระบบ',
+      },
+      legacyActiveExplanation:
+        'ภารกิจรูปแบบเดิมนี้กำลังถูกยกเลิกและไม่สามารถทำต่อได้',
       rewardPrefix: '+',
       pointsSuffix: 'พอยต์',
       expiryPrefix: 'หมดเขต',
@@ -445,9 +455,34 @@ export const th = {
       totalCompletedLabel: 'ภารกิจสำเร็จแล้ว',
       totalPointsEarnedLabel: 'พอยต์สะสมจากภารกิจ',
       spendMinSpendCondition: (amount: string) =>
-        `ซื้อสินค้าครบ ${amount} บาทในหนึ่งบิล`,
+        `ใช้จ่ายครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
+      personalSpendCondition: (amount: string) =>
+        `จ่ายด้วยเงินส่วนตัวครบ ${amount} บาทในหนึ่งบิลหลังหักส่วนลด ไม่รวมเงินรัฐช่วย ใช้ได้ทุกร้านที่ร่วมรายการ`,
+      personalCategoryCondition: (category: string, amount: string) =>
+        `จ่ายด้วยเงินส่วนตัวในหมวด ${category} ครบ ${amount} บาทในหนึ่งบิลหลังหักส่วนลด ไม่รวมเงินรัฐช่วย ใช้ได้ทุกร้านที่ร่วมรายการ`,
+      proposals: {
+        title: 'เลือกภารกิจสำหรับรอบนี้',
+        description:
+          'เลือกได้หนึ่งข้อจากข้อเสนอที่พร้อมใช้ เริ่มนับอายุภารกิจเมื่อเลือกสำเร็จ',
+        loading: 'กำลังตรวจสอบข้อเสนอภารกิจ...',
+        generating: 'กำลังเตรียมข้อเสนอภารกิจ คุณสามารถกลับมาตรวจสอบภายหลังได้',
+        select: 'เลือกภารกิจนี้',
+        selecting: 'กำลังเลือกภารกิจ...',
+        selected: 'เลือกภารกิจสำเร็จแล้ว',
+        duration: (days: number) => `ทำภายใน ${days} วันหลังเลือก`,
+        expiry: (date: string) => `เลือกจากชุดนี้ได้ถึง ${date}`,
+        nextRound: (date: string) => `รับภารกิจรอบใหม่ได้วันที่ ${date}`,
+        active: 'คุณมีภารกิจที่กำลังทำอยู่ ดูรายละเอียดด้านล่าง',
+        error: 'ยังไม่สามารถเตรียมข้อเสนอภารกิจได้ กรุณาลองใหม่ภายหลัง',
+        selectError: 'ยังเลือกภารกิจไม่สำเร็จ กรุณาตรวจสอบสถานะและลองใหม่',
+        waiting: 'ข้อเสนอยังไม่พร้อม กรุณากลับมาตรวจสอบอีกครั้ง',
+        refresh: 'ตรวจสอบอีกครั้ง',
+        retry: 'ลองสร้างข้อเสนออีกครั้ง',
+        expired: 'ชุดข้อเสนอนี้หมดอายุแล้ว กรุณาตรวจสอบข้อเสนอใหม่',
+        permissionDenied: 'ไม่มีสิทธิ์เข้าถึงข้อเสนอภารกิจ',
+      },
       categorySpendCondition: (category: string, amount: string) =>
-        `ซื้อหมวด ${category} ครบ ${amount} บาทในหนึ่งบิล`,
+        `ซื้อสินค้าในหมวด ${category} ครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
       merchantSpendCondition: (merchant: string, amount: string) =>
         `ซื้อร้าน ${merchant} ครบ ${amount} บาทในหนึ่งบิล`,
       productPurchaseCondition: (product: string) =>
@@ -501,7 +536,7 @@ export const th = {
         },
       ],
       ruleNote:
-        'ระบบตรวจจากยอดสุทธิหลังส่วนลด และไม่รวมยอดจากหลายใบเสร็จเข้าด้วยกัน',
+        'ภารกิจใหม่ตรวจจากเงินส่วนตัวหลังส่วนลด ไม่รวมเงินรัฐช่วย และไม่รวมยอดหลายใบเสร็จ ภารกิจในประวัติใช้กฎของรอบนั้น',
     },
     rewards: {
       eyebrow: 'FR-C08 · FR-C09',
@@ -813,6 +848,10 @@ export const th = {
   },
   merchantPortal: {
     brandSubtitle: 'ระบบจัดการร้านค้าชุมชน · ไทยช่วยไทยพรีส',
+    orders: {
+      loading: 'กำลังโหลดประวัติคำสั่งซื้อ...',
+      loadError: 'ไม่สามารถโหลดประวัติ Order ได้',
+    },
     logout: 'ออกจากระบบ',
     nav: {
       pos: 'ขายหน้าร้าน (POS)',
@@ -822,6 +861,7 @@ export const th = {
       dashboard: 'แดชบอร์ดยอดขาย',
     },
     pos: {
+      loading: 'กำลังโหลดข้อมูลสินค้า...',
       manageProductsToggle: 'จัดการสินค้า',
       exitManageProducts: 'เสร็จสิ้นการจัดการ',
       addProductButton: 'เพิ่มสินค้า',
@@ -959,6 +999,24 @@ export const th = {
     },
   },
   adminPortal: {
+    questAudit: {
+      proposals: 'ข้อเสนอที่ผ่านการตรวจ',
+      personalTarget: 'ยอดเงินส่วนตัว (บาท)',
+      allCategories: 'ทุกหมวด',
+      category: 'หมวด',
+      validation: 'ผลตรวจข้อเสนอ',
+      call: 'ครั้งที่',
+      accepted: 'ผ่านสะสม',
+      noRejections: 'ไม่มีข้อที่ถูกปฏิเสธ',
+    },
+    questProposalStatus: {
+      PENDING: 'รับคำขอสร้างข้อเสนอแล้ว ผู้ใช้เลือกเควสได้เมื่อประมวลผลเสร็จ',
+      READY: 'มีข้อเสนอพร้อมแล้ว ให้ผู้ใช้เข้าหน้าเควสเพื่อเลือกหนึ่งข้อ',
+      COOLDOWN: 'ยังไม่ถึงรอบรับข้อเสนอใหม่ หรือมีเควสกำลังทำอยู่',
+      ELIGIBLE: 'ผู้ใช้มีสิทธิ์ขอข้อเสนอเควส',
+      FAILED:
+        'ยังสร้างข้อเสนอไม่ได้ โปรดตรวจสถานะและลองใหม่เมื่อถึงเวลาที่กำหนด',
+    },
     brandSubtitle:
       'ระบบบริหารจัดการกลางและติดตามผลกระทบทางสังคม (Admin Portal)',
     roleBadge: 'ผู้ดูแลระบบ (ADMIN)',
@@ -1041,11 +1099,11 @@ export const th = {
       title:
         'สั่งการ AI สร้างภารกิจและตรวจสอบบันทึก (Quest Generation & Audit Log)',
       description:
-        'เลือกผู้บริโภคเพื่อสั่ง AI สร้างภารกิจอัตโนมัติตามพฤติกรรมการซื้อ พร้อมตรวจสอบ Provider, Model Version, Policy Validation และ Generation Log',
+        'เลือกผู้บริโภคเพื่อสร้างข้อเสนอภารกิจตามพฤติกรรมการซื้อ ผู้ใช้เลือกหนึ่งข้อก่อนเริ่มทำ พร้อมตรวจสอบบันทึกการสร้าง',
       generateCardTitle:
         'สั่ง AI สร้างภารกิจให้ผู้บริโภค (Trigger Quest Generation)',
       selectConsumerLabel: 'เลือกผู้บริโภคเป้าหมาย',
-      generateBtn: 'สั่ง AI สร้างและมอบหมายภารกิจทันที',
+      generateBtn: 'สั่ง AI สร้างข้อเสนอให้ผู้ใช้เลือก',
       generatingBtn: 'กำลังประมวลผลและตรวจสอบด้วย Policy Engine...',
       logsTitle: 'บันทึกการสร้างภารกิจ (Quest Generation Logs — FR-S04)',
       emptyLogs: 'ยังไม่มีประวัติการสร้างภารกิจในระบบ',

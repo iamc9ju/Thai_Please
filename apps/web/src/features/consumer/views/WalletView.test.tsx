@@ -272,6 +272,10 @@ describe('WalletView FR-C02 integration', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       th.consumerPortal.wallet.loading,
     );
+    expect(
+      screen.getByRole('status').querySelector('[aria-hidden="true"]'),
+    ).toHaveClass('motion-safe:animate-spin');
+    expect(screen.getByText(th.consumerPortal.wallet.loading)).toBeVisible();
     firstRender.unmount();
 
     mockedGetOverview.mockRejectedValueOnce(new ApiError(401, 'unauthorized'));

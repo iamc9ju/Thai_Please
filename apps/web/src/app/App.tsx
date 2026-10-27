@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
+import { LoadingState } from '../components/LoadingState';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
 import { LandingPage } from '../features/landing/pages/LandingPage';
@@ -26,11 +27,8 @@ const MerchantPos = lazy(async () => {
 
 function PortalLoadingFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">
-      <div className="text-center">
-        <div className="mb-4 inline-block size-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent" />
-        <p className="text-sm text-slate-400">{th.app.checkingSession}</p>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-surface p-6">
+      <LoadingState label={th.app.checkingSession} />
     </div>
   );
 }

@@ -133,6 +133,11 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
       expiresAt: string;
     }> = [];
 
+    // Transport-level simulation only. Repository/domain correctness is covered
+    // separately against PostgreSQL and the real deterministic engine.
+    const proposalQuests: typeof activeQuests = [];
+    const proposalKey = '00000000-0000-4000-8000-000000000001';
+
     const generationLogs: Array<{
       generationId: string;
       requestKey: string;
@@ -291,15 +296,15 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         const questId = nextId();
         const userQuestId = nextId();
         const generationId = nextId();
-        const questTitle = 'ภารกิจเฉพาะคุณ: อุดหนุนร้านอาหารชุมชนครบ 80 บาท';
-        activeQuests.push({
+        const questTitle = 'จ่ายเงินส่วนตัวครบ 40 บาทในหนึ่งบิล';
+        proposalQuests.push({
           userQuestId,
           questId,
           title: questTitle,
-          description: 'ชำระเงินผ่าน QR ครบ 80 บาทใน 1 ใบเสร็จ รับ 30 พอยต์',
+          description: 'เงินส่วนตัวหลังส่วนลด ไม่รวมรัฐช่วย รับ 20 พอยต์',
           questType: 'MIN_SPEND',
-          minSpend: 80,
-          rewardPoints: 30,
+          minSpend: 40,
+          rewardPoints: 20,
           status: 'IN_PROGRESS',
           completedOrderId: null,
           expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
@@ -309,27 +314,31 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
           requestKey: `req-${generationId}`,
           userId: consumerId.toString(),
           userFullName: 'สมชาย ใจดี',
-          status: 'ASSIGNED',
+          status: 'READY',
           provider: 'POLICY_PERSONALIZED_AI',
           modelVersion: 'thai-please-personalized-v1',
           questId,
           questName: questTitle,
-          rewardPoints: 30,
+          rewardPoints: 20,
         });
         return {
           generationId,
-          requestKey: `req-${generationId}`,
-          status: 'ASSIGNED',
-          reason: 'ASSIGNED',
-          assignmentId: userQuestId,
-          questId,
-          title: questTitle,
-          description: 'ชำระเงินผ่าน QR ครบ 80 บาทใน 1 ใบเสร็จ รับ 30 พอยต์',
-          rewardPoints: 30,
-          minSpend: 80,
-          expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-          provider: 'POLICY_PERSONALIZED_AI',
-          modelVersion: 'thai-please-personalized-v1',
+          requestKey: proposalKey,
+          status: 'READY',
+          reason: null,
+          nextEligibleAt: null,
+          expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+          items: [
+            {
+              id: 'MIN_SPEND:ALL:4000',
+              type: 'MIN_SPEND',
+              targetCategoryId: null,
+              targetCategoryName: null,
+              minimumSpend: '40.00',
+              rewardPoints: 20,
+              durationDays: 7,
+            },
+          ],
         };
       },
       listQuestGenerationLogs: async () =>
@@ -740,9 +749,9 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         order.userCouponId = dto.userCouponId ?? null;
         order.paidAt = new Date().toISOString();
 
-        // Deterministic Quest Rule Engine (FR-S06): evaluate on finalAmount after discount
+        // Simulated transport flow uses the approved personal contribution basis.
         for (const q of activeQuests) {
-          if (q.status === 'IN_PROGRESS' && finalAmount >= q.minSpend) {
+          if (q.status === 'IN_PROGRESS' && userPaidAmount >= q.minSpend) {
             q.status = 'COMPLETED';
             q.completedOrderId = order.orderId;
             consumerPointBalance += q.rewardPoints;
@@ -989,6 +998,23 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
     };
 
     const questsService = {
+      select: async (userId: bigint, key: string, proposalId: string) => {
+        if (
+          userId !== 1n ||
+          key !== proposalKey ||
+          proposalId !== 'MIN_SPEND:ALL:4000'
+        )
+          throw new NotFoundException('QUEST_PROPOSAL_NOT_FOUND');
+        if (activeQuests.length)
+          throw new ConflictException('QUEST_ALREADY_SELECTED');
+        const selected = proposalQuests.shift();
+        if (!selected) throw new NotFoundException('QUEST_PROPOSAL_NOT_FOUND');
+        activeQuests.push(selected);
+        return {
+          assignmentId: selected.userQuestId,
+          nextEligibleAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        };
+      },
       list: async () => ({
         summary: {
           activeCount: activeQuests.filter((q) => q.status === 'IN_PROGRESS')
@@ -1106,7 +1132,13 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
       providers: [
         Reflector,
         RolesGuard,
-        { provide: ConfigService, useValue: { get: () => undefined } },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: () => undefined,
+            getOrThrow: () => 'http://localhost:5173',
+          },
+        },
         { provide: AdminService, useValue: harness.adminService },
         { provide: CatalogService, useValue: harness.catalogService },
         { provide: OrderService, useValue: harness.orderService },
@@ -1170,6 +1202,7 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         headers: {
           'content-type': 'application/json',
           'x-test-role': role,
+          origin: 'http://localhost:5173',
         },
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
@@ -1275,20 +1308,31 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
     // STAGE 2: POS & Consumer Payment + Immutable Receipt (FR-C02..FR-C06, FR-M03..FR-M05)
     // ══════════════════════════════════════════════════════════════════════════
 
-    // 2.1 Admin assigns AI Personalized Quest to Consumer first (minSpend: 80, +30 points) (FR-A05)
+    // 2.1 Admin creates proposals; consumer must choose before assignment.
     const generatedQuest = await api(
       'ADMIN',
       'POST',
       '/admin/quests/generate-personalized',
-      { userId: '1', idempotencyKey: 'e2e-quest-gen-key-001' },
+      { userId: '1', idempotencyKey: '00000000-0000-4000-8000-000000000001' },
     );
-    expect(generatedQuest.status).toBe(201);
+    expect(generatedQuest.status).toBe(202);
     expect(generatedQuest.data).toEqual(
       expect.objectContaining({
-        status: 'ASSIGNED',
-        rewardPoints: 30,
+        status: 'READY',
       }),
     );
+    const beforeChoice = await api('CONSUMER', 'GET', '/consumer/quests');
+    expect(beforeChoice.data.summary.activeCount).toBe(0);
+    const choice = await api(
+      'CONSUMER',
+      'POST',
+      `/consumer/quests/proposals/${generatedQuest.data.requestKey}/select`,
+      {
+        proposalId: 'MIN_SPEND:ALL:4000',
+        idempotencyKey: '00000000-0000-4000-8000-000000000002',
+      },
+    );
+    expect(choice.status).toBe(200);
 
     // 2.2 Consumer tops up Personal Balance with Idempotency (FR-C02)
     const topup1 = await api('CONSUMER', 'POST', '/wallet/topup', {
@@ -1379,16 +1423,16 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
     // STAGE 3: Quest Completion, Points & Coupon Reuse (FR-S06, FR-C07..FR-C09)
     // ══════════════════════════════════════════════════════════════════════════
 
-    // 3.1 Verify Quest was automatically completed by Order 1 (finalAmount 100 >= minSpend 80) (FR-S06, FR-C07)
+    // 3.1 Order 1 personal contribution 50 >= selected target 40.
     const consumerQuests = await api('CONSUMER', 'GET', '/consumer/quests');
     expect(consumerQuests.status).toBe(200);
     expect(consumerQuests.data.summary.completedCount).toBe(1);
     expect(consumerQuests.data.history[0].completedOrderId).toBe(orderId1);
 
-    // 3.2 Verify Consumer Point Balance increased from 40 -> 70 (+30 quest reward) (FR-C08)
+    // 3.2 Point Balance 40 -> 60 (+20 selected quest reward).
     const consumerPoints = await api('CONSUMER', 'GET', '/consumer/points');
     expect(consumerPoints.status).toBe(200);
-    expect(consumerPoints.data.pointBalance).toBe(70);
+    expect(consumerPoints.data.pointBalance).toBe(60);
 
     // 3.3 Consumer redeems 50 points for a 20 THB discount coupon (FR-C09)
     const redeemedCoupon = await api(
@@ -1402,7 +1446,7 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         success: true,
         discountValue: 20,
         pointsSpent: 50,
-        pointBalanceAfter: 20,
+        pointBalanceAfter: 10,
       }),
     );
     const userCouponId = redeemedCoupon.data.userCouponId as string;
@@ -1520,7 +1564,7 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         questAssigned: 1,
         questCompleted: 1,
         questCompletionRate: 100,
-        pointsIssued: 30,
+        pointsIssued: 20,
         pointsRedeemed: 50,
         couponsIssued: 1,
         couponsUsed: 1,
