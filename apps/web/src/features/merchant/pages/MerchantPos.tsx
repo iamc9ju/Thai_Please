@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
@@ -893,9 +894,7 @@ export function MerchantPos({
               )}
 
               {isLoading ? (
-                <div className="flex h-48 items-center justify-center rounded-3xl border border-slate-200/80 bg-white">
-                  <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-                </div>
+                <LoadingState label={posCopy.loading} />
               ) : filteredProducts.length === 0 ? (
                 <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white text-slate-500">
                   <span className="text-3xl">📦</span>
@@ -1415,16 +1414,7 @@ function MerchantOrdersList() {
   }, [orders, statusFilter, searchQuery]);
 
   if (isLoading) {
-    return (
-      <div
-        className="flex h-64 items-center justify-center rounded-3xl border border-slate-200/80 bg-white"
-        role="status"
-        aria-live="polite"
-      >
-        <p className="sr-only">{th.merchantPortal.orders.loading}</p>
-        <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-      </div>
-    );
+    return <LoadingState label={th.merchantPortal.orders.loading} />;
   }
 
   if (error) {

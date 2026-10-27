@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   CalendarDays,
   CheckCircle2,
@@ -343,15 +344,7 @@ export function OrdersView() {
 
       {/* Orders List Section */}
       {isLoading ? (
-        <div className="space-y-3" role="status" aria-live="polite">
-          <p className="sr-only">{copy.loading}</p>
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-24 rounded-3xl bg-white border border-slate-200/80 p-5 shadow-sm animate-pulse"
-            />
-          ))}
-        </div>
+        <LoadingState label={copy.loading} />
       ) : error ? (
         <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
           <p className="text-sm font-semibold text-red-700 mb-2">{error}</p>

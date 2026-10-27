@@ -836,6 +836,7 @@ export const th = {
       dashboard: 'แดชบอร์ดยอดขาย',
     },
     pos: {
+      loading: 'กำลังโหลดข้อมูลสินค้า...',
       manageProductsToggle: 'จัดการสินค้า',
       exitManageProducts: 'เสร็จสิ้นการจัดการ',
       addProductButton: 'เพิ่มสินค้า',

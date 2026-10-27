@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Award,
@@ -55,12 +56,7 @@ export function MerchantDashboardView() {
   }, [days, loadDashboard]);
 
   if (isLoading && !data) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
-        <div className="size-9 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-        <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-      </div>
-    );
+    return <LoadingState label={copy.loading} />;
   }
 
   if (error && !data) {

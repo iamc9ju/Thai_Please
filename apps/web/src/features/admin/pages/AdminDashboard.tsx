@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
@@ -540,13 +541,7 @@ export function AdminDashboard({
         )}
 
         {isLoading ? (
-          <div
-            role="status"
-            className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
-          >
-            <div className="mb-4 size-10 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-            <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-          </div>
+          <LoadingState label={copy.loading} />
         ) : error ? (
           <div
             role="alert"

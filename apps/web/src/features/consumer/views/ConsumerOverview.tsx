@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   ArrowRight,
   CheckCircle2,
@@ -64,19 +65,7 @@ function OverviewStatus({
   onRetry: () => void;
 }>) {
   if (state.status === 'loading') {
-    return (
-      <section
-        aria-live="polite"
-        aria-busy="true"
-        role="status"
-        className="p-10 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs"
-      >
-        <div className="inline-block size-8 animate-spin rounded-full border-3 border-solid border-[#0056b3] border-r-transparent mb-3" />
-        <p className="text-slate-500 font-medium text-sm">
-          {th.consumerDashboard.states.loading}
-        </p>
-      </section>
-    );
+    return <LoadingState label={th.consumerDashboard.states.loading} />;
   }
 
   if (state.status === 'permission-denied') {

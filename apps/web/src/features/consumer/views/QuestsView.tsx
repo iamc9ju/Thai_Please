@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   Award,
   CheckCircle2,
@@ -160,14 +161,7 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div
-          aria-live="polite"
-          className="flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm"
-          role="status"
-        >
-          <div className="mb-3 inline-block size-8 animate-spin rounded-full border-3 border-solid border-[#0056b3] border-r-transparent" />
-          <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-        </div>
+        <LoadingState label={copy.loading} />
       </section>
     );
   }

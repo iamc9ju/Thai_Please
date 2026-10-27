@@ -74,6 +74,10 @@ describe('page request lifecycle (NFR-UI-01)', () => {
         rejectOld?.(new Error('Old failure'));
       });
       expect(screen.getByText(loading)).toBeInTheDocument();
+      expect(screen.getByText(loading)).toBeVisible();
+      expect(
+        screen.getByRole('status').querySelector('[aria-hidden="true"]'),
+      ).toHaveClass('motion-safe:animate-spin');
       expect(screen.queryByText('Old failure')).not.toBeInTheDocument();
 
       await act(async () => {
