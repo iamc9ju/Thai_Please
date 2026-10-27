@@ -279,6 +279,7 @@ export function QuestProposalsPanel({
         <p role="alert">{copy.proposals.expired}</p>
       )}
       {(state === 'error' ||
+        state === 'permission-denied' ||
         state === 'waiting' ||
         (state === 'loaded' && (data?.status === 'FAILED' || expired))) && (
         <button

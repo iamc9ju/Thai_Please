@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { LoadingState } from '../../../components/LoadingState';
+import { th } from '../../../i18n/th';
 import {
   CalendarRange,
   CheckCircle2,
@@ -15,6 +17,7 @@ import {
   getMerchantOrders,
 } from '../api/merchant.api';
 import type { MerchantOrder } from '../merchant.types';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 
 type OrderDisplayStatus = 'PAID' | 'PENDING' | 'EXPIRED';
 type OrderDateFilter = { dateFrom?: string; dateTo?: string };
@@ -51,20 +54,27 @@ export function MerchantOrdersView() {
     null,
   );
   const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
+  const beginRequest = useLatestRequest();
 
   const fetchOrders = (dateFilter: OrderDateFilter = appliedDateFilter) => {
+    const { isCurrent } = beginRequest();
     setIsLoading(true);
     setError(null);
     getMerchantOrders(dateFilter)
-      .then(setOrders)
+      .then((loadedOrders) => {
+        if (isCurrent()) setOrders(loadedOrders);
+      })
       .catch((caughtError: unknown) => {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error
             ? caughtError.message
             : 'ไม่สามารถโหลดประวัติ Order ได้',
         );
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (isCurrent()) setIsLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -149,11 +159,7 @@ export function MerchantOrdersView() {
   }, [orders, statusFilter, searchQuery, currentTime]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-3xl border border-slate-200/80 bg-white">
-        <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-      </div>
-    );
+    return <LoadingState label={th.merchantPortal.orders.loading} />;
   }
 
   if (error) {
