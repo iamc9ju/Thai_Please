@@ -8,6 +8,9 @@ import { CatalogService } from './catalog.service.js';
 
 describe('CatalogService (FR-M02)', () => {
   const mockPrisma = {
+    merchant: {
+      findUnique: vi.fn(),
+    },
     productCategory: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -25,6 +28,7 @@ describe('CatalogService (FR-M02)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.merchant.findUnique.mockResolvedValue({ status: 'ACTIVE' });
     service = new CatalogService(mockPrisma as never);
   });
 
@@ -42,6 +46,10 @@ describe('CatalogService (FR-M02)', () => {
     ]);
 
     const activeOnly = await service.listProducts(100n, false);
+    expect(mockPrisma.merchant.findUnique).toHaveBeenCalledWith({
+      where: { merchantId: 100n },
+      select: { status: true },
+    });
     expect(mockPrisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { merchantId: 100n, status: 'ACTIVE' },
@@ -78,6 +86,51 @@ describe('CatalogService (FR-M02)', () => {
     );
     expect(withInactive).toHaveLength(2);
     expect(withInactive[1]?.status).toBe('INACTIVE');
+  });
+
+  it('blocks catalog reads and writes when the merchant is not ACTIVE', async () => {
+    const inactiveOperations = [
+      {
+        status: 'PENDING',
+        execute: () => service.listProducts(100n),
+      },
+      {
+        status: 'REJECTED',
+        execute: () =>
+          service.createProduct(100n, {
+            productName: 'สินค้าใหม่',
+            price: 50,
+            categoryId: 10,
+          }),
+      },
+      {
+        status: 'SUSPENDED',
+        execute: () => service.updateProduct(100n, 5n, { price: 60 }),
+      },
+      {
+        status: 'SUSPENDED',
+        execute: () => service.updateProductStatus(100n, 5n, 'INACTIVE'),
+      },
+      {
+        status: 'SUSPENDED',
+        execute: () => service.deleteProduct(100n, 5n),
+      },
+    ] as const;
+
+    for (const operation of inactiveOperations) {
+      mockPrisma.merchant.findUnique.mockResolvedValueOnce({
+        status: operation.status,
+      });
+      await expect(operation.execute()).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'MERCHANT_NOT_ACTIVE' }),
+      });
+    }
+
+    expect(mockPrisma.product.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.product.findUnique).not.toHaveBeenCalled();
+    expect(mockPrisma.product.create).not.toHaveBeenCalled();
+    expect(mockPrisma.product.update).not.toHaveBeenCalled();
+    expect(mockPrisma.productCategory.findUnique).not.toHaveBeenCalled();
   });
 
   it('updates product details and status for the owning merchant without mutating order snapshots', async () => {

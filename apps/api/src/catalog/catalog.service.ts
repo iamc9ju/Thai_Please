@@ -17,6 +17,20 @@ import type {
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async assertActiveMerchant(merchantId: bigint): Promise<void> {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { merchantId },
+      select: { status: true },
+    });
+
+    if (merchant?.status !== 'ACTIVE') {
+      throw new ForbiddenException({
+        code: 'MERCHANT_NOT_ACTIVE',
+        message: 'ร้านค้านี้ยังไม่ได้รับอนุมัติหรือถูกระงับการใช้งาน',
+      });
+    }
+  }
+
   // ─── Categories ───────────────────────────────────────────────────────────────
 
   async listCategories() {
@@ -58,6 +72,8 @@ export class CatalogService {
    * FR-M02: ดึงรายการสินค้าของร้านค้า (รองรับทั้งเฉพาะ ACTIVE หรือรวม INACTIVE สำหรับโหมดจัดการสินค้า)
    */
   async listProducts(merchantId: bigint, includeInactive = false) {
+    await this.assertActiveMerchant(merchantId);
+
     const products = await this.prisma.product.findMany({
       where: includeInactive
         ? { merchantId }
@@ -81,6 +97,8 @@ export class CatalogService {
    * FR-M02: Merchant สร้างสินค้าใหม่
    */
   async createProduct(merchantId: bigint, dto: CreateProductDto) {
+    await this.assertActiveMerchant(merchantId);
+
     const category = await this.prisma.productCategory.findUnique({
       where: { categoryId: BigInt(dto.categoryId) },
     });
@@ -119,6 +137,8 @@ export class CatalogService {
     productId: bigint,
     dto: UpdateProductDto,
   ) {
+    await this.assertActiveMerchant(merchantId);
+
     const product = await this.prisma.product.findUnique({
       where: { productId },
     });
@@ -178,6 +198,8 @@ export class CatalogService {
     productId: bigint,
     status: ProductStatusValue,
   ) {
+    await this.assertActiveMerchant(merchantId);
+
     const product = await this.prisma.product.findUnique({
       where: { productId },
     });
@@ -209,6 +231,8 @@ export class CatalogService {
    * FR-M02: Merchant ปิดการใช้งานสินค้า (soft delete -> INACTIVE)
    */
   async deleteProduct(merchantId: bigint, productId: bigint) {
+    await this.assertActiveMerchant(merchantId);
+
     const product = await this.prisma.product.findUnique({
       where: { productId },
     });
