@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PasswordService } from '../auth/password/password.service.js';
+import type { ConsumerProfileResponse } from '@thai-please/contracts';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 
@@ -13,6 +14,39 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
   ) {}
+
+  async getConsumerProfile(userId: bigint): Promise<ConsumerProfileResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        fullName: true,
+        citizenId: true,
+        phone: true,
+        addressLine: true,
+        subdistrict: true,
+        district: true,
+        province: true,
+        postalCode: true,
+      },
+    });
+    if (!user) throw new NotFoundException('PROFILE_NOT_FOUND');
+    const address = [
+      user.addressLine,
+      user.subdistrict,
+      user.district,
+      user.province,
+      user.postalCode,
+    ]
+      .filter((part) => part?.trim())
+      .join(' ');
+    return {
+      fullName: user.fullName,
+      maskedCitizenId: `X-XXXX-${user.citizenId.slice(-4)}`,
+      role: 'CONSUMER',
+      phone: user.phone,
+      address: address || null,
+    };
+  }
 
   private sanitizeUser<T extends { passwordHash?: string }>(
     user: T,

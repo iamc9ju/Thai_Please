@@ -1,5 +1,14 @@
 export const API_VERSION = '1' as const;
 
+export const CONSUMER_PROFILE_PATH = '/api/v1/users/me/profile';
+export type ConsumerProfileResponse = {
+  fullName: string;
+  maskedCitizenId: string;
+  role: 'CONSUMER';
+  phone: string | null;
+  address: string | null;
+};
+
 export type HealthStatus = 'error' | 'ok' | 'shutting_down';
 
 export type HealthResponse = {

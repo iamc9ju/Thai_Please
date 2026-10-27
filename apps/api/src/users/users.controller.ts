@@ -7,8 +7,11 @@ import {
   Post,
   Req,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { ApiOkResponse } from '@nestjs/swagger';
+import { ConsumerProfileDto } from './dto/consumer-profile.dto.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/authorization/roles.decorator.js';
 import { RolesGuard } from '../auth/authorization/roles.guard.js';
@@ -19,6 +22,14 @@ import { UsersService } from './users.service.js';
 @UseGuards(AuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('me/profile')
+  @Roles('CONSUMER')
+  @ApiOkResponse({ type: ConsumerProfileDto })
+  getProfile(@Req() req: Request) {
+    if (!req.user) throw new UnauthorizedException();
+    return this.usersService.getConsumerProfile(req.user.userId);
+  }
 
   @Get('me')
   getMe(@Req() req: Request) {
