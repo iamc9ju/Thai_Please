@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { getMerchantDashboard } from '../api/merchant.api';
 import type { MerchantDashboardData } from '../merchant.types';
 
@@ -27,22 +28,26 @@ export function MerchantDashboardView() {
       currency: 'THB',
     }).format(n);
 
+  const beginRequest = useLatestRequest();
   const loadDashboard = useCallback(
     async (selectedDays = days) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
         const result = await getMerchantDashboard(selectedDays);
+        if (!isCurrent()) return;
         setData(result);
       } catch (caughtError: unknown) {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error ? caughtError.message : copy.errorTitle,
         );
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, days],
+    [beginRequest, copy.errorTitle, days],
   );
 
   useEffect(() => {

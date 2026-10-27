@@ -823,6 +823,10 @@ export const th = {
   },
   merchantPortal: {
     brandSubtitle: 'ระบบจัดการร้านค้าชุมชน · ไทยช่วยไทยพรีส',
+    orders: {
+      loading: 'กำลังโหลดประวัติคำสั่งซื้อ...',
+      loadError: 'ไม่สามารถโหลดประวัติ Order ได้',
+    },
     logout: 'ออกจากระบบ',
     nav: {
       pos: 'ขายหน้าร้าน (POS)',

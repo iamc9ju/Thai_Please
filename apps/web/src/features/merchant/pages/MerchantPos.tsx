@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   CheckCircle2,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
 import type { ReceiptDetail } from '../../consumer/consumer.types';
 import {
@@ -1343,23 +1344,31 @@ function MerchantOrdersList() {
   );
   const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
 
-  const fetchOrders = () => {
+  const beginRequest = useLatestRequest();
+  const fetchOrders = useCallback(() => {
+    const { isCurrent } = beginRequest();
     setIsLoading(true);
+    setError(null);
     getMerchantOrders()
-      .then(setOrders)
+      .then((data) => {
+        if (isCurrent()) setOrders(data);
+      })
       .catch((caughtError: unknown) => {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error
             ? caughtError.message
-            : 'ไม่สามารถโหลดประวัติ Order ได้',
+            : th.merchantPortal.orders.loadError,
         );
       })
-      .finally(() => setIsLoading(false));
-  };
+      .finally(() => {
+        if (isCurrent()) setIsLoading(false);
+      });
+  }, [beginRequest]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('th-TH', {
@@ -1407,7 +1416,12 @@ function MerchantOrdersList() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-3xl border border-slate-200/80 bg-white">
+      <div
+        className="flex h-64 items-center justify-center rounded-3xl border border-slate-200/80 bg-white"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="sr-only">{th.merchantPortal.orders.loading}</p>
         <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
       </div>
     );

@@ -1,4 +1,12 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
+import { StrictMode } from 'react';
+import { th } from '../../../i18n/th';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createOrder,
@@ -90,6 +98,43 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
   });
 
   afterEach(cleanup);
+
+  it('ignores a stale order-history failure under StrictMode (NFR-UI-01)', async () => {
+    let rejectOld: ((reason: Error) => void) | undefined;
+    let rejectCurrent: ((reason: Error) => void) | undefined;
+    mockedGetMerchantOrders.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectOld = reject;
+        }),
+    );
+    mockedGetMerchantOrders.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectCurrent = reject;
+        }),
+    );
+    render(
+      <StrictMode>
+        <MerchantPos onLogout={vi.fn()} />
+      </StrictMode>,
+    );
+    await screen.findByText('ข้าวกะเพราหมูสับ');
+    fireEvent.click(
+      screen.getByRole('button', { name: th.merchantPortal.nav.orders }),
+    );
+    await act(async () => {
+      rejectOld?.(new Error('Old order failure'));
+    });
+    expect(
+      screen.getByText(th.merchantPortal.orders.loading),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Old order failure')).not.toBeInTheDocument();
+    await act(async () => {
+      rejectCurrent?.(new Error('Current order failure'));
+    });
+    expect(screen.getByText('Current order failure')).toBeInTheDocument();
+  });
 
   it('loads products with includeInactive=true and filters by ACTIVE / INACTIVE / ALL', async () => {
     render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);

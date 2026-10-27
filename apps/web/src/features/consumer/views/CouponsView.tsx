@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
   getConsumerCoupons,
   getConsumerPoints,
@@ -103,15 +104,18 @@ export function CouponsView({
     message: string;
   } | null>(null);
 
-  const fetchRewardsData = useCallback(async (signal?: AbortSignal) => {
+  const beginRequest = useLatestRequest();
+  const fetchRewardsData = useCallback(async () => {
+    const { signal, isCurrent } = beginRequest();
     try {
       const [points, coupons] = await Promise.all([
         getConsumerPoints(signal),
         getConsumerCoupons(signal),
       ]);
-      if (signal?.aborted) return;
+      if (!isCurrent()) return;
       setLoadState({ status: 'success', points, coupons });
     } catch (err) {
+      if (!isCurrent()) return;
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (
         err instanceof ApiError &&
@@ -122,7 +126,7 @@ export function CouponsView({
         setLoadState({ status: 'error' });
       }
     }
-  }, []);
+  }, [beginRequest]);
 
   const handleRetry = () => {
     setLoadState({ status: 'loading' });
@@ -130,11 +134,7 @@ export function CouponsView({
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-    void fetchRewardsData(controller.signal);
-    return () => {
-      controller.abort();
-    };
+    void fetchRewardsData();
   }, [fetchRewardsData]);
 
   const handleRedeem = async (item: CouponCatalogueItem) => {

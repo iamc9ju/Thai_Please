@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { getConsumerOrders } from '../api/consumer.api';
 import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
@@ -52,21 +53,28 @@ export function OrdersView() {
     null,
   );
 
+  const beginRequest = useLatestRequest();
   const fetchOrders = useCallback(async () => {
+    const { signal, isCurrent } = beginRequest();
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getConsumerOrders({
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-      });
+      const data = await getConsumerOrders(
+        {
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+        },
+        signal,
+      );
+      if (!isCurrent()) return;
       setOrders(data);
     } catch (err) {
+      if (!isCurrent()) return;
       setError(err instanceof Error ? err.message : copy.error);
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [dateFrom, dateTo, copy.error]);
+  }, [beginRequest, dateFrom, dateTo, copy.error]);
 
   useEffect(() => {
     void fetchOrders();
@@ -335,7 +343,8 @@ export function OrdersView() {
 
       {/* Orders List Section */}
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="space-y-3" role="status" aria-live="polite">
+          <p className="sr-only">{copy.loading}</p>
           {[1, 2, 3].map((i) => (
             <div
               key={i}

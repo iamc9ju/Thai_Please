@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
   Activity,
   AlertCircle,
@@ -164,43 +165,59 @@ export function AdminDashboard({
     useState<AdminUsersListResponse | null>(null);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
 
+  const beginRequest = useLatestRequest();
   const loadActiveTabData = useCallback(
     async (tab: AdminTab) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
         if (tab === 'overview') {
           const res = await getPlatformOverview();
+          if (!isCurrent()) return;
           setOverview(res);
         } else if (tab === 'merchants') {
           const items = await getAdminMerchants(merchantFilter);
+          if (!isCurrent()) return;
           setMerchants(items);
         } else if (tab === 'programs') {
           const items = await getSubsidyPrograms();
+          if (!isCurrent()) return;
           setPrograms(items);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
+          if (!isCurrent()) return;
           setQuestLogsData(res);
           if (!selectedConsumerId && res.eligibleConsumers[0]) {
             setSelectedConsumerId(res.eligibleConsumers[0].userId);
           }
         } else if (tab === 'rewards') {
           const res = await getRewardMonitoring();
+          if (!isCurrent()) return;
           setRewardMonitoring(res);
         } else if (tab === 'socialImpact') {
           const res = await getSocialImpactDashboard(impactDays);
+          if (!isCurrent()) return;
           setSocialImpact(res);
         } else if (tab === 'admins') {
           const res = await getAdminUsersAndRoles();
+          if (!isCurrent()) return;
           setAdminUsersData(res);
         }
       } catch (err) {
+        if (!isCurrent()) return;
         setError(err instanceof Error ? err.message : copy.errorTitle);
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, impactDays, merchantFilter, selectedConsumerId],
+    [
+      beginRequest,
+      copy.errorTitle,
+      impactDays,
+      merchantFilter,
+      selectedConsumerId,
+    ],
   );
 
   useEffect(() => {

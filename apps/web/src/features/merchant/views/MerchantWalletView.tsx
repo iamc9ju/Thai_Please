@@ -12,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
 import type { ReceiptDetail } from '../../consumer/consumer.types';
 import {
@@ -74,8 +75,10 @@ export function MerchantWalletView() {
       currency: 'THB',
     }).format(n);
 
+  const beginRequest = useLatestRequest();
   const loadWalletData = useCallback(
     async (filterFrom = dateFrom, filterTo = dateTo) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
@@ -87,18 +90,20 @@ export function MerchantWalletView() {
             limit: 20,
           }),
         ]);
+        if (!isCurrent()) return;
         setOverview(walletOverview);
         setLedgerItems(txPage.items);
         setNextCursor(txPage.nextCursor);
       } catch (caughtError: unknown) {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error ? caughtError.message : copy.errorTitle,
         );
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, dateFrom, dateTo],
+    [beginRequest, copy.errorTitle, dateFrom, dateTo],
   );
 
   useEffect(() => {
