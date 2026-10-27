@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  MaxLength,
   Matches,
 } from 'class-validator';
 
@@ -103,6 +104,7 @@ export class RegisterMerchantDto extends RegisterConsumerDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   merchantType!: string;
 
   @IsString()

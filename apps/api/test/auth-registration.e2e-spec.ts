@@ -52,6 +52,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
         merchantId: bigint;
         ownerUserId: bigint;
         merchantName: string;
+        merchantType: string;
         status: string;
       }
     >();
@@ -232,6 +233,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
           data: {
             ownerUserId: bigint;
             merchantName: string;
+            merchantType: string;
             status: string;
           };
         }) => {
@@ -240,6 +242,7 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
             merchantId,
             ownerUserId: data.ownerUserId,
             merchantName: data.merchantName,
+            merchantType: data.merchantType,
             status: data.status,
           };
           merchants.set(merchantId, created);
@@ -417,6 +420,9 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
       }),
     );
     expect([...merchants.values()][0]?.status).toBe('PENDING');
+    expect([...merchants.values()][0]?.merchantType).toBe(
+      'อาหารและเครื่องดื่ม',
+    );
     // Multi-role invariant: still only 1 User record in usersByCitizenId with both CONSUMER & MERCHANT roles
     expect(usersByCitizenId.size).toBe(1);
     const storedUser = usersByCitizenId.get('1100000000009')!;

@@ -59,6 +59,7 @@ export interface PlatformOverviewResponse {
 }
 
 export interface AdminMerchantItem {
+  merchantType?: string | null;
   merchantId: string;
   merchantName: string;
   description: string | null;
@@ -146,6 +147,7 @@ export interface SubsidyProgramItem {
   createdAt: string;
   walletCount?: number;
   orderCount?: number;
+  walletTransactionCount?: number;
 }
 
 export interface CreateSubsidyProgramInput {
@@ -159,13 +161,31 @@ export interface CreateSubsidyProgramInput {
 }
 
 export interface QuestGenerationLogItem {
+  proposal?: {
+    questId: string;
+    questName: string;
+    questType: string;
+    minSpend: number;
+    rewardPoint: number;
+    durationDays: number;
+  } | null;
+  candidates?: Array<{
+    questName: string;
+    questType: string;
+    minSpend: number;
+    rewardPoint: number;
+  }>;
+  validationResult?: {
+    status: 'ACCEPTED' | 'NOT_RECORDED';
+    evidence: 'ASSIGNED_QUEST_RULE' | 'NO_RECORDED_VALIDATION';
+  };
   generationId: string;
   requestKey: string | null;
   status: string;
-  provider: string;
-  modelVersion: string;
-  promptVersion: string;
-  policyVersion: string;
+  provider: string | null;
+  modelVersion: string | null;
+  promptVersion: string | null;
+  policyVersion: string | null;
   selectionReason: string | null;
   reservedPoints: number;
   generatedAt: string;

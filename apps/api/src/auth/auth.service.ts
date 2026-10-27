@@ -378,6 +378,7 @@ export class AuthService {
         data: {
           ownerUserId: user.userId,
           merchantName: dto.merchantName,
+          merchantType: dto.merchantType.trim(),
           description: dto.merchantDescription,
           address: merchantFullAddress,
           phone: dto.merchantPhone,
