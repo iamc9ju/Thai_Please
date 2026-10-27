@@ -3,6 +3,7 @@ import type {
   AdminMerchantItem,
   AdminMerchantStatusResult,
   AdminRoleStatus,
+  MerchantStatus,
   AdminUsersListResponse,
   CreateSubsidyProgramInput,
   PlatformOverviewResponse,
@@ -26,6 +27,16 @@ export const ADMIN_API_ROUTES = {
   socialImpact: `${ADMIN_API_BASE}/dashboard/social-impact`,
 } as const;
 
+export function updateSubsidyProgram(
+  programId: string,
+  input: CreateSubsidyProgramInput,
+): Promise<SubsidyProgramItem> {
+  return apiClient.patch(
+    `${ADMIN_API_ROUTES.subsidyPrograms}/${programId}`,
+    input,
+  );
+}
+
 export function getPlatformOverview(): Promise<PlatformOverviewResponse> {
   return apiClient.get<PlatformOverviewResponse>(ADMIN_API_ROUTES.overview);
 }
@@ -44,10 +55,14 @@ export function updateMerchantApprovalStatus(
   merchantId: string,
   action: 'approve' | 'reject' | 'suspend' | 'activate',
   reason?: string,
+  expectedStatus?: MerchantStatus,
 ): Promise<AdminMerchantStatusResult> {
   return apiClient.post<AdminMerchantStatusResult>(
     `${ADMIN_API_ROUTES.merchants}/${merchantId}/${action}`,
-    reason ? { reason } : {},
+    {
+      ...(reason ? { reason } : {}),
+      ...(expectedStatus ? { expectedStatus } : {}),
+    },
   );
 }
 

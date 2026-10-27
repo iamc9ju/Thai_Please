@@ -8,6 +8,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BANGKOK_TZ_OFFSET_HOURS } from '../wallet/wallet.constants.js';
 import {
+  ADMIN_OPERATION_ERRORS,
+  QUEST_DIAGNOSTICS_LIMITS,
+  PROGRAM_CURRENCIES,
+  PROGRAM_TIMEZONES,
   SOCIAL_IMPACT_DEFAULTS,
   type AdminRoleStatus,
   type MerchantStatus,
@@ -31,6 +35,77 @@ function toNumber(value: unknown): number {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function assertSupportedProgramSettings(dto: {
+  currency?: string;
+  timezone?: string;
+}): void {
+  if (dto.currency !== undefined && dto.currency !== PROGRAM_CURRENCIES[0])
+    throw new BadRequestException(
+      ADMIN_OPERATION_ERRORS.programCurrencyUnsupported,
+    );
+  if (dto.timezone !== undefined && dto.timezone !== PROGRAM_TIMEZONES[0])
+    throw new BadRequestException(
+      ADMIN_OPERATION_ERRORS.programTimezoneUnsupported,
+    );
+}
+
+function sanitizeQuestCandidates(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, QUEST_DIAGNOSTICS_LIMITS.candidates)
+    .flatMap((candidate) => {
+      if (!candidate || typeof candidate !== 'object') return [];
+      const item = candidate as Record<string, unknown>;
+      if (
+        typeof item.questName !== 'string' ||
+        typeof item.questType !== 'string' ||
+        typeof item.minSpend !== 'number' ||
+        typeof item.rewardPoint !== 'number' ||
+        !Number.isFinite(item.minSpend) ||
+        item.minSpend < 0 ||
+        !Number.isSafeInteger(item.rewardPoint) ||
+        item.rewardPoint < 0
+      ) {
+        if (
+          typeof item.id !== 'string' ||
+          typeof item.type !== 'string' ||
+          typeof item.minimumSpendMinor !== 'string' ||
+          !/^\d+$/.test(item.minimumSpendMinor) ||
+          typeof item.rewardPoints !== 'number' ||
+          !Number.isSafeInteger(item.rewardPoints) ||
+          item.rewardPoints < 0
+        ) {
+          return [];
+        }
+        const minor = BigInt(item.minimumSpendMinor);
+        if (minor > BigInt(Number.MAX_SAFE_INTEGER)) return [];
+        return [
+          {
+            questName: item.id.slice(0, QUEST_DIAGNOSTICS_LIMITS.titleLength),
+            questType: item.type.slice(0, QUEST_DIAGNOSTICS_LIMITS.typeLength),
+            minSpend:
+              Number(minor) / QUEST_DIAGNOSTICS_LIMITS.minorUnitsPerBaht,
+            rewardPoint: item.rewardPoints,
+          },
+        ];
+      }
+      return [
+        {
+          questName: item.questName.slice(
+            0,
+            QUEST_DIAGNOSTICS_LIMITS.titleLength,
+          ),
+          questType: item.questType.slice(
+            0,
+            QUEST_DIAGNOSTICS_LIMITS.typeLength,
+          ),
+          minSpend: item.minSpend,
+          rewardPoint: item.rewardPoint,
+        },
+      ];
+    });
 }
 
 @Injectable()
@@ -294,6 +369,7 @@ export class AdminService {
       items: merchants.map((m) => ({
         merchantId: m.merchantId.toString(),
         merchantName: m.merchantName,
+        merchantType: m.merchantType,
         description: m.description,
         address: m.address,
         phone: m.phone ?? m.owner.phone,
@@ -323,23 +399,22 @@ export class AdminService {
     nextStatus: MerchantStatus,
     adminUserId: bigint,
     reason?: string,
+    expectedStatus?: MerchantStatus,
   ) {
-    const existing = await this.prisma.merchant.findUnique({
-      where: { merchantId },
-      include: {
-        owner: true,
-        wallet: true,
-      },
-    });
-
-    if (!existing) {
-      throw new NotFoundException('ไม่พบร้านค้าที่ต้องการจัดการ');
-    }
-
     const now = new Date();
-    const previousStatus = existing.status;
-
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT merchant_id FROM merchants WHERE merchant_id = ${merchantId} FOR UPDATE`;
+      const existing = await tx.merchant.findUnique({
+        where: { merchantId },
+        include: { wallet: true },
+      });
+      if (!existing)
+        throw new NotFoundException('ไม่พบร้านค้าที่ต้องการจัดการ');
+      if (expectedStatus !== undefined && existing.status !== expectedStatus) {
+        throw new ConflictException(
+          ADMIN_OPERATION_ERRORS.merchantStatusChanged,
+        );
+      }
       const merchant = await tx.merchant.update({
         where: { merchantId },
         data: {
@@ -389,8 +464,20 @@ export class AdminService {
         }
       }
 
-      return merchant;
+      if (nextStatus !== 'ACTIVE') {
+        await tx.authSession.updateMany({
+          where: {
+            activeMerchantId: merchantId,
+            activeRole: 'MERCHANT',
+            revokedAt: null,
+          },
+          data: { revokedAt: now },
+        });
+      }
+      return { merchant, previousStatus: existing.status };
     });
+    const updated = result.merchant;
+    const previousStatus = result.previousStatus;
 
     const auditEvent = {
       event: 'ADMIN_MERCHANT_STATUS_CHANGED',
@@ -627,6 +714,7 @@ export class AdminService {
           select: {
             wallets: true,
             orders: true,
+            walletTransactions: true,
           },
         },
       },
@@ -641,14 +729,15 @@ export class AdminService {
         subsidyPercentage: toNumber(p.subsidyPercentage),
         userPercentage: toNumber(p.userPercentage),
         dailySubsidyLimit: toNumber(p.dailySubsidyLimit),
-        currency: 'THB',
-        timezone: SOCIAL_IMPACT_DEFAULTS.REPORTING_TIMEZONE,
+        currency: PROGRAM_CURRENCIES[0],
+        timezone: PROGRAM_TIMEZONES[0],
         startDate: p.startDate.toISOString(),
         endDate: p.endDate.toISOString(),
         status: p.status,
         createdAt: p.createdAt.toISOString(),
         walletCount: p._count.wallets,
         orderCount: p._count.orders,
+        walletTransactionCount: p._count.walletTransactions,
       })),
     };
   }
@@ -657,6 +746,7 @@ export class AdminService {
     dto: CreateSubsidyProgramDto,
     actorAdminId: bigint,
   ) {
+    assertSupportedProgramSettings(dto);
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
     if (
@@ -706,8 +796,8 @@ export class AdminService {
       subsidyPercentage: toNumber(created.subsidyPercentage),
       userPercentage: toNumber(created.userPercentage),
       dailySubsidyLimit: toNumber(created.dailySubsidyLimit),
-      currency: 'THB',
-      timezone: SOCIAL_IMPACT_DEFAULTS.REPORTING_TIMEZONE,
+      currency: PROGRAM_CURRENCIES[0],
+      timezone: PROGRAM_TIMEZONES[0],
       startDate: created.startDate.toISOString(),
       endDate: created.endDate.toISOString(),
       status: created.status,
@@ -720,59 +810,86 @@ export class AdminService {
     dto: UpdateSubsidyProgramDto,
     actorAdminId: bigint,
   ) {
-    const existing = await this.prisma.subsidyProgram.findUnique({
-      where: { programId },
+    assertSupportedProgramSettings(dto);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // FK reference inserts take KEY SHARE on this parent, so the usage check
+      // and policy change must hold UPDATE until the transaction completes.
+      await tx.$queryRaw`SELECT program_id FROM subsidy_programs WHERE program_id = ${programId} FOR UPDATE`;
+      const existing = await tx.subsidyProgram.findUnique({
+        where: { programId },
+        include: {
+          _count: {
+            select: { orders: true, wallets: true, walletTransactions: true },
+          },
+        },
+      });
+      if (!existing)
+        throw new NotFoundException('ไม่พบโครงการเงินอุดหนุนที่ต้องการแก้ไข');
+      const nextStartDate =
+        dto.startDate !== undefined
+          ? new Date(dto.startDate)
+          : existing.startDate;
+      const nextEndDate =
+        dto.endDate !== undefined ? new Date(dto.endDate) : existing.endDate;
+      if (
+        Number.isNaN(nextStartDate.getTime()) ||
+        Number.isNaN(nextEndDate.getTime()) ||
+        nextStartDate > nextEndDate
+      ) {
+        throw new BadRequestException(
+          ADMIN_OPERATION_ERRORS.programDatesInvalid,
+        );
+      }
+      const changesPolicy =
+        (dto.programName !== undefined &&
+          dto.programName.trim() !== existing.programName) ||
+        (dto.initialGrant !== undefined &&
+          dto.initialGrant !== toNumber(existing.initialGrant)) ||
+        (dto.subsidyPercentage !== undefined &&
+          dto.subsidyPercentage !== toNumber(existing.subsidyPercentage)) ||
+        (dto.dailySubsidyLimit !== undefined &&
+          dto.dailySubsidyLimit !== toNumber(existing.dailySubsidyLimit)) ||
+        nextStartDate.getTime() !== existing.startDate.getTime() ||
+        nextEndDate.getTime() !== existing.endDate.getTime();
+      const usageCount =
+        existing._count.orders +
+        existing._count.wallets +
+        existing._count.walletTransactions;
+      if (usageCount > 0 && changesPolicy) {
+        throw new ConflictException(ADMIN_OPERATION_ERRORS.programPolicyInUse);
+      }
+      const result = await tx.subsidyProgram.update({
+        where: { programId },
+        data: {
+          ...(dto.programName !== undefined
+            ? { programName: dto.programName.trim() }
+            : {}),
+          ...(dto.initialGrant !== undefined
+            ? { initialGrant: dto.initialGrant }
+            : {}),
+          ...(dto.subsidyPercentage !== undefined
+            ? {
+                subsidyPercentage: dto.subsidyPercentage,
+                userPercentage: 100 - dto.subsidyPercentage,
+              }
+            : {}),
+          ...(dto.dailySubsidyLimit !== undefined
+            ? { dailySubsidyLimit: dto.dailySubsidyLimit }
+            : {}),
+          ...(dto.startDate !== undefined ? { startDate: nextStartDate } : {}),
+          ...(dto.endDate !== undefined ? { endDate: nextEndDate } : {}),
+          ...(dto.status !== undefined
+            ? { status: dto.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE' }
+            : {}),
+        },
+      });
+      return {
+        ...result,
+        walletCount: existing._count.wallets,
+        orderCount: existing._count.orders,
+        walletTransactionCount: existing._count.walletTransactions,
+      };
     });
-
-    if (!existing) {
-      throw new NotFoundException('ไม่พบโครงการเงินอุดหนุนที่ต้องการแก้ไข');
-    }
-
-    const nextStartDate = dto.startDate
-      ? new Date(dto.startDate)
-      : existing.startDate;
-    const nextEndDate = dto.endDate ? new Date(dto.endDate) : existing.endDate;
-
-    if (nextStartDate > nextEndDate) {
-      throw new BadRequestException(
-        'วันเริ่มต้นโครงการต้องไม่มากกว่าวันสิ้นสุดโครงการ',
-      );
-    }
-
-    const nextSubsidyPercentage =
-      dto.subsidyPercentage ?? toNumber(existing.subsidyPercentage);
-    const nextUserPercentage = 100 - nextSubsidyPercentage;
-    const normalizedStatus =
-      dto.status !== undefined
-        ? dto.status === 'ACTIVE'
-          ? 'ACTIVE'
-          : 'INACTIVE'
-        : undefined;
-
-    const updated = await this.prisma.subsidyProgram.update({
-      where: { programId },
-      data: {
-        ...(dto.programName !== undefined
-          ? { programName: dto.programName.trim() }
-          : {}),
-        ...(dto.initialGrant !== undefined
-          ? { initialGrant: dto.initialGrant }
-          : {}),
-        ...(dto.subsidyPercentage !== undefined
-          ? {
-              subsidyPercentage: nextSubsidyPercentage,
-              userPercentage: nextUserPercentage,
-            }
-          : {}),
-        ...(dto.dailySubsidyLimit !== undefined
-          ? { dailySubsidyLimit: dto.dailySubsidyLimit }
-          : {}),
-        ...(dto.startDate !== undefined ? { startDate: nextStartDate } : {}),
-        ...(dto.endDate !== undefined ? { endDate: nextEndDate } : {}),
-        ...(normalizedStatus !== undefined ? { status: normalizedStatus } : {}),
-      },
-    });
-
     this.logger.log(
       JSON.stringify({
         event: 'ADMIN_SUBSIDY_PROGRAM_UPDATED',
@@ -781,7 +898,6 @@ export class AdminService {
         status: updated.status,
       }),
     );
-
     return {
       programId: updated.programId.toString(),
       programName: updated.programName,
@@ -789,12 +905,15 @@ export class AdminService {
       subsidyPercentage: toNumber(updated.subsidyPercentage),
       userPercentage: toNumber(updated.userPercentage),
       dailySubsidyLimit: toNumber(updated.dailySubsidyLimit),
-      currency: 'THB',
-      timezone: SOCIAL_IMPACT_DEFAULTS.REPORTING_TIMEZONE,
+      currency: PROGRAM_CURRENCIES[0],
+      timezone: PROGRAM_TIMEZONES[0],
       startDate: updated.startDate.toISOString(),
       endDate: updated.endDate.toISOString(),
       status: updated.status,
       createdAt: updated.createdAt.toISOString(),
+      walletCount: updated.walletCount,
+      orderCount: updated.orderCount,
+      walletTransactionCount: updated.walletTransactionCount,
     };
   }
 
@@ -1151,10 +1270,10 @@ export class AdminService {
         generationId: l.generationId.toString(),
         requestKey: l.requestKey,
         status: l.status,
-        provider: l.provider ?? 'GEMINI',
-        modelVersion: l.modelVersion ?? 'policy-fallback',
-        promptVersion: l.promptVersion ?? 'v1',
-        policyVersion: l.policyVersion ?? 'v1',
+        provider: l.provider,
+        modelVersion: l.modelVersion,
+        promptVersion: l.promptVersion,
+        policyVersion: l.policyVersion,
         selectionReason: l.selectionReason,
         reservedPoints: l.reservedPoints ?? l.quest?.rewardPoint ?? 0,
         generatedAt: l.generatedAt.toISOString(),
@@ -1180,6 +1299,27 @@ export class AdminService {
               durationDays: l.quest.durationDays,
             }
           : null,
+        proposal: l.quest
+          ? {
+              questId: l.quest.questId.toString(),
+              questName: l.quest.questName,
+              questType: l.quest.questType,
+              minSpend: l.quest.minSpend ? toNumber(l.quest.minSpend) : 0,
+              rewardPoint: l.quest.rewardPoint,
+              durationDays: l.quest.durationDays,
+            }
+          : null,
+        candidates: sanitizeQuestCandidates(l.candidates),
+        validationResult:
+          l.status === 'ASSIGNED' && l.assignment && l.quest
+            ? {
+                status: 'ACCEPTED',
+                evidence: 'ASSIGNED_QUEST_RULE',
+              }
+            : {
+                status: 'NOT_RECORDED',
+                evidence: 'NO_RECORDED_VALIDATION',
+              },
         assignment: l.assignment
           ? {
               userQuestId: l.assignment.userQuestId.toString(),
@@ -1204,6 +1344,8 @@ export class AdminService {
    * FR-A06: Reward Monitoring (Quests, Points, Coupons, Expiry)
    */
   async getRewardMonitoring() {
+    // Select the monitoring contract explicitly, including nested relations.
+    // Unrelated quest cancellation metadata must not become a read dependency.
     const [
       userQuests,
       pointTransactions,
@@ -1213,8 +1355,14 @@ export class AdminService {
     ] = await Promise.all([
       this.prisma.userQuest.findMany({
         take: 40,
-        orderBy: { assignedAt: 'desc' },
-        include: {
+        orderBy: [{ assignedAt: 'desc' }, { userQuestId: 'desc' }],
+        select: {
+          userQuestId: true,
+          status: true,
+          assignedAt: true,
+          expiresAt: true,
+          completedAt: true,
+          completedOrderId: true,
           user: {
             select: {
               userId: true,
@@ -1234,8 +1382,13 @@ export class AdminService {
       }),
       this.prisma.pointTransaction.findMany({
         take: 40,
-        orderBy: { createdAt: 'desc' },
-        include: {
+        orderBy: [{ createdAt: 'desc' }, { pointTransactionId: 'desc' }],
+        select: {
+          pointTransactionId: true,
+          transactionType: true,
+          points: true,
+          createdAt: true,
+          expiresAt: true,
           user: {
             select: {
               userId: true,
@@ -1243,14 +1396,14 @@ export class AdminService {
             },
           },
           userQuest: {
-            include: {
+            select: {
               quest: {
                 select: { questName: true },
               },
             },
           },
           userCoupon: {
-            include: {
+            select: {
               coupon: {
                 select: { couponName: true },
               },
@@ -1260,8 +1413,14 @@ export class AdminService {
       }),
       this.prisma.userCoupon.findMany({
         take: 40,
-        orderBy: { redeemedAt: 'desc' },
-        include: {
+        orderBy: [{ redeemedAt: 'desc' }, { userCouponId: 'desc' }],
+        select: {
+          userCouponId: true,
+          status: true,
+          redeemedAt: true,
+          expiresAt: true,
+          usedAt: true,
+          usedOrderId: true,
           user: {
             select: {
               userId: true,
@@ -1305,10 +1464,11 @@ export class AdminService {
     ).length;
     const questsExpired = allUserQuests.filter(
       (q) =>
-        q.status === 'EXPIRED' ||
-        (q.status !== 'COMPLETED' && q.expiresAt <= now),
+        q.status === 'EXPIRED' || (q.status === 'ACTIVE' && q.expiresAt <= now),
     ).length;
-    const questsActive = questsAssigned - questsCompleted - questsExpired;
+    const questsActive = allUserQuests.filter(
+      (q) => q.status === 'ACTIVE' && q.expiresAt > now,
+    ).length;
     const questCompletionRate =
       questsAssigned > 0
         ? Math.round((questsCompleted / questsAssigned) * 100)

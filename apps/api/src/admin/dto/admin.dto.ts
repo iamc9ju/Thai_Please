@@ -12,12 +12,21 @@ import {
 } from 'class-validator';
 import {
   ADMIN_ROLE_STATUSES,
+  MERCHANT_STATUSES,
+  type MerchantStatus,
+  PROGRAM_CURRENCIES,
   PROGRAM_STATUSES,
+  PROGRAM_TIMEZONES,
   type AdminRoleStatus,
   type ProgramStatus,
 } from '../admin.constants.js';
 
 export class MerchantStatusActionDto {
+  @IsOptional()
+  @IsString()
+  @IsIn(MERCHANT_STATUSES)
+  expectedStatus?: MerchantStatus;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -52,10 +61,20 @@ export class CreateSubsidyProgramDto {
   @Max(50_000)
   dailySubsidyLimit!: number;
 
-  @IsDateString()
+  @IsOptional()
+  @IsString()
+  @IsIn(PROGRAM_CURRENCIES)
+  currency?: (typeof PROGRAM_CURRENCIES)[number];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(PROGRAM_TIMEZONES)
+  timezone?: (typeof PROGRAM_TIMEZONES)[number];
+
+  @IsDateString({ strict: true })
   startDate!: string;
 
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate!: string;
 
   @IsOptional()
@@ -90,11 +109,21 @@ export class UpdateSubsidyProgramDto {
   dailySubsidyLimit?: number;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
+  @IsIn(PROGRAM_CURRENCIES)
+  currency?: (typeof PROGRAM_CURRENCIES)[number];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(PROGRAM_TIMEZONES)
+  timezone?: (typeof PROGRAM_TIMEZONES)[number];
+
+  @IsOptional()
+  @IsDateString({ strict: true })
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   endDate?: string;
 
   @IsOptional()

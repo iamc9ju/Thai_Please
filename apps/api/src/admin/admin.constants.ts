@@ -31,6 +31,12 @@ export const PROGRAM_STATUSES = [
 ] as const;
 export type ProgramStatus = (typeof PROGRAM_STATUSES)[number];
 
+// The schema intentionally stores one prototype currency and business calendar.
+// These constants expose that constraint without implying unsupported FX/timezone
+// conversion or mutable historical policy.
+export const PROGRAM_CURRENCIES = ['THB'] as const;
+export const PROGRAM_TIMEZONES = ['Asia/Bangkok'] as const;
+
 export const ADMIN_ROLE_STATUSES = ['ACTIVE', 'SUSPENDED'] as const;
 export type AdminRoleStatus = (typeof ADMIN_ROLE_STATUSES)[number];
 
@@ -42,4 +48,18 @@ export const SOCIAL_IMPACT_DEFAULTS = {
   MAX_TREND_DAYS: 30,
   TOP_MERCHANTS_LIMIT: 10,
   RECENT_LOGS_LIMIT: 50,
+} as const;
+
+export const ADMIN_OPERATION_ERRORS = {
+  merchantStatusChanged: 'ADMIN_MERCHANT_STATUS_CHANGED_CONFLICT',
+  programPolicyInUse: 'ADMIN_PROGRAM_POLICY_IN_USE',
+  programDatesInvalid: 'ADMIN_PROGRAM_DATES_INVALID',
+  programCurrencyUnsupported: 'ADMIN_PROGRAM_CURRENCY_UNSUPPORTED',
+  programTimezoneUnsupported: 'ADMIN_PROGRAM_TIMEZONE_UNSUPPORTED',
+} as const;
+export const QUEST_DIAGNOSTICS_LIMITS = {
+  candidates: 20,
+  titleLength: 150,
+  typeLength: 30,
+  minorUnitsPerBaht: 100,
 } as const;

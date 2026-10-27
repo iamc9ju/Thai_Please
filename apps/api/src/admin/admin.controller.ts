@@ -74,6 +74,7 @@ export class AdminController {
       'ACTIVE',
       adminId,
       dto?.reason,
+      dto?.expectedStatus,
     );
   }
 
@@ -90,6 +91,7 @@ export class AdminController {
       'REJECTED',
       adminId,
       dto?.reason,
+      dto?.expectedStatus,
     );
   }
 
@@ -106,6 +108,7 @@ export class AdminController {
       'SUSPENDED',
       adminId,
       dto?.reason,
+      dto?.expectedStatus,
     );
   }
 
@@ -122,6 +125,7 @@ export class AdminController {
       'ACTIVE',
       adminId,
       dto?.reason,
+      dto?.expectedStatus,
     );
   }
 
