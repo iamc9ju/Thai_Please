@@ -1,11 +1,14 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { th } from '../../../i18n/th';
 import {
   createOrder,
   createProduct,

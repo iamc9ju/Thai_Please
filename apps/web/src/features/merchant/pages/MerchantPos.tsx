@@ -1,5 +1,4 @@
-import { LoadingState } from '../../../components/LoadingState';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   CheckCircle2,
@@ -11,7 +10,6 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { th } from '../../../i18n/th';
-import { useLatestRequest } from '../../../lib/use-latest-request';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
 import type { ReceiptDetail } from '../../consumer/consumer.types';
 import {

@@ -94,6 +94,7 @@ export function MerchantWalletView() {
   const beginRequest = useLatestRequest();
   const loadWalletData = useCallback(
     async (monthValue = selectedMonth) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       const dateFilter = getMonthDateFilter(monthValue);
@@ -118,7 +119,7 @@ export function MerchantWalletView() {
         if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, selectedMonth],
+    [beginRequest, copy.errorTitle, selectedMonth],
   );
 
   useEffect(() => {
