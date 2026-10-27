@@ -1,3 +1,19 @@
+import {
+  MERCHANT_BUSINESS_TYPES,
+  type MerchantBusinessType,
+} from '@thai-please/contracts';
+
+const merchantBusinessTypeLabels: Record<MerchantBusinessType, string> = {
+  FOOD_BEVERAGE: 'ร้านอาหารและเครื่องดื่ม',
+  OTOP: 'ร้าน OTOP',
+  GENERAL_GOODS: 'ร้านค้าสินค้าทั่วไป',
+  COMMUNITY_ENTERPRISE: 'วิสาหกิจชุมชน',
+  VILLAGE_COMMUNITY_FUND: 'ร้านค้ากองทุนหมู่บ้านหรือชุมชนเมือง',
+  PUBLIC_TRANSPORT: 'ผู้ให้บริการขนส่งสาธารณะ',
+  SMALL_LEGAL_ENTITY: 'นิติบุคคลขนาดเล็กที่เข้าเกณฑ์',
+  OTHER: 'อื่น ๆ',
+};
+
 export const th = {
   app: {
     checkingSession: 'กำลังตรวจสอบข้อมูลผู้ใช้งาน...',
@@ -660,7 +676,7 @@ export const th = {
       password: 'รหัสผ่าน',
       confirmPassword: 'ยืนยันรหัสผ่าน',
       merchantName: 'ชื่อร้านค้า',
-      merchantType: 'ประเภทร้านค้า',
+      merchantTypes: 'ประเภทธุรกิจของร้านค้า',
       taxId: 'เลขประจำตัวผู้เสียภาษี (ถ้ามี)',
       merchantPhone: 'เบอร์โทรศัพท์ร้านค้า',
       merchantDescription: 'รายละเอียดร้านค้า',
@@ -668,21 +684,20 @@ export const th = {
     },
     placeholders: {
       selectTitle: 'เลือกคำนำหน้าชื่อ',
-      selectMerchantType: 'เลือกประเภทร้านค้า',
+      selectMerchantTypes: 'เลือกได้มากกว่าหนึ่งประเภท',
       citizenId: 'ตัวเลข 13 หลัก',
       phone: 'เช่น 0812345678',
       password: 'อย่างน้อย 8 ตัวอักษร',
       merchantDescription: 'อธิบายสินค้า บริการ หรือจุดเด่นของร้านโดยย่อ',
     },
     titles: ['นาย', 'นาง', 'นางสาว', 'ไม่ระบุ'],
-    merchantTypes: [
-      'อาหารและเครื่องดื่ม',
-      'ร้านขายของชำ',
-      'สินค้าเกษตรและชุมชน',
-      'เสื้อผ้าและของใช้',
-      'บริการทั่วไป',
-      'อื่น ๆ',
-    ],
+    merchantTypes: MERCHANT_BUSINESS_TYPES.map((value) => ({
+      value,
+      label: merchantBusinessTypeLabels[value],
+    })),
+    merchantTypesGroupLabel: 'ประเภทธุรกิจของร้านค้า',
+    merchantTypesSelected: (count: number) => `เลือกแล้ว ${count} ประเภท`,
+    removeMerchantType: (label: string) => `นำ ${label} ออก`,
     optional: 'ไม่บังคับ',
     passwordRules: {
       title: 'รหัสผ่านต้องประกอบด้วย',

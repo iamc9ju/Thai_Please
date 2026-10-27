@@ -36,12 +36,12 @@
 ## Authentication and Registration
 
 - [ ] **FR-AUTH-01 — Customer Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
-  - มี: API/UI ลงทะเบียน (`POST /api/v1/auth/register/customer`), Citizen ID และวันเกิด validation, password hashing (`scrypt`), สร้าง `CONSUMER` role, `CONSUMER` wallet พร้อม `SUBSIDY_GRANT` ledger และมอบหมายภารกิจเริ่มต้นอัตโนมัติ
+  - มี: API/UI ลงทะเบียน (`POST /api/v1/auth/register/customer`), Citizen ID และวันเกิด validation, password hashing (`scrypt`), ตรวจข้อมูลยืนยันตัวตนเดิมก่อนเพิ่มบทบาท, สร้าง `CONSUMER` role, `CONSUMER` wallet พร้อม `SUBSIDY_GRANT` ledger และมอบหมายภารกิจเริ่มต้นอัตโนมัติ
   - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
   - Gap API/Data: database integration ร่วมกับฐานข้อมูลสดสำหรับ rollback
 
 - [ ] **FR-AUTH-02 — Merchant Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
-  - มี: API/UI ลงทะเบียนร้าน (`POST /api/v1/auth/register/merchant`) รองรับทั้งผู้ใช้ใหม่และเพิ่มบทบาท `MERCHANT` ให้บัญชี `CONSUMER` เดิมโดยไม่สร้าง User ซ้ำ, สถานะเริ่มต้น `PENDING` และสร้าง `MERCHANT` wallet แยกต่างหาก
+  - มี: API/UI ลงทะเบียนร้าน (`POST /api/v1/auth/register/merchant`) รองรับทั้งผู้ใช้ใหม่และเพิ่มบทบาท `MERCHANT` ให้บัญชี `CONSUMER` เดิมโดยไม่สร้าง User ซ้ำ, ตรวจคำนำหน้าชื่อ ชื่อ นามสกุล และวันเกิดก่อนเพิ่มบทบาท, เลือกและบันทึกประเภทธุรกิจได้หลายประเภท, สถานะเริ่มต้น `PENDING` และสร้าง `MERCHANT` wallet แยกต่างหาก
   - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
   - Gap API/Data: database integration ร่วมกับฐานข้อมูลสด
 

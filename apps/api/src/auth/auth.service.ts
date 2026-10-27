@@ -17,6 +17,10 @@ import { PasswordService } from './password/password.service.js';
 import { parseValidBirthDate } from './birth-date.js';
 import { LoginRateLimiterService } from './login-rate-limiter.service.js';
 
+const IDENTITY_DATA_MISMATCH_CODE = 'IDENTITY_DATA_MISMATCH';
+const IDENTITY_DATA_MISMATCH_MESSAGE =
+  'ข้อมูลส่วนบุคคลไม่ตรงกับบัญชีที่ลงทะเบียนไว้ กรุณาตรวจสอบข้อมูลหรือติดต่อผู้ดูแลระบบ';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -29,6 +33,42 @@ export class AuthService {
 
   private hashJti(jti: string): string {
     return createHash('sha256').update(jti).digest('hex');
+  }
+
+  private normalizeIdentityText(value: string | null | undefined): string {
+    return (value ?? '').normalize('NFC').trim().replace(/\s+/gu, ' ');
+  }
+
+  private assertExistingIdentityMatches(
+    existingUser: {
+      title: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      dateOfBirth: Date | null;
+    },
+    registration: {
+      title: string;
+      firstName: string;
+      lastName: string;
+      birthDate: Date;
+    },
+  ): void {
+    const textMatches =
+      this.normalizeIdentityText(existingUser.title) ===
+        this.normalizeIdentityText(registration.title) &&
+      this.normalizeIdentityText(existingUser.firstName) ===
+        this.normalizeIdentityText(registration.firstName) &&
+      this.normalizeIdentityText(existingUser.lastName) ===
+        this.normalizeIdentityText(registration.lastName);
+    const birthDateMatches =
+      existingUser.dateOfBirth?.getTime() === registration.birthDate.getTime();
+
+    if (!textMatches || !birthDateMatches) {
+      throw new ConflictException({
+        code: IDENTITY_DATA_MISMATCH_CODE,
+        message: IDENTITY_DATA_MISMATCH_MESSAGE,
+      });
+    }
   }
 
   async login(dto: LoginDto, role: ActiveRole, clientIp?: string) {
@@ -153,6 +193,13 @@ export class AuthService {
           'ไม่สามารถเพิ่มบทบาทให้บัญชีเดิมได้ กรุณาตรวจสอบข้อมูลเข้าสู่ระบบ',
         );
       }
+
+      this.assertExistingIdentityMatches(existingUser, {
+        title: dto.title,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        birthDate,
+      });
     }
 
     const addressParts = [
@@ -307,6 +354,13 @@ export class AuthService {
           'ไม่สามารถเพิ่มบทบาทให้บัญชีเดิมได้ กรุณาตรวจสอบข้อมูลเข้าสู่ระบบ',
         );
       }
+
+      this.assertExistingIdentityMatches(existingUser, {
+        title: dto.title,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        birthDate,
+      });
     }
 
     const existingMerchant = await this.prisma.merchant.findFirst({
@@ -378,6 +432,7 @@ export class AuthService {
         data: {
           ownerUserId: user.userId,
           merchantName: dto.merchantName,
+          merchantTypes: dto.merchantTypes,
           description: dto.merchantDescription,
           address: merchantFullAddress,
           phone: dto.merchantPhone,
@@ -400,6 +455,7 @@ export class AuthService {
         success: true,
         merchantId: merchant.merchantId.toString(),
         merchantName: merchant.merchantName,
+        merchantTypes: merchant.merchantTypes,
       };
     });
   }

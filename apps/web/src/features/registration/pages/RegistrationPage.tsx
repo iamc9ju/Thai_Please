@@ -1,4 +1,8 @@
 import {
+  isMerchantBusinessType,
+  type MerchantBusinessType,
+} from '@thai-please/contracts';
+import {
   ArrowLeft,
   BadgeCheck,
   Building2,
@@ -16,6 +20,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { th } from '../../../i18n/th';
 import { registerConsumer, registerMerchant } from '../../auth/api/auth.api';
 import type { RegisterMerchantPayload } from '../../auth/auth.types';
+import { MerchantTypeMultiSelect } from '../components/MerchantTypeMultiSelect';
 import { RegistrationField as Field } from '../components/RegistrationField';
 import { RegistrationSection } from '../components/RegistrationSection';
 import {
@@ -54,6 +59,18 @@ function getFormCheckbox(formData: FormData, name: string): boolean {
   return value === 'on' || value === 'true';
 }
 
+function getFormTexts(formData: FormData, name: string): string[] {
+  return formData
+    .getAll(name)
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function getMerchantBusinessTypes(formData: FormData): MerchantBusinessType[] {
+  return getFormTexts(formData, 'merchantTypes').filter(isMerchantBusinessType);
+}
+
 export function RegistrationPage({
   initialRole,
   onBack,
@@ -63,6 +80,9 @@ export function RegistrationPage({
   const [isReadyForApi, setIsReadyForApi] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedMerchantTypes, setSelectedMerchantTypes] = useState<
+    MerchantBusinessType[]
+  >([]);
   const [registeredInfo, setRegisteredInfo] = useState<{
     fullName?: string;
     citizenId?: string;
@@ -77,6 +97,7 @@ export function RegistrationPage({
     setSubmitError(null);
     setIsReadyForApi(false);
     setRegisteredInfo(null);
+    setSelectedMerchantTypes([]);
   };
 
   const handleFormChange = (event: FormEvent<HTMLFormElement>) => {
@@ -118,6 +139,15 @@ export function RegistrationPage({
         if (field instanceof HTMLElement) {
           field.focus();
           field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          const fieldElement = formRef.current?.querySelector<HTMLElement>(
+            `#${firstInvalidField}`,
+          );
+          fieldElement?.focus();
+          fieldElement?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
         }
       });
       return;
@@ -158,7 +188,7 @@ export function RegistrationPage({
         const merchantPayload: RegisterMerchantPayload = {
           ...basePayload,
           merchantName: getFormText(formData, 'merchantName'),
-          merchantType: getFormText(formData, 'merchantType'),
+          merchantTypes: getMerchantBusinessTypes(formData),
           taxId: getFormText(formData, 'taxId') || undefined,
           merchantPhone: getFormText(formData, 'merchantPhone'),
           merchantDescription: getFormText(formData, 'merchantDescription'),
@@ -574,24 +604,22 @@ export function RegistrationPage({
                   />
                 </Field>
                 <Field
-                  error={errors.merchantType}
-                  label={th.registration.fields.merchantType}
-                  name="merchantType"
+                  error={errors.merchantTypes}
+                  label={th.registration.fields.merchantTypes}
+                  name="merchantTypes"
                 >
-                  <select
-                    {...getAccessibilityProps('merchantType', errors)}
-                    id="merchantType"
-                    name="merchantType"
-                  >
-                    <option value="">
-                      {th.registration.placeholders.selectMerchantType}
-                    </option>
-                    {th.registration.merchantTypes.map((merchantType) => (
-                      <option key={merchantType} value={merchantType}>
-                        {merchantType}
-                      </option>
-                    ))}
-                  </select>
+                  <MerchantTypeMultiSelect
+                    options={th.registration.merchantTypes}
+                    selectedValues={selectedMerchantTypes}
+                    placeholder={
+                      th.registration.placeholders.selectMerchantTypes
+                    }
+                    groupLabel={th.registration.merchantTypesGroupLabel}
+                    selectedCountText={th.registration.merchantTypesSelected}
+                    removeLabel={th.registration.removeMerchantType}
+                    hasError={Boolean(errors.merchantTypes)}
+                    onChange={setSelectedMerchantTypes}
+                  />
                 </Field>
                 <Field
                   label={th.registration.fields.taxId}
