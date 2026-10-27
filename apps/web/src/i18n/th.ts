@@ -418,14 +418,16 @@ export const th = {
       eyebrow: 'FR-C07',
       title: 'ภารกิจสำหรับคุณ',
       description:
-        'ภารกิจถูกมอบหมายอัตโนมัติ และต้องสำเร็จด้วยใบเสร็จหนึ่งรายการ',
+        'ภารกิจถูกมอบหมายอัตโนมัติ และต้องสำเร็จจากยอดสุทธิหลังส่วนลดในใบเสร็จหนึ่งรายการ',
       active: 'กำลังทำ',
       completed: 'สำเร็จแล้ว',
+      cancelled: 'ยกเลิกแล้ว',
+      legacyInactive: 'ดำเนินการต่อไม่ได้',
       tabsLabel: 'มุมมองภารกิจ',
       activeTab: 'กำลังทำ',
       historyTab: 'ประวัติภารกิจ',
       historyDescription:
-        'ภารกิจที่สำเร็จแล้วหรือหมดอายุ พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
+        'ภารกิจที่สำเร็จแล้ว หมดอายุ หรือยกเลิก พร้อมรางวัลและใบเสร็จที่ใช้ตรวจสอบ',
       receiptLabel: 'ใบเสร็จอ้างอิง',
       viewReceipt: 'ดูใบเสร็จ',
       emptyActive: 'ยังไม่มีภารกิจที่กำลังทำในขณะนี้',
@@ -435,6 +437,14 @@ export const th = {
       retry: 'ลองใหม่อีกครั้ง',
       permissionDenied: 'ไม่มีสิทธิ์เข้าถึงข้อมูลภารกิจ',
       expiredStatus: 'หมดอายุ',
+      cancelledPrefix: 'ยกเลิกเมื่อ',
+      cancelledReward: 'ไม่ได้รับรางวัล',
+      cancellationReasons: {
+        QUEST_TYPE_RETIRED_POLICY_V2: 'ยกเลิกภารกิจรูปแบบเดิมตามนโยบายระบบใหม่',
+        unknown: 'ยกเลิกภารกิจตามนโยบายระบบ',
+      },
+      legacyActiveExplanation:
+        'ภารกิจรูปแบบเดิมนี้กำลังถูกยกเลิกและไม่สามารถทำต่อได้',
       rewardPrefix: '+',
       pointsSuffix: 'พอยต์',
       expiryPrefix: 'หมดเขต',
@@ -445,9 +455,9 @@ export const th = {
       totalCompletedLabel: 'ภารกิจสำเร็จแล้ว',
       totalPointsEarnedLabel: 'พอยต์สะสมจากภารกิจ',
       spendMinSpendCondition: (amount: string) =>
-        `ซื้อสินค้าครบ ${amount} บาทในหนึ่งบิล`,
+        `ใช้จ่ายครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
       categorySpendCondition: (category: string, amount: string) =>
-        `ซื้อหมวด ${category} ครบ ${amount} บาทในหนึ่งบิล`,
+        `ซื้อสินค้าในหมวด ${category} ครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
       merchantSpendCondition: (merchant: string, amount: string) =>
         `ซื้อร้าน ${merchant} ครบ ${amount} บาทในหนึ่งบิล`,
       productPurchaseCondition: (product: string) =>

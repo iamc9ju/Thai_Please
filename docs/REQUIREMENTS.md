@@ -472,6 +472,10 @@ Receipt แสดง:
 - ไม่ต้องกดรับ
 - แสดงเงื่อนไข Reward สถานะ และวันหมดอายุ
 - ใช้ Order เดียวในการสำเร็จ
+- รองรับเควสใหม่เฉพาะ `MIN_SPEND` และ `CATEGORY_SPEND` ซื้อได้จากร้านที่เข้าร่วมใดก็ได้
+- ไม่สร้างเควสผูก `product_id`, ค้นชื่อสินค้า หรือบังคับ `merchant_id`
+- หมวดอ้างอิง `category_id` กลาง; ตรวจจาก category snapshot ของรายการในบิล
+- เควสสินค้า/ร้านที่ยัง ACTIVE จากรุ่นเก่าให้ยกเลิกเป็น `CANCELLED` พร้อมเวลาและเหตุผล `QUEST_TYPE_RETIRED_POLICY_V2`; ไม่แก้เงื่อนไขย้อนหลัง ไม่ลบประวัติหรือแต้มที่ออกแล้ว
 
 ### FR-C08 — Point
 
@@ -811,6 +815,8 @@ AI ทำหน้าที่เสนอ Quest เท่านั้น ไม
 ### FR-S03 — Output Validation
 
 AI Output ต้องผ่าน Schema, Rule Allow-list, Spend, Reward, Expiry, Category, Duplicate, Budget และ Policy Validation
+
+Allow-list สำหรับ generation policy v2 มีเฉพาะ `MIN_SPEND` และ `CATEGORY_SPEND` (สูงสุด 4 ตัวเลือกต่อประเภท รวม 8) ไม่ให้ AI เปลี่ยนเป็นกฎสินค้า/ร้านหรือสร้างคำค้นชื่อสินค้า
 
 ### FR-S04 — Generation Log
 

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseQuestPolicy } from './domain/quest-policy.js';
 import {
@@ -19,8 +20,6 @@ it('accepts zero-priced snapshot lines without dividing by zero', () => {
       },
     ],
     {
-      products: new Set(['1']),
-      merchants: new Set(['1']),
       categories: new Set(['1']),
     },
     [],
@@ -31,82 +30,57 @@ it('accepts zero-priced snapshot lines without dividing by zero', () => {
   expect(input.candidates).toEqual([]);
 });
 
-const policy = parseQuestPolicy({
-  version: 'quest-policy-v1',
-  candidates: {
-    types: [
-      'MIN_SPEND',
-      'CATEGORY_SPEND',
-      'PRODUCT_PURCHASE',
-      'MERCHANT_SPEND',
-    ],
-    historyDays: 30,
-    recentHistoryDays: 7,
-    minimumHistoryOrders: 3,
-    minimumTargetOrders: 2,
-    spendMultipliers: [
-      { numerator: 1, denominator: 1 },
-      { numerator: 3, denominator: 2 },
-    ],
-    spendBasis: {
-      MIN_SPEND: 'WHOLE_ORDER_AVERAGE',
-      CATEGORY_SPEND: 'TARGET_CATEGORY_AVERAGE',
-      MERCHANT_SPEND: 'TARGET_MERCHANT_AVERAGE',
-    },
-    currency: 'THB',
-    minorUnitsPerMajor: 100,
-    minimumSpendMinorUnits: 1,
-    maximumSpendMinorUnits: 100_000,
-    rounding: 'CEIL_MINOR_UNIT',
-    targetSelection: 'PREVIOUSLY_PURCHASED_ACTIVE_ONLY',
-    targetOrdering: 'FREQUENCY_DESC_LAST_PURCHASE_DESC_ID_ASC',
-    maximumPerType: 4,
-    maximumTotal: 16,
-    insufficientHistory: 'DEFER',
-  },
-  selection: {
-    scoreMinimum: 0,
-    scoreMaximum: 100,
-    criteria: 'PURCHASE_RELEVANCE_AND_ACHIEVABLE_CHALLENGE',
-    tieBreak: 'LOWER_SPEND_THEN_CANDIDATE_ID_ASC',
-    providerFailure: 'DEFER',
-    maximumAttemptsPerGeneration: 2,
-  },
-  assignment: {
-    maximumActivePerUser: 1,
-    maximumNewPerUserPerDay: 1,
-    scheduleTimezone: 'Asia/Bangkok',
-    dailyHour: 8,
-    dailyMinute: 0,
-    durationDays: 7,
-    duplicateCooldownDays: 7,
-    duplicateIdentity: 'TYPE_AND_TARGET',
-    cooldownStartsAt: 'COMPLETION_OR_EXPIRY',
-    nextQuest: 'NEXT_DAILY_RUN_AFTER_FINALIZATION',
-  },
-  rewards: {
-    pointsByType: {
-      MIN_SPEND: 20,
-      CATEGORY_SPEND: 20,
-      PRODUCT_PURCHASE: 20,
-      MERCHANT_SPEND: 20,
-    },
-    pointValidityDays: 90,
-    globalDailyReservationBudgetPoints: 2000,
-    globalOutstandingReservationBudgetPoints: 14000,
-    budgetExhausted: 'DEFER',
-    reserveAt: 'ASSIGNMENT',
-    releaseAt: 'EXPIRY_OR_REWARD_ISSUANCE',
-  },
-  completion: { maximumAssignmentsPerReceipt: 1 },
-});
+const policy = parseQuestPolicy(
+  JSON.parse(
+    readFileSync(
+      new URL('./config/quest-policy.json', import.meta.url),
+      'utf8',
+    ),
+  ) as unknown,
+);
+policy.candidates.minimumSpendMinorUnits = 1;
 
 const catalog: EligibleCatalog = {
-  merchants: new Set(['1', '2']),
-  products: new Set(['11', '12']),
   categories: new Set(['101', '102']),
 };
 const asOf = new Date('2026-10-16T00:00:00.000Z');
+
+it('generates only cross-store spend/category candidates and ignores cancelled cooldowns', () => {
+  const facts = [
+    receipt('1', 3, 100n, '1'),
+    receipt('2', 2, 100n, '2'),
+    receipt('3', 1, 100n, '1'),
+  ];
+  const input = buildQuestInput(
+    facts,
+    catalog,
+    [
+      {
+        type: 'CATEGORY_SPEND',
+        targetId: '101',
+        status: 'CANCELLED',
+        completedAt: null,
+        expiresAt: new Date('2099-01-01T00:00:00Z'),
+      },
+    ],
+    policy,
+    asOf,
+  );
+  expect(input.candidates.length).toBeGreaterThan(0);
+  expect(
+    input.candidates.every(
+      (c) => c.type === 'MIN_SPEND' || c.type === 'CATEGORY_SPEND',
+    ),
+  ).toBe(true);
+  expect(
+    input.candidates.some(
+      (c) => c.type === 'CATEGORY_SPEND' && c.targetId === '101',
+    ),
+  ).toBe(true);
+  expect(input.candidates.length).toBeLessThanOrEqual(8);
+  expect(input.summary).not.toHaveProperty('merchants');
+  expect(input.summary).not.toHaveProperty('products');
+});
 
 function receipt(
   id: string,
@@ -195,11 +169,6 @@ describe('buildQuestInput', () => {
         .filter((candidate) => candidate.targetId === '101')
         .map((candidate) => candidate.minimumSpendMinor),
     ).toContain('7501');
-    expect(
-      byType('MERCHANT_SPEND')
-        .filter((candidate) => candidate.targetId === '1')
-        .map((candidate) => candidate.minimumSpendMinor),
-    ).toContain('7501');
   });
 
   it('blocks an active duplicate and a completed duplicate during its cooldown', () => {
@@ -220,8 +189,8 @@ describe('buildQuestInput', () => {
           completedAt: null,
         },
         {
-          type: 'PRODUCT_PURCHASE',
-          targetId: '11',
+          type: 'MIN_SPEND',
+          targetId: null,
           status: 'COMPLETED',
           expiresAt: new Date('2026-10-10T00:00:00.000Z'),
           completedAt: new Date('2026-10-14T00:00:00.000Z'),
@@ -237,17 +206,12 @@ describe('buildQuestInput', () => {
       ),
     ).toBe(false);
     expect(
-      result.candidates.some(
-        (candidate) =>
-          candidate.type === 'PRODUCT_PURCHASE' && candidate.targetId === '11',
-      ),
+      result.candidates.some((candidate) => candidate.type === 'MIN_SPEND'),
     ).toBe(false);
   });
 
   it('limits candidates per type and overall after deterministic frequency ordering', () => {
     const broadCatalog: EligibleCatalog = {
-      merchants: new Set(['1', '2', '3']),
-      products: new Set(['11', '12', '13']),
       categories: new Set(['101', '102', '103']),
     };
     const facts = [

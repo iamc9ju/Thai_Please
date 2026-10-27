@@ -106,10 +106,12 @@ export type TopUpResponse = {
 export type ConsumerQuest = {
   id: string;
   questName?: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED';
+  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
   assignedAt: string;
   expiresAt: string;
   completedAt: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
   completedOrderId?: string | null;
   receiptNumber?: string | null;
   type: 'MIN_SPEND' | 'CATEGORY_SPEND' | 'MERCHANT_SPEND' | 'PRODUCT_PURCHASE';

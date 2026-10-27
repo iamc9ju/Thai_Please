@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { QUEST_PROMPT_VERSION } from './gemini.provider.js';
 import type { QuestPolicy } from './domain/quest-policy.js';
 import type {
   Candidate,
@@ -18,7 +19,6 @@ import {
   evaluateReceiptForQuests,
   type ActiveQuestAssignment,
   type QuestCompletionResult,
-  type QuestType,
   type ReceiptFact,
 } from './domain/quest-evaluation.js';
 
@@ -33,12 +33,9 @@ const TRANSACTION_OPTIONS = {
   timeout: 30_000,
 } as const;
 export const QUEST_PROVIDER = 'GEMINI';
-export const QUEST_PROMPT_VERSION = 'quest-ranking-v1';
 const QUEST_TITLES = {
   MIN_SPEND: 'ซื้อครบยอดในหนึ่งบิล',
   CATEGORY_SPEND: 'ซื้อหมวดที่กำหนดครบยอดในหนึ่งบิล',
-  PRODUCT_PURCHASE: 'ซื้อสินค้าที่กำหนดในหนึ่งบิล',
-  MERCHANT_SPEND: 'ซื้อร้านที่กำหนดครบยอดในหนึ่งบิล',
 } as const;
 type Tx = Prisma.TransactionClient;
 export type GenerationRun = {
@@ -133,21 +130,20 @@ export class QuestsRepository {
   }
 
   async catalog(tx: Tx = this.db): Promise<EligibleCatalog> {
-    const products = await tx.product.findMany({
+    const categories = await tx.productCategory.findMany({
       where: {
         status: 'ACTIVE',
-        merchant: { status: 'ACTIVE' },
-        category: { status: 'ACTIVE' },
+        products: {
+          some: { status: 'ACTIVE', merchant: { status: 'ACTIVE' } },
+        },
       },
-      select: { productId: true, merchantId: true, categoryId: true },
+      select: { categoryId: true },
       take: MAX_HISTORY_ORDERS + 1,
     });
-    if (products.length > MAX_HISTORY_ORDERS)
+    if (categories.length > MAX_HISTORY_ORDERS)
       throw new ConflictException('QUEST_CATALOG_LIMIT');
     return {
-      products: new Set(products.map((p) => String(p.productId))),
-      merchants: new Set(products.map((p) => String(p.merchantId))),
-      categories: new Set(products.map((p) => String(p.categoryId))),
+      categories: new Set(categories.map((p) => String(p.categoryId))),
     };
   }
 
@@ -362,6 +358,10 @@ export class QuestsRepository {
           (SELECT 1 FROM jsonb_array_elements(candidates) c WHERE c = ${JSON.stringify(candidate)}::jsonb)) AS snapshot_matches
         FROM quest_generation_logs WHERE request_key=${key}::uuid`;
       const limits = await this.limits(tx, run.user_id, now, policy, key);
+      const supported =
+        (candidate.type === 'MIN_SPEND' ||
+          candidate.type === 'CATEGORY_SPEND') &&
+        policy.candidates.types.includes(candidate.type);
       const eligible = await this.lockEligibleTarget(tx, candidate);
       const prior = await this.prior(run.user_id, tx);
       const duplicate = prior.some(
@@ -392,21 +392,23 @@ export class QuestsRepository {
           BigInt(policy.rewards.globalDailyReservationBudgetPoints) ||
           limits.outstanding + BigInt(candidate.rewardPoints) >
             BigInt(policy.rewards.globalOutstandingReservationBudgetPoints));
-      const reason = !lease?.valid
-        ? 'LEASE_EXPIRED'
-        : !lease.snapshot_matches
-          ? 'SNAPSHOT_MISMATCH'
-          : !user
-            ? 'CONSUMER_INACTIVE'
-            : !eligible
-              ? 'CATALOG_CHANGED'
-              : duplicate
-                ? 'DUPLICATE'
-                : typeof limits === 'string'
-                  ? limits
-                  : budgetExceeded
-                    ? 'BUDGET_LIMIT'
-                    : null;
+      const reason = !supported
+        ? 'QUEST_TYPE_RETIRED'
+        : !lease?.valid
+          ? 'LEASE_EXPIRED'
+          : !lease.snapshot_matches
+            ? 'SNAPSHOT_MISMATCH'
+            : !user
+              ? 'CONSUMER_INACTIVE'
+              : !eligible
+                ? 'CATALOG_CHANGED'
+                : duplicate
+                  ? 'DUPLICATE'
+                  : typeof limits === 'string'
+                    ? limits
+                    : budgetExceeded
+                      ? 'BUDGET_LIMIT'
+                      : null;
       if (reason) {
         await tx.$executeRaw`UPDATE quest_generation_logs SET status='DEFERRED',selection_reason=${reason},candidate_scores=${JSON.stringify(output)}::jsonb,finished_at=${now} WHERE request_key=${key}::uuid`;
       } else {
@@ -419,10 +421,8 @@ export class QuestsRepository {
             questType: candidate.type,
             targetCategoryId:
               candidate.type === 'CATEGORY_SPEND' ? target : null,
-            targetProductId:
-              candidate.type === 'PRODUCT_PURCHASE' ? target : null,
-            targetMerchantId:
-              candidate.type === 'MERCHANT_SPEND' ? target : null,
+            targetProductId: null,
+            targetMerchantId: null,
             minSpend:
               candidate.minimumSpendMinor === null
                 ? null
@@ -453,16 +453,15 @@ export class QuestsRepository {
   }
 
   private async lockEligibleTarget(tx: Tx, candidate: Candidate) {
-    if (candidate.type === 'MIN_SPEND') return true;
+    if (candidate.type === 'MIN_SPEND') return candidate.targetId === null;
+    if (candidate.type !== 'CATEGORY_SPEND') return false;
     if (candidate.targetId === null) return false;
     const target = BigInt(candidate.targetId);
     const rows = await tx.$queryRaw<{ product_id: bigint }[]>`
       SELECT p.product_id FROM products p JOIN merchants m ON m.merchant_id=p.merchant_id
       JOIN product_categories c ON c.category_id=p.category_id
       WHERE p.status='ACTIVE' AND m.status='ACTIVE' AND c.status='ACTIVE'
-        AND ((${candidate.type}='PRODUCT_PURCHASE' AND p.product_id=${target}) OR
-          (${candidate.type}='CATEGORY_SPEND' AND c.category_id=${target}) OR
-          (${candidate.type}='MERCHANT_SPEND' AND m.merchant_id=${target}))
+        AND c.category_id=${target}
       ORDER BY p.product_id LIMIT 1 FOR SHARE OF p,m,c`;
     return rows.length > 0;
   }
@@ -478,6 +477,8 @@ export class QuestsRepository {
         assignedAt: true,
         expiresAt: true,
         completedAt: true,
+        cancelledAt: true,
+        cancellationReason: true,
         completedOrderId: true,
         quest: {
           select: {
@@ -504,6 +505,8 @@ export class QuestsRepository {
       assignedAt: r.assignedAt.toISOString(),
       expiresAt: r.expiresAt.toISOString(),
       completedAt: r.completedAt?.toISOString() ?? null,
+      cancelledAt: r.cancelledAt?.toISOString() ?? null,
+      cancellationReason: r.cancellationReason,
       completedOrderId: r.completedOrderId?.toString() ?? null,
       receiptNumber: r.completedOrderId
         ? `TP-${r.completedOrderId.toString().padStart(6, '0')}`
@@ -569,6 +572,7 @@ export class QuestsRepository {
       where: {
         userId: order.userId,
         status: 'ACTIVE',
+        quest: { questType: { in: policy.candidates.types } },
         assignedAt: { lte: order.paidAt },
         expiresAt: { gt: order.paidAt },
       },
@@ -579,27 +583,33 @@ export class QuestsRepository {
 
     if (activeUserQuests.length === 0) return null;
 
-    const activeAssignments: ActiveQuestAssignment[] = activeUserQuests.map(
-      (uq) => ({
-        userQuestId: String(uq.userQuestId),
-        userId: String(uq.userId),
-        questId: String(uq.questId),
-        type: uq.quest.questType as QuestType,
-        targetCategoryId: uq.quest.targetCategoryId
-          ? String(uq.quest.targetCategoryId)
-          : null,
-        targetProductId: uq.quest.targetProductId
-          ? String(uq.quest.targetProductId)
-          : null,
-        targetMerchantId: uq.quest.targetMerchantId
-          ? String(uq.quest.targetMerchantId)
-          : null,
-        minimumSpendMinor:
-          uq.quest.minSpend === null ? null : minor(uq.quest.minSpend),
-        rewardPoints: uq.quest.rewardPoint,
-        assignedAt: uq.assignedAt,
-        expiresAt: uq.expiresAt,
-      }),
+    const activeAssignments: ActiveQuestAssignment[] = activeUserQuests.flatMap(
+      (uq) => {
+        const type = uq.quest.questType;
+        if (type !== 'MIN_SPEND' && type !== 'CATEGORY_SPEND') return [];
+        return [
+          {
+            userQuestId: String(uq.userQuestId),
+            userId: String(uq.userId),
+            questId: String(uq.questId),
+            type,
+            targetCategoryId: uq.quest.targetCategoryId
+              ? String(uq.quest.targetCategoryId)
+              : null,
+            targetProductId: uq.quest.targetProductId
+              ? String(uq.quest.targetProductId)
+              : null,
+            targetMerchantId: uq.quest.targetMerchantId
+              ? String(uq.quest.targetMerchantId)
+              : null,
+            minimumSpendMinor:
+              uq.quest.minSpend === null ? null : minor(uq.quest.minSpend),
+            rewardPoints: uq.quest.rewardPoint,
+            assignedAt: uq.assignedAt,
+            expiresAt: uq.expiresAt,
+          },
+        ];
+      },
     );
 
     const match = evaluateReceiptForQuests(receiptFact, activeAssignments);

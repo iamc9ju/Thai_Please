@@ -68,8 +68,6 @@ export class QuestsService {
     const summary = {
       ...input.summary,
       categories: input.summary.categories.filter((s) => targetIds.has(s.id)),
-      merchants: input.summary.merchants.filter((s) => targetIds.has(s.id)),
-      products: input.summary.products.filter((s) => targetIds.has(s.id)),
       questHistory: {
         active: history.prior.filter(
           (q) => q.status === 'ACTIVE' && q.expiresAt > asOf,
@@ -78,7 +76,10 @@ export class QuestsService {
           (q) => q.completedAt !== null && q.completedAt < asOf,
         ).length,
         expired: history.prior.filter(
-          (q) => q.completedAt === null && q.expiresAt <= asOf,
+          (q) =>
+            q.status !== 'CANCELLED' &&
+            q.completedAt === null &&
+            q.expiresAt <= asOf,
         ).length,
       },
     };

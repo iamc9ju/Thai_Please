@@ -79,7 +79,9 @@ describe('QuestsView (FR-C07)', () => {
     });
 
     expect(
-      screen.getByText(/ซื้อหมวด อาหารและเครื่องดื่ม ครบ 90.00 บาทในหนึ่งบิล/),
+      screen.getByText(
+        /ซื้อสินค้าในหมวด อาหารและเครื่องดื่ม ครบ 90.00 บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด/,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText('+20 พอยต์')).toBeInTheDocument();
     expect(
@@ -162,5 +164,95 @@ describe('QuestsView (FR-C07)', () => {
         screen.getByText(th.consumerPortal.quests.permissionDenied),
       ).toBeInTheDocument();
     });
+  });
+
+  it('shows a cancelled legacy quest in history with a safe policy explanation', async () => {
+    mockedGetConsumerQuests.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'legacy-cancelled',
+          questName: 'ซื้อร้านที่กำหนดครบยอดในหนึ่งบิล',
+          status: 'CANCELLED',
+          assignedAt: '2026-10-01T10:00:00.000Z',
+          expiresAt: '2026-10-08T10:00:00.000Z',
+          completedAt: null,
+          cancelledAt: '2026-10-02T10:00:00.000Z',
+          cancellationReason: 'QUEST_TYPE_RETIRED_POLICY_V2',
+          type: 'MERCHANT_SPEND',
+          targetCategoryId: null,
+          targetProductId: null,
+          targetMerchantId: 'merchant-1',
+          targetMerchantName: 'ร้านเดิม',
+          minimumSpendMinor: '10000',
+          rewardPoints: 50,
+        },
+      ],
+      nextCursor: null,
+    });
+
+    render(<QuestsView />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(th.consumerPortal.quests.emptyActive),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole('tab', {
+        name: new RegExp(th.consumerPortal.quests.historyTab),
+      }),
+    );
+
+    expect(
+      screen.getByText(th.consumerPortal.quests.cancelled),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        th.consumerPortal.quests.cancellationReasons
+          .QUEST_TYPE_RETIRED_POLICY_V2,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerPortal.quests.cancelledReward),
+    ).toBeInTheDocument();
+  });
+
+  it('does not present an active legacy quest as actionable', async () => {
+    mockedGetConsumerQuests.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'legacy-active',
+          questName: 'ซื้อสินค้าที่กำหนดในหนึ่งบิล',
+          status: 'ACTIVE',
+          assignedAt: '2026-10-01T10:00:00.000Z',
+          expiresAt: '2026-10-08T10:00:00.000Z',
+          completedAt: null,
+          type: 'PRODUCT_PURCHASE',
+          targetCategoryId: null,
+          targetProductId: 'product-1',
+          targetProductName: 'สินค้าเดิม',
+          targetMerchantId: 'merchant-1',
+          minimumSpendMinor: null,
+          rewardPoints: 50,
+        },
+      ],
+      nextCursor: null,
+    });
+
+    render(<QuestsView />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(th.consumerPortal.quests.legacyActiveExplanation),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(th.consumerPortal.quests.legacyInactive),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('ซื้อสินค้า สินค้าเดิม ในหนึ่งบิล'),
+    ).not.toBeInTheDocument();
   });
 });

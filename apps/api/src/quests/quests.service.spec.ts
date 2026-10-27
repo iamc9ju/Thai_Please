@@ -33,8 +33,6 @@ describe('quest generation orchestration', () => {
         ],
       })),
       catalog: {
-        merchants: new Set(['1']),
-        products: new Set(['1']),
         categories: new Set(['1']),
       },
       prior: [],
@@ -103,7 +101,7 @@ describe('quest generation orchestration', () => {
       );
     await f.service.generate(1n, 2n, f.run.request_key);
     expect(rank).toHaveBeenCalledTimes(2);
-    expect(f.finalize.mock.calls[0]?.[1].type).toBe('PRODUCT_PURCHASE');
+    expect(f.finalize.mock.calls[0]?.[1].type).toBe('CATEGORY_SPEND');
     expect(f.fail).not.toHaveBeenCalled();
   });
   it('does not retry invalid output or mint an assignment on failure', async () => {

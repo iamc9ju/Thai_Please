@@ -98,6 +98,8 @@ export function isQuestConditionSatisfied(
   quest: ActiveQuestAssignment,
   receipt: ReceiptFact,
 ): boolean {
+  if (quest.targetProductId !== null || quest.targetMerchantId !== null)
+    return false;
   if (receipt.paidAt < quest.assignedAt || receipt.paidAt >= quest.expiresAt) {
     return false;
   }
@@ -125,22 +127,10 @@ export function isQuestConditionSatisfied(
       return categorySpend >= quest.minimumSpendMinor;
     }
 
-    case 'MERCHANT_SPEND': {
-      if (quest.targetMerchantId === null || quest.minimumSpendMinor === null) {
-        return false;
-      }
-      if (receipt.merchantId !== quest.targetMerchantId) {
-        return false;
-      }
-      return receipt.finalMinor >= quest.minimumSpendMinor;
-    }
-
-    case 'PRODUCT_PURCHASE': {
-      if (quest.targetProductId === null) return false;
-      return receipt.items.some(
-        (item) => item.productId === quest.targetProductId && item.quantity > 0,
-      );
-    }
+    // Kept in historical contracts only; policy v2 never rewards retired types.
+    case 'MERCHANT_SPEND':
+    case 'PRODUCT_PURCHASE':
+      return false;
 
     default:
       return false;

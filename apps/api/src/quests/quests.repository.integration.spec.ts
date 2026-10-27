@@ -76,6 +76,37 @@ describe.skipIf(!enabled)(
         'utf8',
       );
       await admin.query(migration);
+      // Populate pre-v2 assignments before upgrading. Historical definitions stay intact.
+      await admin.query(`WITH q AS (
+        INSERT INTO quests(quest_name,quest_type,reward_point,duration_days,min_spend)
+        VALUES ('retire-product-active','PRODUCT_PURCHASE',20,7,NULL),
+          ('retire-merchant-active','MERCHANT_SPEND',20,7,90),
+          ('keep-product-completed','PRODUCT_PURCHASE',20,7,NULL),
+          ('keep-merchant-expired','MERCHANT_SPEND',20,7,90),
+          ('keep-product-stale-active','PRODUCT_PURCHASE',20,7,NULL),
+          ('keep-min-active','MIN_SPEND',20,7,90)
+        RETURNING quest_id,quest_name
+      ) INSERT INTO user_quests(user_id,quest_id,status,assigned_at,expires_at,completed_at)
+        SELECT (SELECT user_id FROM users WHERE citizen_id='0000000000099'),quest_id,
+          CASE WHEN quest_name='keep-product-completed' THEN 'COMPLETED'
+            WHEN quest_name='keep-merchant-expired' THEN 'EXPIRED' ELSE 'ACTIVE' END,
+          TIMESTAMP '2000-01-01',
+          CASE WHEN quest_name LIKE 'retire-%' THEN TIMESTAMP '2099-01-01' ELSE TIMESTAMP '2000-01-08' END,
+          CASE WHEN quest_name='keep-product-completed' THEN TIMESTAMP '2000-01-02' ELSE NULL END
+        FROM q`);
+      await admin.query(`INSERT INTO point_transactions(user_id,user_quest_id,transaction_type,points,expires_at,created_at)
+        SELECT uq.user_id,uq.user_quest_id,'QUEST_REWARD',20,TIMESTAMP '2099-01-01',TIMESTAMP '2000-01-02'
+        FROM user_quests uq JOIN quests q USING(quest_id) WHERE q.quest_name='keep-product-completed';
+        UPDATE users SET point_balance=20 WHERE citizen_id='0000000000099'`);
+      await admin.query(
+        readFileSync(
+          new URL(
+            '../../prisma/migrations/20261027090000_retire_product_merchant_quests/migration.sql',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
       const isolated = new URL(connectionString);
       isolated.searchParams.set('schema', schema);
       isolated.searchParams.set(
@@ -131,6 +162,187 @@ describe.skipIf(!enabled)(
       });
     }
 
+    it('cancels only active retired quests and preserves completed history and points', async () => {
+      const rows = await db.$queryRaw<
+        {
+          quest_name: string;
+          status: string;
+          cancellation_reason: string | null;
+          cancelled_at: Date | null;
+          completed_at: Date | null;
+        }[]
+      >`
+        SELECT q.quest_name,uq.status,uq.cancellation_reason,uq.cancelled_at,uq.completed_at
+        FROM user_quests uq JOIN quests q USING(quest_id) ORDER BY q.quest_name`;
+      const cancelled = rows.filter((r) => r.status === 'CANCELLED');
+      expect(cancelled).toHaveLength(2);
+      expect(
+        cancelled.every(
+          (r) =>
+            r.cancellation_reason === 'QUEST_TYPE_RETIRED_POLICY_V2' &&
+            r.cancelled_at !== null,
+        ),
+      ).toBe(true);
+      expect(
+        rows.find((r) => r.quest_name === 'keep-product-completed')?.status,
+      ).toBe('COMPLETED');
+      expect(
+        rows.find((r) => r.quest_name === 'keep-product-completed')
+          ?.completed_at,
+      ).not.toBeNull();
+      expect(
+        rows.find((r) => r.quest_name === 'keep-merchant-expired')?.status,
+      ).toBe('EXPIRED');
+      expect(
+        rows.find((r) => r.quest_name === 'keep-product-stale-active')?.status,
+      ).toBe('ACTIVE');
+      expect(
+        rows.find((r) => r.quest_name === 'keep-product-stale-active')
+          ?.cancelled_at,
+      ).toBeNull();
+      expect(rows.find((r) => r.quest_name === 'keep-min-active')?.status).toBe(
+        'ACTIVE',
+      );
+      const legacy = await db.user.findUnique({
+        where: { citizenId: '0000000000099' },
+        select: { pointBalance: true },
+      });
+      expect(legacy?.pointBalance).toBe(20);
+      expect(await db.pointTransaction.count()).toBe(1);
+      await expect(
+        db.userQuest.updateMany({
+          where: { status: 'CANCELLED' },
+          data: { cancelledAt: null, cancellationReason: null },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        db.quest.create({
+          data: {
+            questName: 'Rejected',
+            questType: 'PRODUCT_PURCHASE',
+            rewardPoint: 20,
+            durationDays: 7,
+          },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        db.quest.create({
+          data: {
+            questName: 'Rejected merchant',
+            questType: 'MERCHANT_SPEND',
+            minSpend: 90,
+            rewardPoint: 20,
+            durationDays: 7,
+          },
+        }),
+      ).rejects.toThrow();
+    });
+    it('completes a category quest at another shop and rewards concurrent retries once', async () => {
+      const consumer = await db.user.create({
+        data: {
+          citizenId: '0000000000007',
+          fullName: 'Cross-store fixture',
+          passwordHash: 'not-a-login-hash',
+        },
+      });
+      const category = await db.productCategory.create({
+        data: { categoryName: 'Shared category fixture' },
+      });
+      const shopA = await db.merchant.create({
+        data: {
+          ownerUserId: actorId,
+          merchantName: 'Cross-store A',
+          status: 'ACTIVE',
+        },
+      });
+      const shopB = await db.merchant.create({
+        data: {
+          ownerUserId: actorId,
+          merchantName: 'Cross-store B',
+          status: 'ACTIVE',
+        },
+      });
+      const productA = await db.product.create({
+        data: {
+          merchantId: shopA.merchantId,
+          categoryId: category.categoryId,
+          productName: 'A item',
+          price: '100',
+        },
+      });
+      const productB = await db.product.create({
+        data: {
+          merchantId: shopB.merchantId,
+          categoryId: category.categoryId,
+          productName: 'B item',
+          price: '100',
+        },
+      });
+      expect(productA.productId).not.toBe(productB.productId);
+      const quest = await db.quest.create({
+        data: {
+          questName: 'Cross-store category',
+          questType: 'CATEGORY_SPEND',
+          targetCategoryId: category.categoryId,
+          minSpend: '90',
+          rewardPoint: 20,
+          durationDays: 7,
+        },
+      });
+      const assignment = await db.userQuest.create({
+        data: {
+          userId: consumer.userId,
+          questId: quest.questId,
+          assignedAt: new Date(now.getTime() - 86400000),
+          expiresAt: new Date(now.getTime() + 86400000),
+        },
+      });
+      // Paid receipt facts are seeded here; this verifies completion transactions, not payment.
+      const receipt = await db.order.create({
+        data: {
+          userId: consumer.userId,
+          merchantId: shopB.merchantId,
+          status: 'PAID',
+          paidAt: now,
+          subtotal: '100',
+          discountAmount: '10',
+          finalAmount: '90',
+          userPaidAmount: '90',
+        },
+      });
+      await db.orderItem.create({
+        data: {
+          orderId: receipt.orderId,
+          productId: productB.productId,
+          categoryId: category.categoryId,
+          productNameSnapshot: 'B item snapshot',
+          unitPrice: '100',
+          quantity: 1,
+          lineTotal: '100',
+        },
+      });
+      const results = await Promise.all([
+        repository.evaluateAndCompleteOrder(receipt.orderId, policy),
+        repository.evaluateAndCompleteOrder(receipt.orderId, policy),
+      ]);
+      expect(results.filter((r) => r !== null)).toHaveLength(1);
+      expect(
+        await db.pointTransaction.count({
+          where: { userQuestId: assignment.userQuestId },
+        }),
+      ).toBe(1);
+      expect(
+        (await db.user.findUnique({ where: { userId: consumer.userId } }))
+          ?.pointBalance,
+      ).toBe(20);
+      expect(
+        (
+          await db.userQuest.findUnique({
+            where: { userQuestId: assignment.userQuestId },
+          })
+        )?.completedOrderId,
+      ).toBe(receipt.orderId);
+    });
     it('preserves legacy audit facts and uses only the existing log table', async () => {
       const rows = await db.$queryRaw<
         {
@@ -182,7 +394,7 @@ describe.skipIf(!enabled)(
       await expect(
         repository.finalize(key, candidate, {}, policy, now),
       ).rejects.toThrow('QUEST_GENERATION_NOT_PENDING');
-      expect(await db.userQuest.count()).toBe(1);
+      expect(await db.userQuest.count({ where: { userId } })).toBe(1);
       expect(await repository.list(actorId, now)).toEqual([]);
       const listed = await repository.list(userId, now);
       expect(listed[0]?.minimumSpendMinor).toBe('9000');
@@ -349,7 +561,7 @@ describe.skipIf(!enabled)(
         true,
       );
       const productCandidate = input.candidates.find(
-        (c) => c.type === 'PRODUCT_PURCHASE',
+        (c) => c.type === 'CATEGORY_SPEND',
       );
       if (!productCandidate) throw new Error('Missing fixture candidate');
       const key = randomUUID();
@@ -372,7 +584,9 @@ describe.skipIf(!enabled)(
         data: { status: 'INACTIVE' },
       });
       expect(
-        (await repository.catalog()).products.has(String(product.productId)),
+        (await repository.catalog()).categories.has(
+          String(category.categoryId),
+        ),
       ).toBe(false);
       expect(
         (await repository.finalize(key, productCandidate, {}, policy, now))

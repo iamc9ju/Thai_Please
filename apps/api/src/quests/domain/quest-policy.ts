@@ -11,12 +11,7 @@ export const QUEST_COMPLETION_INVARIANTS = {
   rewardMode: 'TRANSACTIONAL_EXACTLY_ONCE',
 } as const;
 
-export const QuestTypeSchema = z.enum([
-  'MIN_SPEND',
-  'CATEGORY_SPEND',
-  'PRODUCT_PURCHASE',
-  'MERCHANT_SPEND',
-]);
+export const QuestTypeSchema = z.enum(['MIN_SPEND', 'CATEGORY_SPEND']);
 const positiveInteger = z
   .number()
   .int()
@@ -25,8 +20,6 @@ const positiveInteger = z
 const pointMap = z.strictObject({
   MIN_SPEND: positiveInteger,
   CATEGORY_SPEND: positiveInteger,
-  PRODUCT_PURCHASE: positiveInteger,
-  MERCHANT_SPEND: positiveInteger,
 });
 
 export const QuestPolicySchema = z
@@ -36,7 +29,7 @@ export const QuestPolicySchema = z
       types: z
         .array(QuestTypeSchema)
         .min(1)
-        .max(4)
+        .max(2)
         .refine(
           (types) => new Set(types).size === types.length,
           'Duplicate quest types',
@@ -56,7 +49,6 @@ export const QuestPolicySchema = z
       spendBasis: z.strictObject({
         MIN_SPEND: z.literal('WHOLE_ORDER_AVERAGE'),
         CATEGORY_SPEND: z.literal('TARGET_CATEGORY_AVERAGE'),
-        MERCHANT_SPEND: z.literal('TARGET_MERCHANT_AVERAGE'),
       }),
       currency: z.literal('THB'),
       minorUnitsPerMajor: z.literal(100),

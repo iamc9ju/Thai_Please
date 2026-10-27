@@ -126,6 +126,38 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('CATEGORY_SPEND Evaluation', () => {
+    it('does not reinterpret a legacy category quest that had a merchant binding', () => {
+      const quest = createQuest({
+        type: 'CATEGORY_SPEND',
+        targetCategoryId: '1',
+        targetMerchantId: '10',
+        minimumSpendMinor: 1000n,
+      });
+      expect(isQuestConditionSatisfied(quest, createReceipt())).toBe(false);
+    });
+    it('accepts the same category from different shops and product IDs', () => {
+      const quest = createQuest({
+        type: 'CATEGORY_SPEND',
+        targetCategoryId: '1',
+        minimumSpendMinor: 5000n,
+      });
+      for (const merchantId of ['10', '99']) {
+        const receipt = createReceipt({
+          merchantId,
+          finalMinor: 9000n,
+          items: [
+            {
+              id: '1',
+              productId: merchantId === '10' ? '201' : '999',
+              categoryId: '1',
+              lineMinor: 10000n,
+              quantity: 1,
+            },
+          ],
+        });
+        expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      }
+    });
     it('satisfies quest when net category spend meets threshold', () => {
       const quest = createQuest({
         type: 'CATEGORY_SPEND',
@@ -161,14 +193,14 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('MERCHANT_SPEND Evaluation', () => {
-    it('satisfies quest when merchant matches and spend meets threshold', () => {
+    it('rejects retired merchant quests even when the merchant matches', () => {
       const quest = createQuest({
         type: 'MERCHANT_SPEND',
         targetMerchantId: '10',
         minimumSpendMinor: 8000n,
       });
       const receipt = createReceipt({ merchantId: '10', finalMinor: 8000n });
-      expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      expect(isQuestConditionSatisfied(quest, receipt)).toBe(false);
     });
 
     it('fails when merchant does not match even if spend is enough', () => {
@@ -183,13 +215,13 @@ describe('Quest Evaluation (FR-S06)', () => {
   });
 
   describe('PRODUCT_PURCHASE Evaluation', () => {
-    it('satisfies quest when targeted product is purchased with quantity >= 1', () => {
+    it('rejects retired product quests even when the product matches', () => {
       const quest = createQuest({
         type: 'PRODUCT_PURCHASE',
         targetProductId: '201',
       });
       const receipt = createReceipt();
-      expect(isQuestConditionSatisfied(quest, receipt)).toBe(true);
+      expect(isQuestConditionSatisfied(quest, receipt)).toBe(false);
     });
 
     it('fails when targeted product is not in the receipt', () => {

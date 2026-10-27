@@ -53,6 +53,21 @@ function geminiResponse(rankings: unknown): Response {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('GeminiQuestProvider', () => {
+  it.each(['PRODUCT_PURCHASE', 'MERCHANT_SPEND'])(
+    'rejects retired candidate %s before making a network call',
+    async (type) => {
+      const input = structuredClone(candidates);
+      const first = input[0];
+      if (!first) throw new Error('Missing fixture');
+      Reflect.set(first, 'type', type);
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(provider().rank({}, input)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
   it('uses Gemini structured JSON and returns rankings with exact candidate coverage', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       geminiResponse([

@@ -1,7 +1,6 @@
 import type { QuestPolicy } from './domain/quest-policy.js';
 
-export type QuestCandidateType =
-  'MIN_SPEND' | 'CATEGORY_SPEND' | 'PRODUCT_PURCHASE' | 'MERCHANT_SPEND';
+export type QuestCandidateType = 'MIN_SPEND' | 'CATEGORY_SPEND';
 
 /** A completed receipt represented without ORM or transport concerns. */
 export interface PurchaseFact {
@@ -20,8 +19,6 @@ export interface PurchaseFact {
 }
 
 export interface EligibleCatalog {
-  readonly merchants: ReadonlySet<string>;
-  readonly products: ReadonlySet<string>;
   readonly categories: ReadonlySet<string>;
 }
 
@@ -58,8 +55,6 @@ export interface PurchaseSummary {
   totalSpendMinor: string;
   averageOrderMinor: string | null;
   categories: readonly TargetPurchaseSummary[];
-  merchants: readonly TargetPurchaseSummary[];
-  products: readonly TargetPurchaseSummary[];
 }
 
 export interface QuestInput {
@@ -121,18 +116,9 @@ function buildSummary(
   total: bigint,
 ): PurchaseSummary {
   const categories = new Map<string, Aggregate>();
-  const merchants = new Map<string, Aggregate>();
-  const products = new Map<string, Aggregate>();
   for (const receipt of receipts) {
-    addAggregate(
-      merchants,
-      receipt.merchantId,
-      receipt.finalMinor,
-      receipt.paidAt,
-    );
     const allocated = allocateNetAcrossItems(receipt);
     const perCategory = new Map<string, bigint>();
-    const perProduct = new Map<string, bigint>();
     for (const item of receipt.items) {
       const amount = allocated.get(item.id);
       if (amount === undefined) throw new Error('Missing allocated order item');
@@ -140,15 +126,9 @@ function buildSummary(
         item.categoryId,
         (perCategory.get(item.categoryId) ?? 0n) + amount,
       );
-      perProduct.set(
-        item.productId,
-        (perProduct.get(item.productId) ?? 0n) + amount,
-      );
     }
     for (const [id, amount] of perCategory)
       addAggregate(categories, id, amount, receipt.paidAt);
-    for (const [id, amount] of perProduct)
-      addAggregate(products, id, amount, receipt.paidAt);
   }
   return {
     asOf: asOf.toISOString(),
@@ -161,8 +141,6 @@ function buildSummary(
         ? null
         : (total / BigInt(receipts.length)).toString(),
     categories: serializeAggregates(categories),
-    merchants: serializeAggregates(merchants),
-    products: serializeAggregates(products),
   };
 }
 
@@ -185,7 +163,7 @@ function buildCandidates(
     }
   }
 
-  const categoryStats = targetStats(receipts, 'category');
+  const categoryStats = targetStats(receipts);
   if (policy.candidates.types.includes('CATEGORY_SPEND')) {
     for (const stat of sortedEligible(
       categoryStats,
@@ -202,61 +180,18 @@ function buildCandidates(
     }
   }
 
-  if (policy.candidates.types.includes('PRODUCT_PURCHASE')) {
-    for (const stat of sortedEligible(
-      targetStats(receipts, 'product'),
-      catalog.products,
-      policy,
-    )) {
-      append({
-        id: candidateId('PRODUCT_PURCHASE', stat.id, null),
-        type: 'PRODUCT_PURCHASE',
-        targetId: stat.id,
-        minimumSpendMinor: null,
-        rewardPoints: policy.rewards.pointsByType.PRODUCT_PURCHASE,
-        durationDays: policy.assignment.durationDays,
-      });
-    }
-  }
-
-  if (policy.candidates.types.includes('MERCHANT_SPEND')) {
-    for (const stat of sortedEligible(
-      targetStats(receipts, 'merchant'),
-      catalog.merchants,
-      policy,
-    )) {
-      for (const amount of spendAmounts(
-        stat.total,
-        BigInt(stat.orderCount),
-        policy,
-      )) {
-        append(spendCandidate('MERCHANT_SPEND', stat.id, amount, policy));
-      }
-    }
-  }
-
   return capCandidates(output, policy);
 }
 
 function targetStats(
   receipts: readonly PurchaseFact[],
-  kind: 'category' | 'product' | 'merchant',
 ): Map<string, Aggregate> {
   const stats = new Map<string, Aggregate>();
   for (const receipt of receipts) {
-    if (kind === 'merchant') {
-      addAggregate(
-        stats,
-        receipt.merchantId,
-        receipt.finalMinor,
-        receipt.paidAt,
-      );
-      continue;
-    }
     const allocation = allocateNetAcrossItems(receipt);
     const perTarget = new Map<string, bigint>();
     for (const item of receipt.items) {
-      const key = kind === 'category' ? item.categoryId : item.productId;
+      const key = item.categoryId;
       const amount = allocation.get(item.id);
       if (amount === undefined) throw new Error('Missing allocated order item');
       perTarget.set(key, (perTarget.get(key) ?? 0n) + amount);
@@ -288,7 +223,7 @@ function sortedEligible(
 }
 
 function spendCandidate(
-  type: Exclude<QuestCandidateType, 'PRODUCT_PURCHASE'>,
+  type: QuestCandidateType,
   targetId: string | null,
   amount: bigint,
   policy: QuestPolicy,
@@ -354,6 +289,7 @@ function buildBlockedKeys(
 ): ReadonlySet<string> {
   const blocked = new Set<string>();
   for (const quest of prior) {
+    if (quest.status === 'CANCELLED') continue;
     if (!isSupportedType(quest.type)) continue;
     assertValidDate(quest.expiresAt, 'prior expiry');
     if (quest.completedAt !== null)
@@ -461,12 +397,7 @@ function identity(type: string, targetId: string | null): string {
   return `${type}:${targetId ?? 'ALL'}`;
 }
 function isSupportedType(type: string): type is QuestCandidateType {
-  return [
-    'MIN_SPEND',
-    'CATEGORY_SPEND',
-    'PRODUCT_PURCHASE',
-    'MERCHANT_SPEND',
-  ].includes(type);
+  return ['MIN_SPEND', 'CATEGORY_SPEND'].includes(type);
 }
 function ceilDivide(numerator: bigint, denominator: bigint): bigint {
   return (numerator + denominator - 1n) / denominator;

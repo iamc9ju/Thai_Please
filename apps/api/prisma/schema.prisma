@@ -274,6 +274,8 @@ model UserQuest {
   expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamp(6)
   completedOrderId BigInt?   @map("completed_order_id")
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancellationReason String? @map("cancellation_reason") @db.VarChar(80)
 
   pointTransactions PointTransaction[]
   generationLog     QuestGenerationLog?

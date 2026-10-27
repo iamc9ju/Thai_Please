@@ -16,9 +16,21 @@ function fixture() {
 }
 
 describe('FR-C07 / FR-S03 quest policy', () => {
+  it.each(['PRODUCT_PURCHASE', 'MERCHANT_SPEND'])(
+    'rejects the retired type %s',
+    (type) => {
+      const policy = fixture();
+      expect(() =>
+        parseQuestPolicy({
+          ...policy,
+          candidates: { ...policy.candidates, types: [type] },
+        }),
+      ).toThrow();
+    },
+  );
   it('loads the committed versioned policy with exact rational multipliers', () => {
     const policy = fixture();
-    expect(policy.version).toBe('quest-policy-v1');
+    expect(policy.version).toBe('quest-policy-v2');
     expect(policy.candidates.spendMultipliers).toEqual([
       { numerator: 1, denominator: 1 },
       { numerator: 3, denominator: 2 },
