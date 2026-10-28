@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   CalendarDays,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { getConsumerOrders } from '../api/consumer.api';
 import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
@@ -52,21 +54,28 @@ export function OrdersView() {
     null,
   );
 
+  const beginRequest = useLatestRequest();
   const fetchOrders = useCallback(async () => {
+    const { signal, isCurrent } = beginRequest();
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getConsumerOrders({
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-      });
+      const data = await getConsumerOrders(
+        {
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+        },
+        signal,
+      );
+      if (!isCurrent()) return;
       setOrders(data);
     } catch (err) {
+      if (!isCurrent()) return;
       setError(err instanceof Error ? err.message : copy.error);
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [dateFrom, dateTo, copy.error]);
+  }, [beginRequest, dateFrom, dateTo, copy.error]);
 
   useEffect(() => {
     void fetchOrders();
@@ -335,14 +344,7 @@ export function OrdersView() {
 
       {/* Orders List Section */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-24 rounded-3xl bg-white border border-slate-200/80 p-5 shadow-sm animate-pulse"
-            />
-          ))}
-        </div>
+        <LoadingState label={copy.loading} />
       ) : error ? (
         <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
           <p className="text-sm font-semibold text-red-700 mb-2">{error}</p>

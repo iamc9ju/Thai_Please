@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   allocateNetAcrossItems,
+  allocatePersonalAcrossItems,
   evaluateReceiptForQuests,
   isQuestConditionSatisfied,
   type ActiveQuestAssignment,
@@ -52,6 +53,52 @@ describe('Quest Evaluation (FR-S06)', () => {
     assignedAt,
     expiresAt,
     ...overrides,
+  });
+
+  it('personal quests exclude subsidy and fail closed when contribution is missing', () => {
+    const quest = createQuest({
+      spendBasis: 'PERSONAL_AFTER_DISCOUNT',
+      minimumSpendMinor: 6000n,
+    });
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 5000n })),
+    ).toBe(false);
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 6000n })),
+    ).toBe(true);
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 0n })),
+    ).toBe(false);
+    expect(isQuestConditionSatisfied(quest, createReceipt())).toBe(false);
+  });
+
+  it('personal category quests allocate only the personal part, not the entire bill', () => {
+    const quest = createQuest({
+      spendBasis: 'PERSONAL_AFTER_DISCOUNT',
+      type: 'CATEGORY_SPEND',
+      targetCategoryId: '1',
+      minimumSpendMinor: 4000n,
+    });
+    expect(
+      isQuestConditionSatisfied(quest, createReceipt({ personalMinor: 5000n })),
+    ).toBe(false);
+    expect(
+      isQuestConditionSatisfied(
+        { ...quest, minimumSpendMinor: 3000n },
+        createReceipt({ personalMinor: 5000n }),
+      ),
+    ).toBe(true);
+  });
+
+  it('personal allocation conserves satang after discount and uses deterministic tie-breaks', () => {
+    const items = createReceipt().items;
+    const shares = allocatePersonalAcrossItems(items, 8001n, 5001n);
+    expect([...shares.values()].reduce((sum, value) => sum + value, 0n)).toBe(
+      5001n,
+    );
+    expect(shares.get('1')).toBe(3001n);
+    expect(shares.get('2')).toBe(2000n);
+    expect(() => allocatePersonalAcrossItems(items, 8001n, 9000n)).toThrow();
   });
 
   describe('allocateNetAcrossItems', () => {

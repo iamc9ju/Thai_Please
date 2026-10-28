@@ -1,3 +1,19 @@
+import {
+  MERCHANT_BUSINESS_TYPES,
+  type MerchantBusinessType,
+} from '@thai-please/contracts';
+
+const merchantBusinessTypeLabels: Record<MerchantBusinessType, string> = {
+  FOOD_BEVERAGE: 'ร้านอาหารและเครื่องดื่ม',
+  OTOP: 'ร้าน OTOP',
+  GENERAL_GOODS: 'ร้านค้าสินค้าทั่วไป',
+  COMMUNITY_ENTERPRISE: 'วิสาหกิจชุมชน',
+  VILLAGE_COMMUNITY_FUND: 'ร้านค้ากองทุนหมู่บ้านหรือชุมชนเมือง',
+  PUBLIC_TRANSPORT: 'ผู้ให้บริการขนส่งสาธารณะ',
+  SMALL_LEGAL_ENTITY: 'นิติบุคคลขนาดเล็กที่เข้าเกณฑ์',
+  OTHER: 'อื่น ๆ',
+};
+
 export const th = {
   app: {
     checkingSession: 'กำลังตรวจสอบข้อมูลผู้ใช้งาน...',
@@ -418,7 +434,7 @@ export const th = {
       eyebrow: 'FR-C07',
       title: 'ภารกิจสำหรับคุณ',
       description:
-        'ภารกิจถูกมอบหมายอัตโนมัติ และต้องสำเร็จจากยอดสุทธิหลังส่วนลดในใบเสร็จหนึ่งรายการ',
+        'เลือกหนึ่งภารกิจสำหรับคุณ แล้วทำให้สำเร็จด้วยเงินส่วนตัวหลังส่วนลดในใบเสร็จหนึ่งรายการ',
       active: 'กำลังทำ',
       completed: 'สำเร็จแล้ว',
       cancelled: 'ยกเลิกแล้ว',
@@ -456,6 +472,31 @@ export const th = {
       totalPointsEarnedLabel: 'พอยต์สะสมจากภารกิจ',
       spendMinSpendCondition: (amount: string) =>
         `ใช้จ่ายครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
+      personalSpendCondition: (amount: string) =>
+        `จ่ายด้วยเงินส่วนตัวครบ ${amount} บาทในหนึ่งบิลหลังหักส่วนลด ไม่รวมเงินรัฐช่วย ใช้ได้ทุกร้านที่ร่วมรายการ`,
+      personalCategoryCondition: (category: string, amount: string) =>
+        `จ่ายด้วยเงินส่วนตัวในหมวด ${category} ครบ ${amount} บาทในหนึ่งบิลหลังหักส่วนลด ไม่รวมเงินรัฐช่วย ใช้ได้ทุกร้านที่ร่วมรายการ`,
+      proposals: {
+        title: 'เลือกภารกิจสำหรับรอบนี้',
+        description:
+          'เลือกได้หนึ่งข้อจากข้อเสนอที่พร้อมใช้ เริ่มนับอายุภารกิจเมื่อเลือกสำเร็จ',
+        loading: 'กำลังตรวจสอบข้อเสนอภารกิจ...',
+        generating: 'กำลังเตรียมข้อเสนอภารกิจ คุณสามารถกลับมาตรวจสอบภายหลังได้',
+        select: 'เลือกภารกิจนี้',
+        selecting: 'กำลังเลือกภารกิจ...',
+        selected: 'เลือกภารกิจสำเร็จแล้ว',
+        duration: (days: number) => `ทำภายใน ${days} วันหลังเลือก`,
+        expiry: (date: string) => `เลือกจากชุดนี้ได้ถึง ${date}`,
+        nextRound: (date: string) => `รับภารกิจรอบใหม่ได้วันที่ ${date}`,
+        active: 'คุณมีภารกิจที่กำลังทำอยู่ ดูรายละเอียดด้านล่าง',
+        error: 'ยังไม่สามารถเตรียมข้อเสนอภารกิจได้ กรุณาลองใหม่ภายหลัง',
+        selectError: 'ยังเลือกภารกิจไม่สำเร็จ กรุณาตรวจสอบสถานะและลองใหม่',
+        waiting: 'ข้อเสนอยังไม่พร้อม กรุณากลับมาตรวจสอบอีกครั้ง',
+        refresh: 'ตรวจสอบอีกครั้ง',
+        retry: 'ลองสร้างข้อเสนออีกครั้ง',
+        expired: 'ชุดข้อเสนอนี้หมดอายุแล้ว กรุณาตรวจสอบข้อเสนอใหม่',
+        permissionDenied: 'ไม่มีสิทธิ์เข้าถึงข้อเสนอภารกิจ',
+      },
       categorySpendCondition: (category: string, amount: string) =>
         `ซื้อสินค้าในหมวด ${category} ครบ ${amount} บาท จากร้านค้าที่ร่วมรายการร้านใดก็ได้ ในหนึ่งบิลหลังหักส่วนลด`,
       merchantSpendCondition: (merchant: string, amount: string) =>
@@ -511,7 +552,7 @@ export const th = {
         },
       ],
       ruleNote:
-        'ระบบตรวจจากยอดสุทธิหลังส่วนลด และไม่รวมยอดจากหลายใบเสร็จเข้าด้วยกัน',
+        'ภารกิจใหม่ตรวจจากเงินส่วนตัวหลังส่วนลด ไม่รวมเงินรัฐช่วย และไม่รวมยอดหลายใบเสร็จ ภารกิจในประวัติใช้กฎของรอบนั้น',
     },
     rewards: {
       eyebrow: 'FR-C08 · FR-C09',
@@ -588,11 +629,16 @@ export const th = {
       name: 'ชื่อ–นามสกุล',
       citizenId: 'เลขประจำตัวประชาชน',
       phone: 'เบอร์โทรศัพท์',
-      phoneValue: '08X-XXX-4567',
+      loading: 'กำลังโหลดข้อมูลส่วนตัว...',
+      loadError: 'ไม่สามารถโหลดข้อมูลส่วนตัวได้ กรุณาลองใหม่',
+      permissionDenied: 'กรุณาเข้าสู่ระบบด้วยบัญชีประชาชนเพื่อดูข้อมูลส่วนตัว',
+      retry: 'ลองใหม่',
+      notProvided: 'ยังไม่ได้ระบุ',
+      settingsUnavailable:
+        'การเปลี่ยนรหัสผ่านและเอกสารนโยบายยังไม่เปิดให้ใช้งาน',
       role: 'บทบาทที่กำลังใช้งาน',
       roleValue: 'ประชาชน (CONSUMER)',
       address: 'ที่อยู่ตามทะเบียนบ้าน',
-      addressValue: 'เขตบางรัก กรุงเทพมหานคร 10500',
       security: 'ความปลอดภัยและความเป็นส่วนตัว',
       changePassword: 'เปลี่ยนรหัสผ่าน',
       privacy: 'นโยบายความเป็นส่วนตัว',
@@ -670,7 +716,7 @@ export const th = {
       password: 'รหัสผ่าน',
       confirmPassword: 'ยืนยันรหัสผ่าน',
       merchantName: 'ชื่อร้านค้า',
-      merchantType: 'ประเภทร้านค้า',
+      merchantTypes: 'ประเภทธุรกิจของร้านค้า',
       taxId: 'เลขประจำตัวผู้เสียภาษี (ถ้ามี)',
       merchantPhone: 'เบอร์โทรศัพท์ร้านค้า',
       merchantDescription: 'รายละเอียดร้านค้า',
@@ -678,21 +724,20 @@ export const th = {
     },
     placeholders: {
       selectTitle: 'เลือกคำนำหน้าชื่อ',
-      selectMerchantType: 'เลือกประเภทร้านค้า',
+      selectMerchantTypes: 'เลือกได้มากกว่าหนึ่งประเภท',
       citizenId: 'ตัวเลข 13 หลัก',
       phone: 'เช่น 0812345678',
       password: 'อย่างน้อย 8 ตัวอักษร',
       merchantDescription: 'อธิบายสินค้า บริการ หรือจุดเด่นของร้านโดยย่อ',
     },
     titles: ['นาย', 'นาง', 'นางสาว', 'ไม่ระบุ'],
-    merchantTypes: [
-      'อาหารและเครื่องดื่ม',
-      'ร้านขายของชำ',
-      'สินค้าเกษตรและชุมชน',
-      'เสื้อผ้าและของใช้',
-      'บริการทั่วไป',
-      'อื่น ๆ',
-    ],
+    merchantTypes: MERCHANT_BUSINESS_TYPES.map((value) => ({
+      value,
+      label: merchantBusinessTypeLabels[value],
+    })),
+    merchantTypesGroupLabel: 'ประเภทธุรกิจของร้านค้า',
+    merchantTypesSelected: (count: number) => `เลือกแล้ว ${count} ประเภท`,
+    removeMerchantType: (label: string) => `นำ ${label} ออก`,
     optional: 'ไม่บังคับ',
     passwordRules: {
       title: 'รหัสผ่านต้องประกอบด้วย',
@@ -823,6 +868,10 @@ export const th = {
   },
   merchantPortal: {
     brandSubtitle: 'ระบบจัดการร้านค้าชุมชน · ไทยช่วยไทยพรีส',
+    orders: {
+      loading: 'กำลังโหลดประวัติคำสั่งซื้อ...',
+      loadError: 'ไม่สามารถโหลดประวัติ Order ได้',
+    },
     logout: 'ออกจากระบบ',
     nav: {
       pos: 'ขายหน้าร้าน (POS)',
@@ -832,6 +881,7 @@ export const th = {
       dashboard: 'แดชบอร์ดยอดขาย',
     },
     pos: {
+      loading: 'กำลังโหลดข้อมูลสินค้า...',
       manageProductsToggle: 'จัดการสินค้า',
       exitManageProducts: 'เสร็จสิ้นการจัดการ',
       addProductButton: 'เพิ่มสินค้า',
@@ -1003,6 +1053,24 @@ export const th = {
         'กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลที่มีสิทธิ์ หรือสอบถามผู้ดูแลโครงการ',
       defaultName: 'ผู้ดูแลระบบกลาง',
     },
+    questAudit: {
+      proposals: 'ข้อเสนอที่ผ่านการตรวจ',
+      personalTarget: 'ยอดเงินส่วนตัว (บาท)',
+      allCategories: 'ทุกหมวด',
+      category: 'หมวด',
+      validation: 'ผลตรวจข้อเสนอ',
+      call: 'ครั้งที่',
+      accepted: 'ผ่านสะสม',
+      noRejections: 'ไม่มีข้อที่ถูกปฏิเสธ',
+    },
+    questProposalStatus: {
+      PENDING: 'รับคำขอสร้างข้อเสนอแล้ว ผู้ใช้เลือกเควสได้เมื่อประมวลผลเสร็จ',
+      READY: 'มีข้อเสนอพร้อมแล้ว ให้ผู้ใช้เข้าหน้าเควสเพื่อเลือกหนึ่งข้อ',
+      COOLDOWN: 'ยังไม่ถึงรอบรับข้อเสนอใหม่ หรือมีเควสกำลังทำอยู่',
+      ELIGIBLE: 'ผู้ใช้มีสิทธิ์ขอข้อเสนอเควส',
+      FAILED:
+        'ยังสร้างข้อเสนอไม่ได้ โปรดตรวจสถานะและลองใหม่เมื่อถึงเวลาที่กำหนด',
+    },
     brandSubtitle:
       'ระบบบริหารจัดการกลางและติดตามผลกระทบทางสังคม (Admin Portal)',
     roleBadge: 'ผู้ดูแลระบบ (ADMIN)',
@@ -1085,11 +1153,11 @@ export const th = {
       title:
         'สั่งการ AI สร้างภารกิจและตรวจสอบบันทึก (Quest Generation & Audit Log)',
       description:
-        'เลือกผู้บริโภคเพื่อสั่ง AI สร้างภารกิจอัตโนมัติตามพฤติกรรมการซื้อ พร้อมตรวจสอบ Provider, Model Version, Policy Validation และ Generation Log',
+        'เลือกผู้บริโภคเพื่อสร้างข้อเสนอภารกิจตามพฤติกรรมการซื้อ ผู้ใช้เลือกหนึ่งข้อก่อนเริ่มทำ พร้อมตรวจสอบบันทึกการสร้าง',
       generateCardTitle:
         'สั่ง AI สร้างภารกิจให้ผู้บริโภค (Trigger Quest Generation)',
       selectConsumerLabel: 'เลือกผู้บริโภคเป้าหมาย',
-      generateBtn: 'สั่ง AI สร้างและมอบหมายภารกิจทันที',
+      generateBtn: 'สั่ง AI สร้างข้อเสนอให้ผู้ใช้เลือก',
       generatingBtn: 'กำลังประมวลผลและตรวจสอบด้วย Policy Engine...',
       logsTitle: 'บันทึกการสร้างภารกิจ (Quest Generation Logs — FR-S04)',
       emptyLogs: 'ยังไม่มีประวัติการสร้างภารกิจในระบบ',

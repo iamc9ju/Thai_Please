@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Award,
@@ -11,6 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { getMerchantDashboard } from '../api/merchant.api';
 import type { MerchantDashboardData } from '../merchant.types';
 
@@ -27,22 +29,26 @@ export function MerchantDashboardView() {
       currency: 'THB',
     }).format(n);
 
+  const beginRequest = useLatestRequest();
   const loadDashboard = useCallback(
     async (selectedDays = days) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
         const result = await getMerchantDashboard(selectedDays);
+        if (!isCurrent()) return;
         setData(result);
       } catch (caughtError: unknown) {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error ? caughtError.message : copy.errorTitle,
         );
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, days],
+    [beginRequest, copy.errorTitle, days],
   );
 
   useEffect(() => {
@@ -50,12 +56,7 @@ export function MerchantDashboardView() {
   }, [days, loadDashboard]);
 
   if (isLoading && !data) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
-        <div className="size-9 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-        <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-      </div>
-    );
+    return <LoadingState label={copy.loading} />;
   }
 
   if (error && !data) {

@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   CalendarDays,
   Coins,
@@ -388,9 +389,7 @@ export function WalletView() {
           title={copy.title}
           description={copy.description}
         />
-        <div className="portal-card order-empty-state" role="status">
-          <p>{copy.loading}</p>
-        </div>
+        <LoadingState label={copy.loading} />
       </section>
     );
   }
@@ -627,13 +626,7 @@ export function WalletView() {
           </div>
         </div>
         {historyState.status === 'loading' && (
-          <div
-            aria-live="polite"
-            className="wallet-history-empty"
-            role="status"
-          >
-            <p>{copy.historyLoading}</p>
-          </div>
+          <LoadingState label={copy.historyLoading} />
         )}
         {historyState.status === 'permission-denied' && (
           <div className="wallet-history-empty" role="alert">

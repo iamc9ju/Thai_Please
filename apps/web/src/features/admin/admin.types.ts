@@ -1,3 +1,5 @@
+import type { MerchantBusinessType } from '@thai-please/contracts';
+
 export type MerchantStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
 export type AdminRoleStatus = 'ACTIVE' | 'SUSPENDED';
 export type ProgramStatus = 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'ARCHIVED';
@@ -62,6 +64,7 @@ export interface AdminMerchantItem {
   merchantType?: string | null;
   merchantId: string;
   merchantName: string;
+  merchantTypes: MerchantBusinessType[];
   description: string | null;
   address: string | null;
   phone: string | null;
@@ -178,6 +181,16 @@ export interface QuestGenerationLogItem {
   validationResult?: {
     status: 'ACCEPTED' | 'NOT_RECORDED';
     evidence: 'ASSIGNED_QUEST_RULE' | 'NO_RECORDED_VALIDATION';
+  };
+  proposals?: {
+    id: string;
+    type: 'MIN_SPEND' | 'CATEGORY_SPEND';
+    targetId: string | null;
+    minimumSpendMinor: string;
+  }[];
+  validation?: {
+    attempts: { call: number; acceptedCount: number; rejections: string[] }[];
+    rejections: string[];
   };
   generationId: string;
   requestKey: string | null;

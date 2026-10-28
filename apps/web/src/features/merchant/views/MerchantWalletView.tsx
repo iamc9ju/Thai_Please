@@ -1,8 +1,10 @@
+import { LoadingState } from '../../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowRightLeft,
   ArrowUpRight,
+  CalendarRange,
   CheckCircle2,
   Eye,
   FileText,
@@ -12,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
 import type { ReceiptDetail } from '../../consumer/consumer.types';
 import {
@@ -33,6 +36,21 @@ function createIdempotencyKey(): string {
   return `mwithdraw-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function getMonthDateFilter(monthValue: string): {
+  dateFrom?: string;
+  dateTo?: string;
+} {
+  if (!monthValue) return {};
+
+  const year = Number(monthValue.slice(0, 4));
+  const month = Number(monthValue.slice(5, 7));
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    dateFrom: `${monthValue}-01`,
+    dateTo: `${monthValue}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
 export function MerchantWalletView() {
   const copy = th.merchantPortal.wallet;
   const [overview, setOverview] = useState<MerchantWalletOverview | null>(null);
@@ -47,8 +65,7 @@ export function MerchantWalletView() {
   const [activeTab, setActiveTab] = useState<'orderIncomes' | 'ledger'>(
     'orderIncomes',
   );
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   // Withdrawal state
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -74,31 +91,35 @@ export function MerchantWalletView() {
       currency: 'THB',
     }).format(n);
 
+  const beginRequest = useLatestRequest();
   const loadWalletData = useCallback(
-    async (filterFrom = dateFrom, filterTo = dateTo) => {
+    async (monthValue = selectedMonth) => {
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
+      const dateFilter = getMonthDateFilter(monthValue);
       try {
         const [walletOverview, txPage] = await Promise.all([
-          getMerchantWalletOverview(),
+          getMerchantWalletOverview(dateFilter),
           getMerchantWalletTransactions({
-            ...(filterFrom ? { dateFrom: filterFrom } : {}),
-            ...(filterTo ? { dateTo: filterTo } : {}),
+            ...dateFilter,
             limit: 20,
           }),
         ]);
+        if (!isCurrent()) return;
         setOverview(walletOverview);
         setLedgerItems(txPage.items);
         setNextCursor(txPage.nextCursor);
       } catch (caughtError: unknown) {
+        if (!isCurrent()) return;
         setError(
           caughtError instanceof Error ? caughtError.message : copy.errorTitle,
         );
       } finally {
-        setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, dateFrom, dateTo],
+    [beginRequest, copy.errorTitle, selectedMonth],
   );
 
   useEffect(() => {
@@ -110,8 +131,7 @@ export function MerchantWalletView() {
     setIsLoadingMore(true);
     try {
       const page = await getMerchantWalletTransactions({
-        ...(dateFrom ? { dateFrom } : {}),
-        ...(dateTo ? { dateTo } : {}),
+        ...getMonthDateFilter(selectedMonth),
         cursor: nextCursor,
         limit: 20,
       });
@@ -192,12 +212,7 @@ export function MerchantWalletView() {
   };
 
   if (isLoading && !overview) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
-        <div className="size-9 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-        <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-      </div>
-    );
+    return <LoadingState label={copy.loading} />;
   }
 
   if (error && !overview) {
@@ -221,34 +236,34 @@ export function MerchantWalletView() {
 
   return (
     <div className="space-y-6">
-      {/* Blue Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#003d82] via-[#0056b3] to-[#0073e6] p-6 text-white shadow-lg shadow-blue-900/15">
-        <div className="pointer-events-none absolute -right-12 -top-12 size-56 rounded-full bg-white/10 blur-3xl" />
+      {/* Wallet overview */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 text-slate-900 shadow-sm">
+        <div className="pointer-events-none absolute -right-12 -top-12 size-56 rounded-full bg-blue-100/70 blur-3xl" />
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-blue-100 backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0056b3]">
               <Wallet className="size-3.5" />
               {copy.eyebrow}
             </span>
             <h2 className="mt-2 text-2xl font-extrabold tracking-tight">
               {copy.title}
             </h2>
-            <p className="mt-1 max-w-2xl text-xs text-blue-100/90 leading-relaxed">
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
               {copy.description}
             </p>
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
               <div>
-                <p className="text-xs font-medium text-blue-100">
+                <p className="text-xs font-medium text-slate-500">
                   {copy.balanceLabel}
                 </p>
                 <p
                   data-testid="merchant-wallet-balance"
-                  className="mt-0.5 text-3xl font-black tracking-tight text-white font-mono"
+                  className="mt-0.5 font-mono text-3xl font-black tracking-tight text-[#003d82]"
                 >
                   {formatCurrency(wallet.merchantBalance)}
                 </p>
               </div>
-              <span className="rounded-xl bg-emerald-400/20 px-2.5 py-1 text-xs font-bold text-emerald-200 border border-emerald-300/30">
+              <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                 {wallet.paidOrderCount} {copy.paidOrdersUnit}
               </span>
             </div>
@@ -258,7 +273,7 @@ export function MerchantWalletView() {
             <button
               type="button"
               onClick={() => void loadWalletData()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors backdrop-blur-sm cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-[#0056b3] transition-colors hover:bg-blue-100"
             >
               <RefreshCw className="size-3.5" />
               {copy.refresh}
@@ -268,35 +283,35 @@ export function MerchantWalletView() {
 
         {/* Summary KPI Strip */}
         <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm border border-white/15">
-            <p className="text-[11px] font-medium text-blue-100">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5">
+            <p className="text-[11px] font-medium text-slate-500">
               {copy.totalSalesIncome}
             </p>
-            <p className="mt-1 text-lg font-extrabold text-white font-mono">
+            <p className="mt-1 font-mono text-lg font-extrabold text-[#003d82]">
               {formatCurrency(wallet.totalSalesIncome)}
             </p>
           </div>
-          <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm border border-white/15">
-            <p className="text-[11px] font-medium text-blue-100">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5">
+            <p className="text-[11px] font-medium text-slate-500">
               {copy.subsidyPortion}
             </p>
-            <p className="mt-1 text-lg font-extrabold text-sky-200 font-mono">
+            <p className="mt-1 font-mono text-lg font-extrabold text-sky-700">
               {formatCurrency(wallet.totalSubsidyPortion)}
             </p>
           </div>
-          <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm border border-white/15">
-            <p className="text-[11px] font-medium text-blue-100">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5">
+            <p className="text-[11px] font-medium text-slate-500">
               {copy.personalPortion}
             </p>
-            <p className="mt-1 text-lg font-extrabold text-emerald-200 font-mono">
+            <p className="mt-1 font-mono text-lg font-extrabold text-emerald-700">
               {formatCurrency(wallet.totalPersonalPortion)}
             </p>
           </div>
-          <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm border border-white/15">
-            <p className="text-[11px] font-medium text-blue-100">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-3.5">
+            <p className="text-[11px] font-medium text-slate-500">
               {copy.totalWithdrawn}
             </p>
-            <p className="mt-1 text-lg font-extrabold text-amber-200 font-mono">
+            <p className="mt-1 font-mono text-lg font-extrabold text-amber-700">
               {formatCurrency(wallet.totalWithdrawn)}
             </p>
           </div>
@@ -509,44 +524,28 @@ export function MerchantWalletView() {
             </button>
           </div>
 
-          {activeTab === 'ledger' && (
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 focus-within:border-[#0056b3] focus-within:bg-white">
+              <CalendarRange className="size-4 text-[#0056b3]" />
+              <span>เดือนที่แสดง</span>
               <input
-                type="date"
-                aria-label={copy.ledger.dateFrom}
-                value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
-                  void loadWalletData(e.target.value, dateTo);
-                }}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-[#0056b3] focus:outline-none"
+                type="month"
+                aria-label="เดือนที่แสดงในกระเป๋าร้านค้า"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-800 outline-none"
               />
-              <span className="text-xs text-slate-400">–</span>
-              <input
-                type="date"
-                aria-label={copy.ledger.dateTo}
-                value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
-                  void loadWalletData(dateFrom, e.target.value);
-                }}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 focus:border-[#0056b3] focus:outline-none"
-              />
-              {(dateFrom || dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDateFrom('');
-                    setDateTo('');
-                    void loadWalletData('', '');
-                  }}
-                  className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 cursor-pointer"
-                >
-                  {copy.ledger.clearFilter}
-                </button>
-              )}
-            </div>
-          )}
+            </label>
+            {selectedMonth && (
+              <button
+                type="button"
+                onClick={() => setSelectedMonth('')}
+                className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 cursor-pointer"
+              >
+                ทุกเดือน
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab 1: Order Incomes */}

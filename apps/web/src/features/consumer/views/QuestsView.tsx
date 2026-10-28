@@ -1,3 +1,4 @@
+import { LoadingState } from '../../../components/LoadingState';
 import {
   Award,
   CheckCircle2,
@@ -15,6 +16,7 @@ import { ApiError } from '../../../lib/api-client';
 import { getConsumerQuests, getOrderReceipt } from '../api/consumer.api';
 import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
+import { QuestProposalsPanel } from '../components/QuestProposalsPanel';
 import type {
   ConsumerQuest,
   ConsumerQuestLoadState,
@@ -46,6 +48,14 @@ function formatBahtMinor(minorString: string | null): string {
 function getQuestDescription(quest: ConsumerQuest): string {
   const copy = th.consumerPortal.quests;
   const amount = formatBahtMinor(quest.minimumSpendMinor);
+  if (quest.amountBasis === 'PERSONAL_AFTER_DISCOUNT') {
+    return quest.type === 'CATEGORY_SPEND'
+      ? copy.personalCategoryCondition(
+          quest.targetCategoryName ?? quest.targetCategoryId ?? '',
+          amount,
+        )
+      : copy.personalSpendCondition(amount);
+  }
   switch (quest.type) {
     case 'CATEGORY_SPEND':
       return copy.categorySpendCondition(
@@ -130,6 +140,15 @@ export function QuestsView() {
     }
   };
 
+  const refreshAfterSelection = async () => {
+    try {
+      const data = await getConsumerQuests();
+      setLoadState({ status: 'success', data });
+    } catch (error: unknown) {
+      applyQuestError(error);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     let isCurrent = true;
@@ -160,14 +179,7 @@ export function QuestsView() {
           title={copy.title}
           description={copy.description}
         />
-        <div
-          aria-live="polite"
-          className="flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm"
-          role="status"
-        >
-          <div className="mb-3 inline-block size-8 animate-spin rounded-full border-3 border-solid border-[#0056b3] border-r-transparent" />
-          <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-        </div>
+        <LoadingState label={copy.loading} />
       </section>
     );
   }
@@ -291,6 +303,8 @@ export function QuestsView() {
       </div>
 
       {/* Tabs */}
+      <QuestProposalsPanel onSelected={refreshAfterSelection} />
+
       <div
         className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-xs w-fit"
         aria-label={copy.tabsLabel}

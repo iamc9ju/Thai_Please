@@ -66,61 +66,7 @@ async function seed() {
     }
   }
 
-  // 3. Seed Sample Quests (Multiple Tiers)
-  const foodCategory = await prisma.productCategory.findUnique({
-    where: { categoryName: 'อาหารและเครื่องดื่ม' },
-  });
-  const dailyGoodsCategory = await prisma.productCategory.findUnique({
-    where: { categoryName: 'สินค้าอุปโภคบริโภค' },
-  });
-
-  const sampleQuests = [
-    {
-      questName: 'เริ่มต้นใช้จ่ายร้านค้าชุมชน',
-      description:
-        'ชำระเงินที่ร้านค้าใดก็ได้ครบ 50 บาทในหนึ่งบิล หลังหักส่วนลด',
-      questType: 'MIN_SPEND',
-      targetCategoryId: null,
-      minSpend: 50.0,
-      rewardPoint: 30,
-      durationDays: 14,
-      generatedBy: 'AI',
-    },
-    {
-      questName: 'อุดหนุนร้านอาหารชุมชน',
-      description:
-        'ซื้อหมวดอาหารและเครื่องดื่มครบ 100 บาทในหนึ่งบิล หลังหักส่วนลด',
-      questType: 'CATEGORY_SPEND',
-      targetCategoryId: foodCategory?.categoryId ?? null,
-      minSpend: 100.0,
-      rewardPoint: 50,
-      durationDays: 14,
-      generatedBy: 'AI',
-    },
-    {
-      questName: 'ช้อปของใช้ประจำวันช่วยชุมชน',
-      description:
-        'ซื้อหมวดสินค้าอุปโภคบริโภคครบ 120 บาทในหนึ่งบิล หลังหักส่วนลด',
-      questType: 'CATEGORY_SPEND',
-      targetCategoryId: dailyGoodsCategory?.categoryId ?? null,
-      minSpend: 120.0,
-      rewardPoint: 60,
-      durationDays: 14,
-      generatedBy: 'AI',
-    },
-  ];
-
-  const seededQuests = [];
-  for (const q of sampleQuests) {
-    let foundQuest = await prisma.quest.findFirst({
-      where: { questName: q.questName },
-    });
-    if (!foundQuest) {
-      foundQuest = await prisma.quest.create({ data: q });
-      console.log('Created sample quest:', foundQuest.questName);
-    }
-    seededQuests.push(foundQuest);
-  }
+  // FR-C07 v3: quests are proposed and assigned only through consumer selection.
 
   // 4. Seed Multi-Tier Coupons (20, 50, 100, 180, 250 points)
   const sampleCoupons = [
@@ -192,7 +138,7 @@ async function seed() {
     }
   }
 
-  // 5. Assign starter quests and starter welcome points to all CONSUMER users
+  // 5. Existing development welcome-point fixture for CONSUMER users
   const consumers = await prisma.user.findMany({
     where: {
       status: 'ACTIVE',
@@ -204,31 +150,7 @@ async function seed() {
   });
 
   for (const consumer of consumers) {
-    // 5a. Assign each sample quest if the user doesn't have an active or completed assignment for it
-    for (const quest of seededQuests) {
-      const existingAssignment = await prisma.userQuest.findFirst({
-        where: {
-          userId: consumer.userId,
-          questId: quest.questId,
-        },
-      });
-
-      if (!existingAssignment) {
-        const expiresAt = new Date(now.getTime() + quest.durationDays * DAY_MS);
-        await prisma.userQuest.create({
-          data: {
-            userId: consumer.userId,
-            questId: quest.questId,
-            status: 'ACTIVE',
-            assignedAt: now,
-            expiresAt,
-          },
-        });
-        console.log(
-          `Assigned quest "${quest.questName}" to consumer userId=${consumer.userId}`,
-        );
-      }
-    }
+    // No starter assignments: selection owns the entitlement cycle.
 
     // 5b. If consumer has 0 pointTransactions, grant a starter 100-point welcome reward so they can test coupon redemption immediately
     const txCount = await prisma.pointTransaction.count({
@@ -404,43 +326,7 @@ async function seed() {
     }
   }
 
-  // 9. FR-S04: Seed initial QuestGenerationLog if empty
-  const logCount = await prisma.questGenerationLog.count();
-  if (logCount === 0 && consumers.length > 0 && seededQuests.length > 0) {
-    const firstConsumer = consumers[0];
-    const firstQuest = seededQuests[0];
-    const firstAssignment = await prisma.userQuest.findFirst({
-      where: {
-        userId: firstConsumer.userId,
-        questId: firstQuest.questId,
-      },
-    });
-    await prisma.questGenerationLog.create({
-      data: {
-        userId: firstConsumer.userId,
-        requestedBy: firstUsers[0]?.userId ?? firstConsumer.userId,
-        generatedQuestId: firstQuest.questId,
-        assignmentId: firstAssignment?.userQuestId ?? null,
-        status: 'ASSIGNED',
-        provider: 'GEMINI',
-        modelVersion: 'gemini-2.5-flash',
-        promptVersion: 'v1.0',
-        policyVersion: '2026-10-01',
-        reservedPoints: firstQuest.rewardPoint,
-        selectionReason:
-          'คัดเลือกภารกิจเริ่มต้นตามพฤติกรรมการใช้จ่ายหมวดร้านค้าชุมชน',
-        inputSummary: {
-          paidOrderCount: 1,
-          preferredCategory: 'อาหารและเครื่องดื่ม',
-        },
-        generatedAt: now,
-        finishedAt: now,
-      },
-    });
-    console.log(
-      `Seeded sample QuestGenerationLog for consumer userId=${firstConsumer.userId}`,
-    );
-  }
+  // Generation audit logs are produced by the real proposal workflow only.
 
   console.log('Seeding completed successfully!');
 }

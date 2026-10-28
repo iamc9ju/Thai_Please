@@ -165,6 +165,7 @@ Customer สมัครสมาชิกด้วยข้อมูลพื�
 - ต้องยอมรับข้อกำหนดและนโยบายความเป็นส่วนตัว
 - หาก Citizen ID ยังไม่มีในระบบ ให้สร้าง `users` และเพิ่ม Role `CONSUMER`
 - หาก Citizen ID มีอยู่แล้วและยืนยัน Password สำเร็จ ให้เพิ่ม Role `CONSUMER` โดยไม่สร้าง User ซ้ำ
+- ก่อนเพิ่ม Role ให้ตรวจว่าคำนำหน้าชื่อ ชื่อ นามสกุล และวันเกิดตรงกับ User Identity เดิมหลังปรับรูปแบบช่องว่างและ Unicode หากไม่ตรงต้องปฏิเสธโดยไม่แก้ข้อมูลเดิม
 - หากมี Role `CONSUMER` อยู่แล้ว ต้องไม่สร้าง Role หรือ Wallet ซ้ำ
 
 การลงทะเบียน Customer ต้องทำใน Database Transaction เดียว:
@@ -198,7 +199,7 @@ Merchant Registration ใช้ Identity ของเจ้าของหรื
 ข้อมูลร้านค้า:
 
 - ชื่อร้านค้า
-- ประเภทร้านค้า
+- ประเภทธุรกิจของร้านค้า เลือกได้อย่างน้อยหนึ่งประเภท เช่น `FOOD_BEVERAGE` และ `OTOP`
 - เลขประจำตัวผู้เสียภาษี ถ้ามี
 - เบอร์โทรศัพท์ร้านค้า
 - รายละเอียดร้านค้า
@@ -214,7 +215,10 @@ Merchant Registration ใช้ Identity ของเจ้าของหรื
 
 - หาก Citizen ID ยังไม่มี ให้สร้าง User Identity และ Role `MERCHANT`
 - หาก Citizen ID มีอยู่แล้ว ต้องยืนยัน Password ของ Identity เดิมก่อนเพิ่ม Role `MERCHANT`
+- หลังยืนยัน Password ต้องตรวจว่าคำนำหน้าชื่อ ชื่อ นามสกุล และวันเกิดตรงกับ User Identity เดิม หากไม่ตรงต้องปฏิเสธโดยไม่สร้าง Merchant, Role หรือ Wallet และไม่เขียนทับข้อมูลเดิม
 - ห้ามสร้าง User ซ้ำสำหรับ Citizen ID เดิม
+- ต้องเลือกประเภทธุรกิจอย่างน้อยหนึ่งประเภทจากรายการที่ระบบอนุญาต โดยร้านหนึ่งสามารถมีได้หลายประเภทและห้ามส่งค่าซ้ำ
+- ต้องบันทึกประเภทธุรกิจลง `merchants.merchant_types`; หมวดสินค้าของแต่ละรายการยังอ้างอิง `products.category_id` แยกจากกัน
 - สร้าง Merchant Entity แยกจาก User Identity
 - สร้างความสัมพันธ์ใน `merchant_members`
 - ผู้สมัครเป็น `OWNER` ของร้าน
@@ -468,8 +472,9 @@ Receipt แสดง:
 
 ### FR-C07 — Personalized Quest
 
-- Quest ถูกมอบหมายอัตโนมัติ
-- ไม่ต้องกดรับ
+- ระบบเสนอเควสที่ผ่าน validation สูงสุด 3 ข้อ ให้ Consumer เลือก 1 ข้อก่อนมอบหมาย (การเปลี่ยนข้อกำหนดที่ผู้ใช้อนุมัติ 28 ตุลาคม 2026)
+- อายุเควสและรอบรับเควส 7 วันเริ่มเมื่อเลือกสำเร็จ ทำเสร็จก่อนก็ต้องรอครบรอบเดิม
+- ข้อเสนอทั้งสามให้ 20 พอยต์เท่ากัน ไม่เพิ่มตามยอดใช้จ่าย; Backend เป็นผู้กำหนดรางวัลและตรวจงบ
 - แสดงเงื่อนไข Reward สถานะ และวันหมดอายุ
 - ใช้ Order เดียวในการสำเร็จ
 - รองรับเควสใหม่เฉพาะ `MIN_SPEND` และ `CATEGORY_SPEND` ซื้อได้จากร้านที่เข้าร่วมใดก็ได้
@@ -806,7 +811,7 @@ Receipt สร้างจาก `orders` และ `order_items` ไม่ต�
 
 ### FR-S01 — Quest Generation
 
-AI หรือ Mock AI วิเคราะห์ Paid Orders, Order Items, Categories, Final Spend, Frequency และ Quest History
+AI วิเคราะห์สรุป PAID Orders ย้อนหลัง 30 วันจากเงินส่วนตัวหลังส่วนลด ไม่รวมรัฐช่วย: จำนวนบิล ค่าเฉลี่ย มัธยฐาน การกระจายยอด และข้อมูลแยก snapshot category พร้อมประวัติเควส 90 วัน/ล่าสุด 10 รายการ แยกฐานเงิน/เวอร์ชันและการยกเลิกโดยระบบ ไม่ส่ง PII ที่ไม่จำเป็น
 
 ### FR-S02 — Provider Abstraction
 
@@ -816,32 +821,37 @@ AI ทำหน้าที่เสนอ Quest เท่านั้น ไม
 
 AI Output ต้องผ่าน Schema, Rule Allow-list, Spend, Reward, Expiry, Category, Duplicate, Budget และ Policy Validation
 
-Allow-list สำหรับ generation policy v2 มีเฉพาะ `MIN_SPEND` และ `CATEGORY_SPEND` (สูงสุด 4 ตัวเลือกต่อประเภท รวม 8) ไม่ให้ AI เปลี่ยนเป็นกฎสินค้า/ร้านหรือสร้างคำค้นชื่อสินค้า
+Generation policy v3 ให้ AI เสนอสูงสุด 3 ข้อจาก `MIN_SPEND` และ `CATEGORY_SPEND` โดยระบุเฉพาะประเภท หมวด และยอดเงินส่วนตัว เป้าหมายบวกหน่วยละ 10 บาท ไม่มีเพดานธุรกิจ 100 บาท แต่ต้องแทนค่าได้ตาม Decimal schema ไม่ใช้สูตรตัวคูณหรือเพดาน candidate 4/8 เดิม Backend ควบคุมข้อความ/พอยต์/อายุ ไม่ให้ AI เปลี่ยนเป็นกฎสินค้า/ร้านหรือหลายบิล
+
+เก็บข้อที่ผ่านแล้วขอเติมส่วนที่ขาด รวมไม่เกิน 2 provider calls ต่อชุด แสดง 1–2 ข้อได้ หากไม่ผ่านเลยไม่มอบเควสและไม่เสียสิทธิ์รอบรับ ค่าเริ่มต้นชุดข้อเสนออายุ 24 ชั่วโมง สร้างไม่เกิน 3 ชุดต่อวันและพัก 15 นาทีหลังสร้างล้มเหลว ปรับผ่าน validated policy
 
 ### FR-S04 — Generation Log
 
 `quest_generation_logs` เก็บ Provider, Model Version, Prompt Version, Policy Version, Input Summary, Output, Validation Result, Rejection Reason, Quest ID, Requested By และ Created At
 
-### FR-S05 — Automatic Assignment
+### FR-S05 — Proposal Selection and Assignment
 
-Quest ที่ผ่าน Validation ถูกมอบหมายอัตโนมัติ ไม่ต้องกดรับ
+ระบบสร้างข้อเสนอเมื่อ Consumer ถึงสิทธิ์และขอสร้างจากหน้าเควส ไม่เรียก AI ทุกครั้งที่อ่านหน้า ชุดเดิมที่ยังใช้ได้ต้องใช้ต่อ งานเรียก AI ใช้ durable PostgreSQL log queue พร้อม lease และ failed state ผู้ใช้เลือกได้เพียงหนึ่งข้อแม้ retry/concurrent request และตรวจสิทธิ์ หมวด policy และ budget ซ้ำใน transaction ก่อน assignment รอบถัดไปคือเวลาเลือกสำเร็จ + 7 วัน ไม่ใช่เวลาทำเสร็จ จองงบรางวัลเมื่อเลือก ไม่จองจากทุกข้อเสนอ
 
 ### FR-S06 — Deterministic Completion
 
 - ตรวจหลัง Order เป็น `PAID`
 - ใช้ Order เดียว
 - ไม่สะสมหลาย Order
-- ใช้ Final Amount หลังส่วนลด
+- ใช้เงินส่วนตัวหลังส่วนลด (`user_paid_amount`) ไม่รวมรัฐช่วยสำหรับเควสใหม่ เก็บ amount basis บน definition เพื่ออธิบายประวัติรุ่นเก่า
+- หมวดใช้การจัดสรรเงินส่วนตัวผ่านสัดส่วนยอดรายการสุทธิหลังส่วนลดแบบ exact largest remainder โดยวิธีเดียวกันใน summary และ completion
 - ใช้ Snapshot Category
 - Reward ได้ครั้งเดียว
 
 ตัวอย่าง:
 
 ```text
-Quest: ซื้ออาหารครบ 100 บาทในหนึ่ง Order
+Quest: จ่ายเงินส่วนตัวหมวดอาหารครบ 100 บาทในหนึ่ง Order
 Subtotal = 100
 Discount = 10
 Final Amount = 90
+State Subsidy = 40
+Personal Contribution = 50
 ผลลัพธ์: ไม่สำเร็จ
 ```
 

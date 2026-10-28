@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/api-client';
+import type { ConsumerQuestProposalsResponse } from '../../consumer/consumer.types';
 import type {
   AdminMerchantItem,
   AdminMerchantStatusResult,
@@ -130,15 +131,7 @@ export function getQuestGenerationLogs(): Promise<QuestGenerationLogsResponse> {
 export function triggerQuestGeneration(
   userId: string,
   idempotencyKey: string,
-): Promise<{
-  generationId: string;
-  assignmentId: string;
-  questId: string;
-  title: string;
-  description: string;
-  rewardPoints: number;
-  expiresAt: string;
-}> {
+): Promise<ConsumerQuestProposalsResponse> {
   return apiClient.post(ADMIN_API_ROUTES.generateQuest, {
     userId,
     idempotencyKey,

@@ -1,3 +1,5 @@
+import { LoadingState } from '../../../components/LoadingState';
+import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
   useCallback,
   useEffect,
@@ -28,6 +30,10 @@ import {
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
+import {
+  MERCHANT_BUSINESS_TYPES,
+  type MerchantBusinessType,
+} from '@thai-please/contracts';
 import { AdminShell, type AdminTab } from '../components/AdminShell';
 import '../admin.css';
 import {
@@ -65,6 +71,8 @@ import type {
 } from '../admin.types';
 
 const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
+const BUSINESS_TYPE_FILTER_PREFIX = 'business:';
+const LEGACY_TYPE_FILTER_PREFIX = 'legacy:';
 
 export interface AdminDashboardProps {
   adminName?: string;
@@ -123,7 +131,6 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   const copy = th.adminPortal;
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const loadSequence = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -142,19 +149,44 @@ export function AdminDashboard({
   const [merchantTypeFilter, setMerchantTypeFilter] = useState('');
   const merchantSearchQuery = merchantSearch.trim().toLocaleLowerCase('th-TH');
   const merchantTypeOptions = [
-    ...new Set([
-      ...th.registration.merchantTypes,
-      ...merchants.flatMap((merchant) =>
-        merchant.merchantType ? [merchant.merchantType] : [],
+    ...MERCHANT_BUSINESS_TYPES.map((value) => ({
+      value: `${BUSINESS_TYPE_FILTER_PREFIX}${value}`,
+      label:
+        th.registration.merchantTypes.find((option) => option.value === value)
+          ?.label ?? value,
+    })),
+    ...[
+      ...new Set(
+        merchants.flatMap((merchant) =>
+          merchant.merchantType &&
+          !MERCHANT_BUSINESS_TYPES.includes(
+            merchant.merchantType as MerchantBusinessType,
+          )
+            ? [merchant.merchantType]
+            : [],
+        ),
       ),
-    ]),
+    ].map((value) => ({
+      value: `${LEGACY_TYPE_FILTER_PREFIX}${value}`,
+      label: value,
+    })),
   ];
   const visibleMerchants = merchants.filter((merchant) => {
-    const typeMatches =
-      !merchantTypeFilter ||
-      (merchant.merchantType ?? '') === merchantTypeFilter ||
-      (merchantTypeFilter === UNSPECIFIED_MERCHANT_TYPE &&
-        !merchant.merchantType);
+    const merchantTypes = merchant.merchantTypes ?? [];
+    const typeMatches = !merchantTypeFilter
+      ? true
+      : merchantTypeFilter === UNSPECIFIED_MERCHANT_TYPE
+        ? merchantTypes.length === 0 && !merchant.merchantType
+        : merchantTypeFilter.startsWith(BUSINESS_TYPE_FILTER_PREFIX)
+          ? merchantTypes.includes(
+              merchantTypeFilter.slice(
+                BUSINESS_TYPE_FILTER_PREFIX.length,
+              ) as MerchantBusinessType,
+            )
+          : merchantTypeFilter.startsWith(LEGACY_TYPE_FILTER_PREFIX)
+            ? merchant.merchantType ===
+              merchantTypeFilter.slice(LEGACY_TYPE_FILTER_PREFIX.length)
+            : false;
     const searchText = [
       merchant.merchantName,
       merchant.owner.fullName,
@@ -230,28 +262,29 @@ export function AdminDashboard({
     useState<AdminUsersListResponse | null>(null);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
 
+  const beginRequest = useLatestRequest();
   const loadActiveTabData = useCallback(
     async (tab: AdminTab) => {
-      const requestId = ++loadSequence.current;
+      const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       setIsForbidden(false);
       try {
         if (tab === 'overview') {
           const res = await getPlatformOverview();
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setOverview(res);
         } else if (tab === 'merchants') {
           const items = await getAdminMerchants(merchantFilter);
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setMerchants(items);
         } else if (tab === 'programs') {
           const items = await getSubsidyPrograms();
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setPrograms(items);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setQuestLogsData(res);
           setSelectedConsumerId((previous) =>
             res.eligibleConsumers.some(
@@ -262,33 +295,30 @@ export function AdminDashboard({
           );
         } else if (tab === 'rewards') {
           const res = await getRewardMonitoring();
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setRewardMonitoring(res);
         } else if (tab === 'socialImpact') {
           const res = await getSocialImpactDashboard(impactDays);
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setSocialImpact(res);
         } else if (tab === 'admins') {
           const res = await getAdminUsersAndRoles();
-          if (requestId !== loadSequence.current) return;
+          if (!isCurrent()) return;
           setAdminUsersData(res);
         }
       } catch (err) {
-        if (requestId !== loadSequence.current) return;
+        if (!isCurrent()) return;
         setIsForbidden(err instanceof ApiError && err.status === 403);
         setError(err instanceof Error ? err.message : copy.errorTitle);
       } finally {
-        if (requestId === loadSequence.current) setIsLoading(false);
+        if (isCurrent()) setIsLoading(false);
       }
     },
-    [copy.errorTitle, impactDays, merchantFilter],
+    [beginRequest, copy.errorTitle, impactDays, merchantFilter],
   );
 
   useEffect(() => {
     void loadActiveTabData(activeTab);
-    return () => {
-      loadSequence.current += 1;
-    };
   }, [activeTab, loadActiveTabData]);
 
   const handleMerchantAction = async (
@@ -505,13 +535,9 @@ export function AdminDashboard({
         effectiveConsumerId,
         createUuidV4(),
       );
-      const questTitle = result.title || 'ภารกิจเฉพาะบุคคล';
-      const points =
-        typeof result.rewardPoints === 'number' ? result.rewardPoints : 0;
-      const genRef = result.generationId ?? 'สำเร็จ';
       setActionBanner({
-        type: 'success',
-        message: `สร้างและมอบหมายภารกิจ "${questTitle}" (+${points} พอยต์) สำเร็จ (Generation #${genRef})`,
+        type: result.status === 'FAILED' ? 'error' : 'success',
+        message: th.adminPortal.questProposalStatus[result.status],
       });
       const refreshed = await getQuestGenerationLogs();
       setQuestLogsData(refreshed);
@@ -635,13 +661,7 @@ export function AdminDashboard({
         )}
 
         {isLoading ? (
-          <div
-            role="status"
-            className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
-          >
-            <div className="mb-4 size-10 animate-spin rounded-full border-4 border-brand border-r-transparent" />
-            <p className="text-sm font-medium text-slate-600">{copy.loading}</p>
-          </div>
+          <LoadingState label={copy.loading} />
         ) : error ? (
           <div
             role="alert"
@@ -958,8 +978,8 @@ export function AdminDashboard({
                 >
                   <option value="">{merchantActionsCopy.allTypes}</option>
                   {merchantTypeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
+                    <option key={type.value} value={type.value}>
+                      {type.label}
                     </option>
                   ))}
                   <option value={UNSPECIFIED_MERCHANT_TYPE}>
@@ -1096,6 +1116,20 @@ export function AdminDashboard({
                             <p className="text-xs text-slate-600">
                               {merchant.description}
                             </p>
+                          )}
+                          {(merchant.merchantTypes?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {merchant.merchantTypes.map((merchantType) => (
+                                <span
+                                  key={merchantType}
+                                  className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-[#0056b3]"
+                                >
+                                  {th.registration.merchantTypes.find(
+                                    (option) => option.value === merchantType,
+                                  )?.label ?? merchantType}
+                                </span>
+                              ))}
+                            </div>
                           )}
                           <p className="text-xs text-slate-500">
                             เจ้าของร้าน: {merchant.owner.fullName} (
@@ -1656,6 +1690,46 @@ export function AdminDashboard({
                             <p className="mt-1 text-xs text-slate-600">
                               เหตุผลการคัดเลือก: {log.selectionReason}
                             </p>
+                          )}
+                          {(log.proposals?.length ?? 0) > 0 && (
+                            <div className="mt-2 text-xs text-slate-700">
+                              <p className="font-semibold">
+                                {copy.questAudit.proposals}
+                              </p>
+                              <ul>
+                                {log.proposals?.map((proposal) => (
+                                  <li key={proposal.id}>
+                                    {proposal.type} ·{' '}
+                                    {proposal.targetId
+                                      ? `${copy.questAudit.category} ${proposal.targetId}`
+                                      : copy.questAudit.allCategories}
+                                    {' · '}
+                                    {copy.questAudit.personalTarget}:{' '}
+                                    {formatBaht(
+                                      Number(proposal.minimumSpendMinor) / 100,
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(log.validation?.attempts.length ?? 0) > 0 && (
+                            <details className="mt-2 text-xs text-slate-600">
+                              <summary>{copy.questAudit.validation}</summary>
+                              {log.validation?.attempts.map((attempt) => (
+                                <p key={attempt.call}>
+                                  {copy.questAudit.call} {attempt.call}:{' '}
+                                  {copy.questAudit.accepted}{' '}
+                                  {attempt.acceptedCount}
+                                  {' · '}
+                                  {attempt.rejections.join(', ') ||
+                                    copy.questAudit.noRejections}
+                                </p>
+                              ))}
+                              {(log.validation?.rejections.length ?? 0) > 0 && (
+                                <p>{log.validation?.rejections.join(', ')}</p>
+                              )}
+                            </details>
                           )}
                         </div>
 

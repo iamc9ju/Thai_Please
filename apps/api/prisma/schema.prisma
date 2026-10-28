@@ -46,16 +46,17 @@ model Coupon {
 }
 
 model Merchant {
-  merchantId   BigInt   @id @default(autoincrement()) @map("merchant_id")
-  ownerUserId  BigInt   @map("owner_user_id")
-  merchantName String   @map("merchant_name") @db.VarChar(150)
-  merchantType String?  @map("merchant_type") @db.VarChar(100)
-  description  String?
-  address      String?
-  phone        String?  @db.VarChar(20)
-  status       String   @default("PENDING") @db.VarChar(20)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  merchantId    BigInt   @id @default(autoincrement()) @map("merchant_id")
+  ownerUserId   BigInt   @map("owner_user_id")
+  merchantName  String   @map("merchant_name") @db.VarChar(150)
+  merchantType  String?  @map("merchant_type") @db.VarChar(100)
+  merchantTypes String[] @default([]) @map("merchant_types")
+  description   String?
+  address       String?
+  phone         String?  @db.VarChar(20)
+  status        String   @default("PENDING") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   authSessions AuthSession[]
   coupons      Coupon[]
@@ -134,6 +135,7 @@ model PointTransaction {
   userQuest  UserQuest?  @relation(fields: [userQuestId], references: [userQuestId], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId], map: "idx_point_transactions_user")
+  @@unique([userQuestId], map: "point_transactions_quest_reward_once", where: raw("((transaction_type = 'QUEST_REWARD') AND (user_quest_id IS NOT NULL))"))
   @@map("point_transactions")
 }
 
@@ -191,6 +193,11 @@ model QuestGenerationLog {
   policyVersion        String?    @map("policy_version") @db.VarChar(80)
   policySnapshot       Json?      @map("policy_snapshot")
   candidates           Json?
+  generatedProposals   Json       @default("[]") @map("generated_proposals")
+  workerStartedAt      DateTime?  @map("worker_started_at") @db.Timestamptz(6)
+  proposalExpiresAt    DateTime?  @map("proposal_expires_at") @db.Timestamptz(6)
+  selectedProposalId   String?    @map("selected_proposal_id") @db.VarChar(160)
+  selectionKey         String?    @unique @map("selection_key") @db.Uuid
   assignmentId         BigInt?    @unique @map("assignment_id")
   reservedPoints       Int?       @map("reserved_points")
   reservationDay       DateTime?  @map("reservation_day") @db.Date
@@ -216,6 +223,8 @@ model Quest {
   minSpend         Decimal? @map("min_spend") @db.Decimal(12, 2)
   rewardPoint      Int      @map("reward_point")
   durationDays     Int      @map("duration_days")
+  amountBasis      String   @map("amount_basis") @db.VarChar(30)
+  ruleVersion      String?  @map("rule_version") @db.VarChar(80)
   generatedBy      String   @default("AI") @map("generated_by") @db.VarChar(20)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
@@ -275,6 +284,7 @@ model UserQuest {
   expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamp(6)
   completedOrderId BigInt?   @map("completed_order_id")
+  nextEligibleAt   DateTime? @map("next_eligible_at") @db.Timestamptz(6)
   cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
   cancellationReason String? @map("cancellation_reason") @db.VarChar(80)
 
@@ -285,6 +295,8 @@ model UserQuest {
   user              User                @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId, status], map: "idx_user_quests_user_status")
+  @@index([userId, nextEligibleAt(sort: Desc)], map: "idx_user_quests_next_eligible")
+  @@unique([completedOrderId], map: "user_quests_receipt_once", where: raw("(completed_order_id IS NOT NULL)"))
   @@map("user_quests")
 }
 

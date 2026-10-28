@@ -34,6 +34,83 @@ afterEach(() => {
 });
 
 describe('AdminDashboard (FR-A01 through FR-A07)', () => {
+  it('queues proposals without claiming assignment and shows bounded validation audit', async () => {
+    const copy = th.adminPortal;
+    vi.mocked(adminApi.getQuestGenerationLogs).mockResolvedValue({
+      eligibleConsumers: [
+        {
+          userId: '1',
+          fullName: 'ผู้ใช้ทดสอบ',
+          citizenIdMasked: 'X',
+          pointBalance: 0,
+          paidOrdersCount: 25,
+          activeQuestsCount: 0,
+        },
+      ],
+      logs: [
+        {
+          generationId: '1',
+          requestKey: null,
+          status: 'READY',
+          provider: 'GEMINI',
+          modelVersion: 'fixture',
+          promptVersion: 'v3',
+          policyVersion: 'quest-policy-v3',
+          selectionReason: null,
+          reservedPoints: 0,
+          generatedAt: '2026-10-28T01:00:00Z',
+          finishedAt: '2026-10-28T01:00:01Z',
+          user: { userId: '1', fullName: 'ผู้ใช้ทดสอบ', citizenIdMasked: 'X' },
+          actor: null,
+          quest: null,
+          assignment: null,
+          proposals: [
+            {
+              id: 'MIN_SPEND:ALL:6000',
+              type: 'MIN_SPEND',
+              targetId: null,
+              minimumSpendMinor: '6000',
+            },
+          ],
+          validation: {
+            attempts: [
+              {
+                call: 1,
+                acceptedCount: 1,
+                rejections: ['PROPOSAL_AMOUNT_INVALID'],
+              },
+            ],
+            rejections: [],
+          },
+        },
+      ],
+    });
+    vi.mocked(adminApi.triggerQuestGeneration).mockResolvedValue({
+      status: 'PENDING',
+      requestKey: '00000000-0000-4000-8000-000000000001',
+      expiresAt: null,
+      nextEligibleAt: null,
+      reason: null,
+      items: [],
+    });
+    render(<AdminDashboard adminName="แอดมินทดสอบ" onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: copy.nav.quests }));
+    expect(
+      await screen.findByText(copy.questAudit.proposals),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText(copy.questAudit.validation));
+    expect(screen.getByText(/PROPOSAL_AMOUNT_INVALID/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: copy.quests.generateBtn }),
+    );
+    expect(
+      await screen.findByText(copy.questProposalStatus.PENDING),
+    ).toBeInTheDocument();
+    expect(adminApi.triggerQuestGeneration).toHaveBeenCalledWith(
+      '1',
+      expect.stringMatching(/^[0-9a-f-]{36}$/i),
+    );
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     // jsdom does not implement native modal dialogs; keep open semantics for tests.
@@ -99,6 +176,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
       {
         merchantId: '11',
         merchantName: 'ร้านก๋วยเตี๋ยวเรือลุงเข้ม',
+        merchantTypes: ['FOOD_BEVERAGE'],
         description: 'ก๋วยเตี๋ยวเรือรสเด็ด',
         address: '99 ถ.พหลโยธิน',
         phone: '0891234567',
@@ -663,18 +741,31 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     const [base] = await adminApi.getAdminMerchants();
     if (!base) throw new Error('Missing merchant fixture');
     vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([
-      { ...base, merchantType: 'อาหารและเครื่องดื่ม' },
+      {
+        ...base,
+        merchantType: 'อาหารและเครื่องดื่ม',
+        merchantTypes: ['FOOD_BEVERAGE'],
+      },
       {
         ...base,
         merchantId: '12',
         merchantName: 'ร้านของชำทดสอบ',
         merchantType: 'ร้านขายของชำ',
+        merchantTypes: ['OTOP', 'GENERAL_GOODS'],
       },
       {
         ...base,
         merchantId: '13',
         merchantName: 'ร้านเก่าที่ไม่ระบุประเภท',
         merchantType: null,
+        merchantTypes: [],
+      },
+      {
+        ...base,
+        merchantId: '14',
+        merchantName: 'ร้านข้อมูลเก่า',
+        merchantType: 'ประเภทเดิม',
+        merchantTypes: [],
       },
     ]);
     render(<AdminDashboard onLogout={vi.fn()} />);
@@ -689,7 +780,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     expect(screen.getByText('ร้านของชำทดสอบ')).toBeInTheDocument();
     expect(screen.queryByText(base.merchantName)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
-      target: { value: 'อาหารและเครื่องดื่ม' },
+      target: { value: 'business:FOOD_BEVERAGE' },
     });
     expect(screen.getByText(merchantCopy.noMatches)).toBeInTheDocument();
     fireEvent.click(
@@ -697,7 +788,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     );
     expect(screen.getByText(base.merchantName)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
-      target: { value: 'ร้านขายของชำ' },
+      target: { value: 'business:GENERAL_GOODS' },
     });
     fireEvent.click(
       screen.getByRole('button', {
@@ -718,5 +809,9 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     });
     expect(screen.getByText('ร้านเก่าที่ไม่ระบุประเภท')).toBeInTheDocument();
     expect(screen.queryByText('ร้านของชำทดสอบ')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
+      target: { value: 'legacy:ประเภทเดิม' },
+    });
+    expect(screen.getByText('ร้านข้อมูลเก่า')).toBeInTheDocument();
   });
 });

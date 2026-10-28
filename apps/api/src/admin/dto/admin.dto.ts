@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -138,9 +139,6 @@ export class AdminGenerateQuestDto {
   @MaxLength(19)
   userId!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @MaxLength(128)
+  @IsUUID('4')
   idempotencyKey!: string;
 }

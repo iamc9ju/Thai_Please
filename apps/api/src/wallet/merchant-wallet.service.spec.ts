@@ -123,6 +123,17 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
           createdAt: new Date('2026-10-17T02:58:00Z'),
           user: { fullName: 'สมชาย ใจดี' },
         },
+        {
+          orderId: 54n,
+          subtotal: new Prisma.Decimal('200.00'),
+          discountAmount: new Prisma.Decimal('0.00'),
+          finalAmount: new Prisma.Decimal('200.00'),
+          subsidyAmount: new Prisma.Decimal('100.00'),
+          userPaidAmount: new Prisma.Decimal('100.00'),
+          paidAt: new Date('2026-09-30T03:00:00Z'),
+          createdAt: new Date('2026-09-30T02:58:00Z'),
+          user: { fullName: 'สุดา ใจดี' },
+        },
       ]);
 
       prismaMock.walletTransaction.findMany
@@ -154,6 +165,8 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
       const result = await service.getMerchantWalletOverview(
         ownerId,
         merchantId,
+        undefined,
+        { dateFrom: '2026-10-01', dateTo: '2026-10-31' },
       );
 
       expect(result.wallet).toEqual({
@@ -163,11 +176,11 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
         merchantStatus: 'ACTIVE',
         walletStatus: 'ACTIVE',
         merchantBalance: 450,
-        totalSalesIncome: 100,
-        totalSubsidyPortion: 50,
-        totalPersonalPortion: 50,
+        totalSalesIncome: 300,
+        totalSubsidyPortion: 150,
+        totalPersonalPortion: 150,
         totalWithdrawn: 50,
-        paidOrderCount: 1,
+        paidOrderCount: 2,
       });
       expect(result.withdrawalEligibility).toEqual({
         isOwner: true,
@@ -185,6 +198,7 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
         userPaidAmount: 50,
         consumerName: 'สมชาย ใจดี',
       });
+      expect(result.orderIncomes).toHaveLength(1);
     });
 
     it('rejects access when requestedMerchantId does not match activeMerchantId', async () => {

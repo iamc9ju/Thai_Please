@@ -4,6 +4,9 @@ import {
   getConsumerCoupons,
   getConsumerPoints,
   getConsumerQuests,
+  getConsumerQuestProposals,
+  createConsumerQuestProposals,
+  selectConsumerQuestProposal,
   getWalletTransactions,
   redeemConsumerCoupon,
 } from './consumer.api';
@@ -26,6 +29,57 @@ beforeEach(() => {
 });
 
 describe('consumer wallet & rewards API', () => {
+  const proposalState = {
+    status: 'ELIGIBLE',
+    requestKey: null,
+    expiresAt: null,
+    nextEligibleAt: null,
+    reason: null,
+    items: [],
+  };
+
+  it('uses proposal lifecycle endpoints and forwards idempotency and abort signal', async () => {
+    const controller = new AbortController();
+    mockedGet.mockResolvedValueOnce(proposalState);
+    await getConsumerQuestProposals(controller.signal);
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/api/v1/consumer/quests/proposals',
+      { signal: controller.signal },
+    );
+    mockedPost.mockResolvedValueOnce({ ...proposalState, status: 'PENDING' });
+    await createConsumerQuestProposals('create-key', controller.signal);
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/api/v1/consumer/quests/proposals',
+      { idempotencyKey: 'create-key' },
+      { signal: controller.signal },
+    );
+    mockedPost.mockResolvedValueOnce({
+      assignmentId: '1',
+      nextEligibleAt: '2099-01-08T00:00:00Z',
+    });
+    await selectConsumerQuestProposal(
+      'request/key',
+      'proposal',
+      'select-key',
+      controller.signal,
+    );
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/api/v1/consumer/quests/proposals/request%2Fkey/select',
+      { proposalId: 'proposal', idempotencyKey: 'select-key' },
+      { signal: controller.signal },
+    );
+  });
+
+  it('rejects malformed proposals rather than displaying selectable server content', async () => {
+    mockedGet.mockResolvedValueOnce({
+      ...proposalState,
+      status: 'READY',
+      items: [{ id: 'bad' }],
+    });
+    await expect(getConsumerQuestProposals()).rejects.toThrow(
+      'QUEST_PROPOSALS_RESPONSE_INVALID',
+    );
+  });
   it('serializes inclusive date filters, cursor, and limit for history', async () => {
     const controller = new AbortController();
 

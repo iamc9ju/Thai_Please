@@ -10,6 +10,7 @@
   --color-line: #d9e3ec;
   --color-brand: #1479c9;
   --color-brand-strong: #07549a;
+  --color-loading: #0056b3;
   --color-brand-soft: #e5f3fc;
   --font-sans:
     'Anuphan', -apple-system, BlinkMacSystemFont, 'Noto Sans Thai',
@@ -1794,6 +1795,154 @@ input[type='password']::-ms-clear {
 .registration-field textarea[aria-invalid='true'] {
   border-color: #d33e50;
   background: #fffafb;
+}
+
+.registration-multi-select {
+  position: relative;
+}
+
+.registration-multi-select details {
+  position: relative;
+}
+
+.registration-multi-select summary {
+  display: flex;
+  min-height: 2.8rem;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.8rem;
+  border: 1px solid #cddce6;
+  border-radius: 0.65rem;
+  outline: none;
+  background: #fbfdfe;
+  color: #173047;
+  font-size: 0.74rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.registration-multi-select summary::-webkit-details-marker {
+  display: none;
+}
+
+.registration-multi-select summary:focus-visible {
+  border-color: #1479c9;
+  background: white;
+  box-shadow: 0 0 0 3px rgb(20 121 201 / 12%);
+}
+
+.registration-multi-select summary[aria-invalid='true'] {
+  border-color: #d33e50;
+  background: #fffafb;
+}
+
+.registration-multi-select summary > svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.registration-multi-select details[open] summary > svg {
+  transform: rotate(180deg);
+}
+
+.registration-multi-select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  display: grid;
+  max-height: 16rem;
+  overflow-y: auto;
+  gap: 0.2rem;
+  padding: 0.45rem;
+  border: 1px solid #cddce6;
+  border-radius: 0.75rem;
+  background: white;
+  box-shadow: 0 14px 32px rgb(23 48 71 / 14%);
+}
+
+.registration-multi-select-menu label {
+  display: flex;
+  min-height: auto;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.55rem;
+  color: #344f64;
+  cursor: pointer;
+}
+
+.registration-multi-select-menu label:hover {
+  background: #eef7ff;
+}
+
+.registration-multi-select-menu input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+.registration-option-check {
+  display: grid;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid #b9cbd8;
+  border-radius: 0.3rem;
+  background: white;
+  color: white;
+}
+
+.registration-option-check svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.registration-multi-select-menu input:checked + .registration-option-check {
+  border-color: #1479c9;
+  background: #1479c9;
+}
+
+.registration-multi-select-menu
+  input:focus-visible
+  + .registration-option-check {
+  box-shadow: 0 0 0 3px rgb(20 121 201 / 18%);
+}
+
+.registration-multi-select-menu strong {
+  font-size: 0.7rem;
+}
+
+.registration-selected-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.registration-selected-types button {
+  border: 1px solid #b8daf5;
+  border-radius: 999px;
+  background: #eef7ff;
+  padding: 0.25rem 0.55rem;
+  color: #075b9e;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.registration-selected-types button:hover {
+  background: #dceeff;
 }
 
 .registration-error {

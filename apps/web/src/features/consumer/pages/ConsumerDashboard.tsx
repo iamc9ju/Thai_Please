@@ -117,15 +117,6 @@ export function ConsumerDashboard({
           className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1800px] mx-auto"
           id="dashboard-top"
         >
-          {activeView === 'profile' && (
-            <div className="draft-banner mb-6 p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-sm flex items-center justify-between shadow-xs">
-              <span className="font-bold">{th.consumerPortal.draftLabel}</span>
-              <p aria-live="polite" className="text-amber-700 font-medium">
-                {announcement}
-              </p>
-            </div>
-          )}
-
           {activeView === 'overview' && (
             <ConsumerOverview
               displayName={displayName}
@@ -157,13 +148,7 @@ export function ConsumerDashboard({
               onCouponRedeemed={() => void retryOverview()}
             />
           )}
-          {activeView === 'profile' && (
-            <ProfileView
-              displayName={displayName}
-              maskedCitizenId={maskedCitizenId}
-              onPrototypeAction={announcePrototypeAction}
-            />
-          )}
+          {activeView === 'profile' && <ProfileView />}
         </main>
       </div>
 

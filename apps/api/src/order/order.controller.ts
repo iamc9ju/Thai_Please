@@ -41,9 +41,16 @@ export class OrderController {
    */
   @Get('merchant/orders')
   @Roles('MERCHANT')
-  async listMerchantOrders(@Req() req: Request) {
+  async listMerchantOrders(
+    @Req() req: Request,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
     const merchantId = req.user!.activeMerchantId!;
-    return this.orderService.listMerchantOrders(merchantId);
+    return this.orderService.listMerchantOrders(merchantId, {
+      dateFrom,
+      dateTo,
+    });
   }
 
   /**

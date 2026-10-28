@@ -31,6 +31,13 @@ async function request<T>(
       credentials: 'include',
     });
   } catch (err) {
+    // Cancellation is lifecycle control, not a connectivity failure.
+    if (
+      options.signal?.aborted ||
+      (err instanceof DOMException && err.name === 'AbortError')
+    ) {
+      throw err;
+    }
     console.error(`Network error requesting ${url}:`, err);
     throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
   }

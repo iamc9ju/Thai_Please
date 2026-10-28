@@ -46,6 +46,7 @@ export type MerchantOrder = {
   consumerName: string | null;
   itemCount: number;
   createdAt: string;
+  qrExpiresAt: string | null;
   paidAt: string | null;
 };
 
