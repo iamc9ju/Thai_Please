@@ -33,6 +33,8 @@ Open `D:\work\Thai_Please` as the VS Code workspace, then:
 4. Open the `Network` URL printed in the Web terminal from a phone connected to the same Wi-Fi.
 5. Stop each process with `Ctrl+C` in its own terminal pane.
 
+The development tasks and `pnpm dev` use pnpm directly from PATH. If Corepack reports `Cannot find module .../pnpm.cjs`, use an installed pnpm 12.9.1 and confirm `pnpm --version` before running the tasks.
+
 The individual `ThaiPlease: Web` and `ThaiPlease: API` tasks are also available through `Terminal` > `Run Task`. Do not run another development task while ports `5173` and `4000` are already in use.
 
 The web application listens on all local interfaces and prints both its Local and Network URLs when it starts. A phone on the same Wi-Fi can open the Network URL, for example `http://192.168.1.37:5173`. The browser calls `/api` on the same origin and Vite proxies those requests to `http://localhost:4000`, so a LAN-specific API URL or CORS entry is not required. The API has liveness at `/health/live` and database readiness at `/health/ready` under its versioned prefix.

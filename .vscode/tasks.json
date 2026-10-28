@@ -4,8 +4,8 @@
     {
       "label": "ThaiPlease: Web",
       "type": "shell",
-      "command": "corepack",
-      "args": ["pnpm", "--filter", "@thai-please/web", "dev"],
+      "command": "pnpm",
+      "args": ["--filter", "@thai-please/web", "dev"],
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -22,8 +22,8 @@
     {
       "label": "ThaiPlease: API",
       "type": "shell",
-      "command": "corepack",
-      "args": ["pnpm", "--filter", "@thai-please/api", "dev"],
+      "command": "pnpm",
+      "args": ["--filter", "@thai-please/api", "dev"],
       "options": {
         "cwd": "${workspaceFolder}"
       },

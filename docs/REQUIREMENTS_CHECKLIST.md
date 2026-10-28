@@ -239,13 +239,17 @@
 
 - [ ] **FR-A01 — Platform Overview — Partial (Frontend & Backend Integrated + HTTP E2E)**
   - API: `GET /api/v1/admin/overview` สรุปจำนวนผู้ใช้แยกตามบทบาท ร้านค้า คำสั่งซื้อที่ชำระสำเร็จ ยอดใช้จ่าย เงินอุดหนุน พอยต์ คูปอง ภารกิจ และโครงการเงินอุดหนุนที่เปิดใช้งานอยู่
-  - UI: `AdminDashboard.tsx` (Blue Theme) แท็บภาพรวมแพลตฟอร์ม
+  - UI: `AdminDashboard.tsx` แท็บภาพรวมแพลตฟอร์ม ใช้โลโก้ ฟอนต์ และธีมฟ้า–ขาวร่วมกับ Consumer Portal; `AdminShell.tsx` มีเมนูด้านข้างบนเดสก์ท็อปและเมนูเลื่อนแนวนอนบนมือถือ ครบ FR-A01–FR-A07 พร้อมทางลัดตรวจร้านค้ารออนุมัติ/ผลลัพธ์สู่ชุมชน เวลาอัปเดต (`Asia/Bangkok`) ปุ่มโหลดใหม่/ออกจากระบบ และสถานะ loading/error/permission denied/ไม่มีโครงการเปิดใช้งาน
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-A02 — Merchant Approval — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - เพิ่ม 2026-10-28: ป๊อปอัปยืนยันอนุมัติ/ปฏิเสธ ปุ่มอนุมัติทั้งหมดสำหรับร้านรออนุมัติที่ตรงกับ search/type filter; แสดงผลสำเร็จ/ไม่สำเร็จและกันส่งซ้ำ
+  - เพิ่ม search ชื่อร้าน/เจ้าของ/เบอร์โทร/ที่อยู่ และ filter ประเภทร้าน; merchant_type nullable ถูกเพิ่มด้วย migration เฉพาะรายการนี้และตรวจ live read สำเร็จ ร้านเก่าไม่เดาประเภท
+  - Contract: expectedStatus ตรวจภายใต้ row lock; stale snapshot คืน 409 ก่อนเปลี่ยนข้อมูล; ทดสอบหน้า 18, API 22 และ HTTP E2E 4 ผ่าน
   - API: `GET /api/v1/admin/merchants`, `POST /api/v1/admin/merchants/:id/approve|reject|suspend|activate` พร้อมบันทึก Audit Event
   - UI: `AdminDashboard.tsx` แท็บอนุมัติร้านค้า
+  - ปรับปรุง 2026-10-28: Catalog API ปฏิเสธร้าน PENDING/REJECTED/SUSPENDED ก่อนจัดการสินค้า; มี regression ใน `catalog.service.spec.ts`
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
@@ -257,25 +261,29 @@
 
 - [ ] **FR-A04 — Subsidy Program Management — Partial (Frontend & Backend Integrated + HTTP E2E)**
   - API: `GET /api/v1/admin/subsidy-programs`, `POST /api/v1/admin/subsidy-programs`, `PATCH /api/v1/admin/subsidy-programs/:id` โดยไม่เขียนทับธุรกรรมเดิม
-  - UI: `AdminDashboard.tsx` แท็บโครงการเงินอุดหนุน
+  - UI: `AdminDashboard.tsx` แท็บโครงการเงินอุดหนุน และ `SubsidyProgramEditor.tsx` แก้รายละเอียดโครงการผ่าน PATCH พร้อมตรวจวันที่; กำหนด THB/Asia/Bangkok ชัดเจนตามขอบเขต prototype
+  - ปรับปรุง 2026-10-28: ป้องกันการเขียนทับเงื่อนไขโครงการที่มีผู้รับสิทธิ์/รายการอ้างอิง; เงื่อนไขใหม่ให้สร้างโครงการใหม่ ดู `docs/ADMIN_PORTAL.md`
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-A05 — Quest Generation — Partial (Frontend & Backend Integrated + HTTP E2E)**
   - API: `POST /api/v1/admin/quests/generate`, `POST /api/v1/admin/quests/generate-personalized` และ `GET /api/v1/admin/quest-generation-logs`
-  - UI: `AdminDashboard.tsx` แท็บ AI สร้างภารกิจ รองรับการเลือกผู้บริโภคและสั่ง AI สร้างภารกิจพร้อมแสดงผลทันที
+  - UI: `AdminDashboard.tsx` แท็บ AI สร้างภารกิจ รองรับการเลือกผู้บริโภคและสั่ง AI สร้างภารกิจพร้อมแสดงผลทันที; กรองกลุ่มไม่มีภารกิจกำลังทำ และ `QuestGenerationDetails.tsx` แสดงข้อเสนอ/ตัวเลือก/หลักฐานที่บันทึกจริง ไม่มีการเติม provenance หรือ validation ที่ไม่เคยบันทึก
+  - ขอบเขต: ตัวกรองกลุ่มยังสร้างภารกิจทีละผู้บริโภค ไม่ใช่ durable bulk-generation job
   - Evidence: `apps/api/src/quests/quests.controller.spec.ts`, `apps/api/src/admin/admin.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-A06 — Reward Monitoring — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - แก้ไข 2026-10-28: แก้ P2022 จากการอ่าน `user_quests.cancelled_at` ที่ฐานข้อมูลยังไม่มี โดย select เฉพาะคอลัมน์ที่หน้าติดตามใช้ รวม relation ของแหล่งพอยต์; เพิ่ม regression test และตรวจ read-only กับฐานข้อมูลสำเร็จ (ไม่มีการเปลี่ยนข้อมูลหรือรัน migration)
+  - UI: แก้คำอธิบายให้ตรงกับข้อมูลสะสมและรายการล่าสุดไม่เกิน 40 รายการต่อหมวด ไม่มีตัวเลือกช่วงวันที่ในหน้านี้
   - API: `GET /api/v1/admin/rewards/monitoring` ติดตามการมอบหมายภารกิจ อัตราทำภารกิจสำเร็จ การออกพอยต์ การแลกคูปอง การใช้คูปอง และวันหมดอายุ
-  - UI: `AdminDashboard.tsx` แท็บติดตามแต้ม/คูปอง
+  - UI: `AdminDashboard.tsx` แท็บติดตามแต้ม/คูปอง พร้อมวันทำสำเร็จ วันใช้คูปอง วันหมดอายุพอยต์ และ empty states; นับ active แยกจาก CANCELLED
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
 - [ ] **FR-A07 — Social Impact Dashboard — Partial (Frontend & Backend Integrated + HTTP E2E)**
   - API: `GET /api/v1/admin/dashboard/social-impact` คำนวณ Active Consumers, Participating Merchants, Successful Orders, Total Final Spend, Total Subsidy Used, Average Sales per Merchant, Quest/Point/Coupon rates, Sales by Merchant & Category, Daily Trend (`Asia/Bangkok`) พร้อม `metricVersion`, `reportingTimezone`, และ `asOf`
-  - UI: `AdminDashboard.tsx` แท็บผลกระทบทางสังคม
+  - UI: `AdminDashboard.tsx` แท็บผลกระทบทางสังคม ระบุว่ายอดสรุป/อันดับเป็นยอดสะสม ตัวเลือก 7/14/30 วันมีผลต่อแนวโน้มรายวัน และยอดหมวดหมู่เป็นยอดรายการก่อนส่วนลดบิล
   - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
   - Gap Test: E2E ร่วมกับฐานข้อมูลสด
 
@@ -346,3 +354,15 @@
 - Postman request/example ที่อัปเดต
 - README/contract section ที่อัปเดต
 - Known limitations, rollout และ recovery note
+
+## NFR-DEV-01 — Development launcher recovery (2026-10-27)
+
+- Acceptance: VS Code Web/API tasks and the root development script invoke the installed pnpm directly, avoiding a broken Corepack cache. No domain, API, database, authorization, or audit behavior changes.
+- Regression: scripts/dev-tasks.test.mjs verifies both task targets and the root development command; included in pnpm test.
+- Evidence: regression test, workspace typecheck, production builds, and lint passed (existing frontend warnings remain). Workspace tests: 265 passed, 8 database integration tests skipped. Full E2E and live application startup were not verified.
+
+## Admin operational scope (2026-10-28)
+
+- ผู้ใช้ระบุให้เว้นงานบัญชี/รหัสผ่าน: ไม่มีการเปลี่ยน FR-A03, การสร้างบัญชี, reset password หรือ forced-password-change ในรอบนี้
+- รายละเอียดขอบเขต API, การตีความตัวเลข และข้อจำกัด: `docs/ADMIN_PORTAL.md`
+- ยังไม่เปลี่ยนสถานะเป็น Complete: การทดสอบกับฐานข้อมูลจริงแบบแก้ข้อมูล, durable audit storage และ bulk segment job ไม่อยู่ในการยืนยันรอบนี้

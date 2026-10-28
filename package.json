@@ -12,11 +12,11 @@
   },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
-    "dev": "corepack pnpm --parallel --filter @thai-please/web --filter @thai-please/api dev",
+    "dev": "pnpm --parallel --filter @thai-please/web --filter @thai-please/api dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm --recursive --if-present lint",
-    "test": "pnpm --recursive --if-present test",
+    "test": "node --test scripts/dev-tasks.test.mjs && pnpm --recursive --if-present test",
     "typecheck": "pnpm --recursive --if-present typecheck",
     "verify": "pnpm db:validate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm --filter @thai-please/api test:e2e && pnpm build",
     "db:generate": "pnpm --filter @thai-please/api db:generate",
