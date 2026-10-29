@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  BarChart3,
-  CheckCircle2,
-  FileText,
-  LogOut,
-  ShoppingCart,
-  Store,
-  Wallet,
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { th } from '../../../i18n/th';
 import { DigitalReceiptModal } from '../../consumer/components/DigitalReceiptModal';
@@ -22,6 +14,9 @@ import {
   updateProduct,
   updateProductStatus,
 } from '../api/merchant.api';
+import { MerchantMobileNav } from '../components/MerchantMobileNav';
+import { MerchantSidebar, type PosView } from '../components/MerchantSidebar';
+import { MerchantTopBar } from '../components/MerchantTopBar';
 import type {
   CartItem,
   Category,
@@ -40,21 +35,26 @@ import { MerchantQrView } from '../views/MerchantQrView';
 import { MerchantSalesView } from '../views/MerchantSalesView';
 import { MerchantWalletView } from '../views/MerchantWalletView';
 
-type PosView = 'pos' | 'qr' | 'orders' | 'wallet' | 'dashboard';
 type ProductStatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 
 interface MerchantPosProps {
-  merchantName?: string;
+  merchantName?: string | undefined;
+  merchantRole?: string | undefined;
+  fullName?: string | undefined;
+  citizenId?: string | undefined;
   onLogout: () => void;
 }
 
 export function MerchantPos({
   merchantName = 'ร้านค้าชุมชน',
+  merchantRole = 'OWNER',
+  fullName: _fullName,
+  citizenId,
   onLogout,
 }: MerchantPosProps) {
-  const navCopy = th.merchantPortal.nav;
   const posCopy = th.merchantPortal.pos;
   const [view, setView] = useState<PosView>('pos');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -438,112 +438,92 @@ export function MerchantPos({
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  const navItems: Array<{
-    id: PosView;
-    label: string;
-    icon: typeof ShoppingCart;
-  }> = [
-    { id: 'pos', label: navCopy.pos, icon: ShoppingCart },
-    { id: 'orders', label: navCopy.orders, icon: FileText },
-    { id: 'wallet', label: navCopy.wallet, icon: Wallet },
-    { id: 'dashboard', label: navCopy.dashboard, icon: BarChart3 },
-  ];
+  const hasActiveQr = Boolean(createdOrder);
+
+  const handleNavigate = (nextView: PosView) => {
+    if (
+      merchantRole === 'STAFF' &&
+      (nextView === 'wallet' || nextView === 'dashboard')
+    ) {
+      setError(
+        'สิทธิ์พนักงาน (STAFF) ไม่สามารถเข้าถึงกระเป๋าเงินหรือแดชบอร์ดยอดขายได้',
+      );
+      return;
+    }
+    setView(nextView);
+    setError(null);
+    setSuccessMessage(null);
+    setIsMobileOpen(false);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Blue Theme Top Header */}
-      <header className="sticky top-0 z-20 border-b border-blue-900/15 bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] text-white shadow-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-white/15 text-white shadow-inner backdrop-blur-sm border border-white/20">
-              <Store className="size-5" />
+    <div className="min-h-screen bg-slate-50/70 flex font-sans text-slate-900">
+      {/* Left Sidebar Navigation (Unified Theme matching Consumer Portal) */}
+      <MerchantSidebar
+        activeView={view}
+        merchantName={merchantName}
+        merchantRole={merchantRole}
+        citizenId={citizenId}
+        hasActiveQr={hasActiveQr}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
+        onNavigate={handleNavigate}
+        onLogout={onLogout}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <MerchantTopBar
+          activeView={view}
+          merchantName={merchantName}
+          merchantRole={merchantRole}
+          hasActiveQr={hasActiveQr}
+          onOpenMobile={() => setIsMobileOpen(true)}
+          onNavigate={handleNavigate}
+          onNotification={() =>
+            setSuccessMessage('ไม่มีการแจ้งเตือนใหม่ในขณะนี้')
+          }
+          onLogout={onLogout}
+        />
+
+        {error && (
+          <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8 pt-4">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 shadow-sm"
+            >
+              <span>⚠️</span> {error}
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="ml-auto text-rose-400 hover:text-rose-700 cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
-            <div>
-              <p className="text-[11px] font-medium text-blue-100">
-                {th.merchantPortal.brandSubtitle}
-              </p>
-              <h1 className="text-base font-extrabold tracking-tight text-white">
-                {merchantName}
-              </h1>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8 pt-4">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm"
+            >
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+              <span>{successMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage(null)}
+                className="ml-auto text-emerald-500 hover:text-emerald-800 cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <nav
-              aria-label="เมนูหลักร้านค้า"
-              className="flex flex-wrap gap-1 rounded-2xl bg-white/10 p-1 backdrop-blur-sm border border-white/15"
-            >
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = view === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setView(item.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-white text-[#003d82] shadow-sm'
-                        : 'text-blue-100 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="size-3.5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            <button
-              type="button"
-              onClick={onLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold text-blue-100 hover:bg-white/20 hover:text-white transition-colors border border-white/15 cursor-pointer"
-            >
-              <LogOut className="size-3.5" />
-              <span>{th.merchantPortal.logout}</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mx-auto max-w-7xl px-4 pt-4">
-          <div
-            role="alert"
-            className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 shadow-sm"
-          >
-            <span>⚠️</span> {error}
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="ml-auto text-rose-400 hover:text-rose-700 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="mx-auto max-w-7xl px-4 pt-4">
-          <div
-            role="status"
-            className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm"
-          >
-            <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
-            <button
-              type="button"
-              onClick={() => setSuccessMessage(null)}
-              className="ml-auto text-emerald-500 hover:text-emerald-800 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      <main className="mx-auto max-w-7xl px-4 py-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1800px] mx-auto">
         {/* ── POS VIEW (FR-M02, FR-M03) ── */}
         {view === 'pos' && (
           <MerchantSalesView
@@ -613,6 +593,16 @@ export function MerchantPos({
         {/* ── DASHBOARD VIEW (FR-M07) ── */}
         {view === 'dashboard' && <MerchantDashboardView />}
       </main>
+      </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MerchantMobileNav
+        activeView={view}
+        merchantRole={merchantRole}
+        hasActiveQr={hasActiveQr}
+        onNavigate={handleNavigate}
+        onOpenMenu={() => setIsMobileOpen(true)}
+      />
 
       {qrReceiptDetail && (
         <DigitalReceiptModal

@@ -87,6 +87,9 @@ function MainContent() {
             merchantName={
               user.merchantName ?? user.fullName ?? 'ร้านค้าคนละครึ่ง'
             }
+            merchantRole={user.merchantRole ?? 'OWNER'}
+            fullName={user.fullName}
+            citizenId={user.citizenId}
             onLogout={() => void logout()}
           />
         </Suspense>
