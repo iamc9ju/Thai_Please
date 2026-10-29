@@ -34,6 +34,23 @@ const mockedPayByQr = vi.mocked(payByQr);
 const mockedDecodeQrFromImageFile = vi.mocked(decodeQrFromImageFile);
 const mockedDecodeQrFromVideoElement = vi.mocked(decodeQrFromVideoElement);
 
+function uploadQrImage(token: string): File {
+  mockedDecodeQrFromImageFile.mockResolvedValueOnce(token);
+  const file = new File(['dummy-qr-png'], 'order-qr.png', {
+    type: 'image/png',
+  });
+  fireEvent.change(screen.getByTestId('qr-image-input'), {
+    target: { files: [file] },
+  });
+  return file;
+}
+
+async function waitForScannerFallback(): Promise<void> {
+  await screen.findByRole('button', {
+    name: th.consumerPortal.payment.cameraAction,
+  });
+}
+
 const mockPreviewData: OrderPreviewResponse = {
   orderId: 'order-101',
   merchantName: 'ร้านป้าสมร ของดีชุมชน',
@@ -84,6 +101,18 @@ const mockPaymentSuccess: PaymentResultResponse = {
 describe('PaymentView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
     mockedPreviewOrder.mockResolvedValue(mockPreviewData);
     mockedPayByQr.mockResolvedValue(mockPaymentSuccess);
     mockedDecodeQrFromImageFile.mockResolvedValue('qr-from-image-999');
@@ -92,11 +121,11 @@ describe('PaymentView', () => {
 
   afterEach(cleanup);
 
-  it('renders initial scan screen with QR input, camera button, image upload button, and demo action', () => {
+  it('renders fallback scan actions without exposing a manual QR token input', async () => {
     render(<PaymentView onNavigate={vi.fn()} />);
 
     expect(
-      screen.getByRole('heading', {
+      await screen.findByRole('heading', {
         level: 2,
         name: th.consumerPortal.payment.scanTitle,
       }),
@@ -111,14 +140,7 @@ describe('PaymentView', () => {
         name: th.consumerPortal.payment.uploadQrImageAction,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(th.consumerPortal.payment.qrInputPlaceholder),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', {
-        name: th.consumerPortal.payment.checkQrAction,
-      }),
-    ).toBeDisabled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', {
         name: th.consumerPortal.payment.demoAction,
@@ -126,8 +148,80 @@ describe('PaymentView', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens a full-screen banking-style scanner immediately', async () => {
+    const stopTrack = vi.fn();
+    const mediaStream = {
+      getTracks: () => [{ stop: stopTrack }],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn().mockResolvedValue(mediaStream);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+
+    const onNavigate = vi.fn();
+    render(<PaymentView onNavigate={onNavigate} />);
+
+    const video = (await screen.findByTestId(
+      'qr-camera-video',
+    )) as HTMLVideoElement;
+    const cameraOverlay = screen.getByTestId('qr-camera-overlay');
+    await waitFor(() => expect(video.srcObject).toBe(mediaStream));
+    expect(cameraOverlay).toHaveClass('fixed', 'inset-0', 'z-[100]');
+    expect(screen.getByTestId('qr-scan-line')).toHaveClass('bg-red-500');
+    expect(
+      screen.queryByRole('heading', {
+        level: 2,
+        name: th.consumerPortal.payment.scanTitle,
+      }),
+    ).not.toBeInTheDocument();
+    const chooseImageButton = screen.getByRole('button', {
+      name: th.consumerPortal.payment.chooseQrImageAction,
+    });
+    const fileInput = screen.getByTestId('qr-image-input');
+    const fileInputClick = vi.spyOn(fileInput, 'click');
+    fireEvent.click(chooseImageButton);
+    expect(fileInputClick).toHaveBeenCalledOnce();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.consumerPortal.payment.closeScannerAction,
+      }),
+    );
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(onNavigate).toHaveBeenCalledWith('overview');
+    expect(getUserMedia).toHaveBeenCalledWith({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+  });
+
+  it('explains that a secure HTTPS page is required for mobile camera access', async () => {
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: false,
+    });
+    const getUserMedia = vi.fn();
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+
+    render(<PaymentView onNavigate={vi.fn()} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      th.consumerPortal.payment.cameraSecureContextError,
+    );
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
   it('decodes QR from uploaded image file and navigates to order review (FR-C04)', async () => {
     render(<PaymentView onNavigate={vi.fn()} />);
+    await waitForScannerFallback();
 
     const fileInput = screen.getByTestId('qr-image-input');
     const mockFile = new File(['dummy-qr-png'], 'order-qr.png', {
@@ -152,6 +246,7 @@ describe('PaymentView', () => {
     mockedDecodeQrFromImageFile.mockResolvedValueOnce(null);
 
     render(<PaymentView onNavigate={vi.fn()} />);
+    await waitForScannerFallback();
 
     const fileInput = screen.getByTestId('qr-image-input');
     const badFile = new File(['not-a-qr'], 'landscape.jpg', {
@@ -165,23 +260,17 @@ describe('PaymentView', () => {
     );
   });
 
-  it('submits QR token and displays order review details from API', async () => {
+  it('displays order review details after reading an uploaded QR image', async () => {
     render(<PaymentView onNavigate={vi.fn()} />);
+    await waitForScannerFallback();
 
-    const input = screen.getByPlaceholderText(
-      th.consumerPortal.payment.qrInputPlaceholder,
-    );
-    fireEvent.change(input, { target: { value: 'test-qr-token-123' } });
+    uploadQrImage('test-qr-token-123');
 
-    const checkBtn = screen.getByRole('button', {
-      name: th.consumerPortal.payment.checkQrAction,
-    });
-    expect(checkBtn).not.toBeDisabled();
-    fireEvent.click(checkBtn);
-
-    expect(mockedPreviewOrder).toHaveBeenCalledWith({
-      qrToken: 'test-qr-token-123',
-      userCouponId: undefined,
+    await waitFor(() => {
+      expect(mockedPreviewOrder).toHaveBeenCalledWith({
+        qrToken: 'test-qr-token-123',
+        userCouponId: undefined,
+      });
     });
 
     expect(
@@ -199,16 +288,9 @@ describe('PaymentView', () => {
     );
 
     render(<PaymentView onNavigate={vi.fn()} />);
+    await waitForScannerFallback();
 
-    const input = screen.getByPlaceholderText(
-      th.consumerPortal.payment.qrInputPlaceholder,
-    );
-    fireEvent.change(input, { target: { value: 'invalid-token' } });
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: th.consumerPortal.payment.checkQrAction,
-      }),
-    );
+    uploadQrImage('invalid-token');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'ไม่พบ QR Code นี้ในระบบ',
@@ -225,16 +307,9 @@ describe('PaymentView', () => {
 
     const mockNavigate = vi.fn();
     render(<PaymentView onNavigate={mockNavigate} />);
+    await waitForScannerFallback();
 
-    fireEvent.change(
-      screen.getByPlaceholderText(th.consumerPortal.payment.qrInputPlaceholder),
-      { target: { value: 'afford-test' } },
-    );
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: th.consumerPortal.payment.checkQrAction,
-      }),
-    );
+    uploadQrImage('afford-test');
 
     expect(
       await screen.findByText(
@@ -259,16 +334,9 @@ describe('PaymentView', () => {
         onPaymentSuccess={mockSuccessCallback}
       />,
     );
+    await waitForScannerFallback();
 
-    fireEvent.change(
-      screen.getByPlaceholderText(th.consumerPortal.payment.qrInputPlaceholder),
-      { target: { value: 'valid-token' } },
-    );
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: th.consumerPortal.payment.checkQrAction,
-      }),
-    );
+    uploadQrImage('valid-token');
 
     expect(
       await screen.findByText('ร้านป้าสมร ของดีชุมชน'),
@@ -300,8 +368,9 @@ describe('PaymentView', () => {
     expect(mockNavigate).toHaveBeenCalledWith('orders');
   });
 
-  it('runs demo action immediately with fallback preview', () => {
+  it('runs demo action immediately with fallback preview', async () => {
     render(<PaymentView onNavigate={vi.fn()} />);
+    await waitForScannerFallback();
 
     fireEvent.click(
       screen.getByRole('button', {

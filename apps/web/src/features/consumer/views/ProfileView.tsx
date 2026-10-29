@@ -42,7 +42,9 @@ export function ProfileView() {
         title={copy.title}
         description={copy.description}
       />
-      {state.status === 'loading' && <LoadingState label={copy.loading} />}
+      {state.status === 'loading' && (
+        <LoadingState label={copy.loading} variant="profile" />
+      )}
       {(state.status === 'error' || state.status === 'permission-denied') && (
         <div className="portal-card" role="alert">
           <p>

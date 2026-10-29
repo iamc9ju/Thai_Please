@@ -212,7 +212,7 @@ export function MerchantWalletView() {
   };
 
   if (isLoading && !overview) {
-    return <LoadingState label={copy.loading} />;
+    return <LoadingState label={copy.loading} variant="dashboard" />;
   }
 
   if (error && !overview) {

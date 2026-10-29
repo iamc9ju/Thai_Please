@@ -56,7 +56,7 @@ export function MerchantDashboardView() {
   }, [days, loadDashboard]);
 
   if (isLoading && !data) {
-    return <LoadingState label={copy.loading} />;
+    return <LoadingState label={copy.loading} variant="dashboard" />;
   }
 
   if (error && !data) {

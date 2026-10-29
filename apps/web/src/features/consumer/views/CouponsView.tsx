@@ -175,7 +175,7 @@ export function CouponsView({
           title={copy.title}
           description={copy.description}
         />
-        <LoadingState label={copy.loading} />
+        <LoadingState label={copy.loading} variant="cards" />
       </section>
     );
   }

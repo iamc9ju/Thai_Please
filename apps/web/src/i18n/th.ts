@@ -276,21 +276,27 @@ export const th = {
       description: 'ตรวจสอบข้อมูลจาก QR ให้ครบก่อนยืนยันทุกครั้ง',
       scanTitle: 'พร้อมสแกน QR ร้านค้า',
       scanDescription:
-        'เปิดกล้องสแกน อัปโหลดรูปภาพ QR Code หรือวางรหัส QR Token เพื่อตรวจสอบรายการและชำระเงิน',
+        'เปิดกล้องสแกนหรืออัปโหลดรูปภาพ QR Code เพื่อตรวจสอบรายการและชำระเงิน',
+      fullScreenScannerTitle: 'สแกนจ่าย',
+      scannerSubtitle: 'วาง QR Code ให้อยู่ภายในกรอบ',
+      closeScannerAction: 'ปิดหน้าสแกน',
+      chooseQrImageAction: 'เลือกรูป QR Code จากเครื่อง',
       cameraAction: 'เปิดกล้องสแกน QR',
+      startingCamera: 'กำลังเปิดกล้อง…',
       stopCameraAction: 'ปิดกล้อง',
       uploadQrImageAction: 'อัปโหลดรูป QR Code',
       cameraHint:
         'หันกล้องไปที่ QR Code บนหน้าจอ POS ของร้านค้า ระบบจะอ่านรหัสและพาไปหน้าตรวจสอบรายการอัตโนมัติ',
       cameraPermissionError:
-        'ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ หรือใช้วิธีอัปโหลดรูป QR / วางรหัส Token แทน',
+        'ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ หรืออัปโหลดรูป QR Code แทน',
+      cameraSecureContextError:
+        'โทรศัพท์อนุญาตให้ใช้กล้องผ่าน HTTPS ที่เชื่อถือได้เท่านั้น กรุณาเปิดเว็บไซต์ด้วยลิงก์ https:// และติดตั้งใบรับรองสำหรับเครื่องนี้',
+      cameraPlaybackError:
+        'เปิดภาพจากกล้องไม่สำเร็จ กรุณาปิดกล้องแล้วลองใหม่ หรืออัปโหลดรูป QR Code แทน',
       qrImageReadError:
-        'ไม่พบ QR Code ในรูปภาพที่เลือก กรุณาเลือกไฟล์รูปภาพ QR Code ที่ชัดเจน หรือวางรหัส QR Token',
+        'ไม่พบ QR Code ในรูปภาพที่เลือก กรุณาเลือกไฟล์รูปภาพ QR Code ที่ชัดเจน',
       demoAction: 'ใช้ QR ตัวอย่าง',
       scanning: 'กำลังอ่านข้อมูล QR…',
-      qrInputLabel: 'กรอกหรือวาง QR Token',
-      qrInputPlaceholder: 'วางรหัส QR Token จากหน้าร้านค้า POS',
-      checkQrAction: 'ตรวจสอบรายการ',
       invalidQrMessage: 'ไม่พบ QR Code นี้ในระบบ หรือรหัสไม่ถูกต้อง',
       qrExpiredMessage: 'QR Token นี้หมดอายุแล้ว กรุณาแจ้งร้านค้าออก QR ใหม่',
       reviewTitle: 'ตรวจสอบรายการก่อนชำระ',

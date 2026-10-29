@@ -109,12 +109,12 @@ export function ConsumerTopBar({
           </span>
         </button>
 
-        {/* Quick Logout Button (Desktop) */}
+        {/* Quick Logout Button (Mobile, Tablet & Desktop) */}
         <button
           type="button"
           onClick={onLogout}
           aria-label={th.consumerDashboard.logout}
-          className="hidden lg:flex p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+          className="flex p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
           title={th.consumerDashboard.logout}
         >
           <LogOut className="size-5" aria-hidden="true" />

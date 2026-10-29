@@ -389,7 +389,7 @@ export function WalletView() {
           title={copy.title}
           description={copy.description}
         />
-        <LoadingState label={copy.loading} />
+        <LoadingState label={copy.loading} variant="dashboard" />
       </section>
     );
   }
@@ -626,7 +626,7 @@ export function WalletView() {
           </div>
         </div>
         {historyState.status === 'loading' && (
-          <LoadingState label={copy.historyLoading} />
+          <LoadingState label={copy.historyLoading} variant="table" />
         )}
         {historyState.status === 'permission-denied' && (
           <div className="wallet-history-empty" role="alert">

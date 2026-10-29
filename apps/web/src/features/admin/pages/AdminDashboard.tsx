@@ -1,4 +1,7 @@
-import { LoadingState } from '../../../components/LoadingState';
+import {
+  LoadingState,
+  type LoadingStateVariant,
+} from '../../../components/LoadingState';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
@@ -60,6 +63,16 @@ type AdminTab =
   | 'rewards'
   | 'socialImpact'
   | 'admins';
+
+const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
+  overview: 'dashboard',
+  merchants: 'table',
+  programs: 'cards',
+  quests: 'table',
+  rewards: 'dashboard',
+  socialImpact: 'dashboard',
+  admins: 'table',
+};
 
 export interface AdminDashboardProps {
   adminName?: string;
@@ -537,7 +550,10 @@ export function AdminDashboard({
         )}
 
         {isLoading ? (
-          <LoadingState label={copy.loading} />
+          <LoadingState
+            label={copy.loading}
+            variant={loadingVariantByTab[activeTab]}
+          />
         ) : error ? (
           <div
             role="alert"

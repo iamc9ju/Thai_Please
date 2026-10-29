@@ -344,7 +344,7 @@ export function OrdersView() {
 
       {/* Orders List Section */}
       {isLoading ? (
-        <LoadingState label={copy.loading} />
+        <LoadingState label={copy.loading} variant="table" />
       ) : error ? (
         <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
           <p className="text-sm font-semibold text-red-700 mb-2">{error}</p>
