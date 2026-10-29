@@ -54,6 +54,17 @@ export class OrderController {
   }
 
   /**
+   * FR-M05: กวาดล้างคำสั่งซื้อที่หมดอายุ (Sweep Expired Orders)
+   */
+  @Post('merchant/orders/sweep-expired')
+  @Roles('MERCHANT', 'ADMIN')
+  @HttpCode(HttpStatus.OK)
+  async sweepExpiredOrders() {
+    const swept = await this.orderService.sweepExpiredOrders();
+    return { swept };
+  }
+
+  /**
    * FR-M08: Merchant ดูใบเสร็จรับเงินฉบับเต็มของ Order
    */
   @Get('merchant/orders/:id/receipt')

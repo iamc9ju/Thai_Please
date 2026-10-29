@@ -23,6 +23,9 @@ export type AuthenticatedUser = {
   fullName: string;
   role: ActiveRole;
   activeMerchantId: bigint | null;
+  merchantStatus: string | null;
+  merchantName: string | null;
+  merchantRole: string | null;
   sessionId: bigint;
 };
 
@@ -62,11 +65,17 @@ export class AuthGuard implements CanActivate {
 
     const tokenHash = this.hashJti(payload.jti);
 
-    // ตรวจสอบในตาราง auth_sessions
+    // ตรวจสอบในตาราง auth_sessions พร้อมข้อมูลร้านค้าที่เชื่อมโยง
     const session = await this.prisma.authSession.findUnique({
       where: { tokenHash },
       include: {
         user: true,
+        merchant: {
+          select: {
+            status: true,
+            merchantName: true,
+          },
+        },
       },
     });
 
@@ -96,12 +105,29 @@ export class AuthGuard implements CanActivate {
       data: { lastUsedAt: new Date() },
     });
 
+    let merchantRole: string | null = null;
+    if (session.activeMerchantId) {
+      const member = await this.prisma.merchantMember.findUnique({
+        where: {
+          merchantId_userId: {
+            merchantId: session.activeMerchantId,
+            userId: session.user.userId,
+          },
+        },
+        select: { role: true },
+      });
+      merchantRole = member?.role ?? (session.merchant ? 'OWNER' : null);
+    }
+
     request.user = {
       userId: session.user.userId,
       citizenId: session.user.citizenId,
       fullName: session.user.fullName,
       role: session.activeRole,
       activeMerchantId: session.activeMerchantId,
+      merchantStatus: session.merchant?.status ?? null,
+      merchantName: session.merchant?.merchantName ?? null,
+      merchantRole,
       sessionId: session.authSessionId,
     };
 

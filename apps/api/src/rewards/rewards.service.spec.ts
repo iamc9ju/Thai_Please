@@ -11,7 +11,7 @@ import { RewardsService } from './rewards.service.js';
 describe('RewardsService (FR-C08, FR-C09)', () => {
   function createMockPrisma() {
     const tx = {
-      $queryRaw: vi.fn(),
+      $queryRaw: vi.fn().mockResolvedValue([]),
       coupon: {
         findUnique: vi.fn(),
       },
@@ -19,10 +19,11 @@ describe('RewardsService (FR-C08, FR-C09)', () => {
         create: vi.fn(),
       },
       pointTransaction: {
-        create: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
+        create: vi.fn().mockResolvedValue({ pointTransactionId: 1n }),
       },
       user: {
-        update: vi.fn(),
+        update: vi.fn().mockResolvedValue({ pointBalance: 0 }),
       },
     };
 
@@ -31,13 +32,13 @@ describe('RewardsService (FR-C08, FR-C09)', () => {
         findUnique: vi.fn(),
       },
       pointTransaction: {
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       coupon: {
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       userCoupon: {
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       $transaction: vi.fn((callback: (client: typeof tx) => unknown) =>
         callback(tx),
@@ -298,5 +299,158 @@ describe('RewardsService (FR-C08, FR-C09)', () => {
     await expect(service.redeemCoupon(100n, 999n)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  describe('Point Expiry Sweeper & Real-time Expiration (BR-POINT-02)', () => {
+    it('expires overdue points using FIFO by expiry and records EXPIRED transaction', async () => {
+      const prisma = createMockPrisma();
+      const now = new Date('2026-10-30T10:00:00Z');
+      const expiredDate1 = new Date('2026-09-01T00:00:00Z');
+      const expiredDate2 = new Date('2026-10-01T00:00:00Z');
+      const futureDate = new Date('2026-12-01T00:00:00Z');
+
+      prisma.tx.$queryRaw.mockResolvedValue([
+        { user_id: 100n, point_balance: 100 },
+      ]);
+      prisma.tx.pointTransaction.findMany.mockResolvedValue([
+        {
+          pointTransactionId: 1n,
+          userId: 100n,
+          points: 40,
+          expiresAt: expiredDate1,
+          createdAt: new Date('2025-09-01T00:00:00Z'),
+        },
+        {
+          pointTransactionId: 2n,
+          userId: 100n,
+          points: 30,
+          expiresAt: expiredDate2,
+          createdAt: new Date('2025-10-01T00:00:00Z'),
+        },
+        {
+          pointTransactionId: 3n,
+          userId: 100n,
+          points: 50,
+          expiresAt: futureDate,
+          createdAt: new Date('2025-12-01T00:00:00Z'),
+        },
+        // Prior coupon redemption of 20 points consumed part of first lot
+        {
+          pointTransactionId: 4n,
+          userId: 100n,
+          points: -20,
+          expiresAt: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ]);
+
+      const service = new RewardsService(prisma as unknown as PrismaService);
+      const expiredCount = await service.expireUserPoints(100n, now);
+
+      // Lot 1: 40 - 20 (prior) = 20 overdue points
+      // Lot 2: 30 overdue points
+      // Total overdue = 50 points
+      expect(expiredCount).toBe(50);
+      expect(prisma.tx.pointTransaction.create).toHaveBeenCalledWith({
+        data: {
+          userId: 100n,
+          transactionType: 'EXPIRED',
+          points: -50,
+          createdAt: now,
+        },
+      });
+      expect(prisma.tx.user.update).toHaveBeenCalledWith({
+        where: { userId: 100n },
+        data: {
+          pointBalance: { decrement: 50 },
+          updatedAt: now,
+        },
+      });
+    });
+
+    it('does not expire points if all lots are still in the future', async () => {
+      const prisma = createMockPrisma();
+      const now = new Date('2026-10-30T10:00:00Z');
+      const futureDate = new Date('2026-11-30T10:00:00Z');
+
+      prisma.tx.$queryRaw.mockResolvedValue([
+        { user_id: 100n, point_balance: 100 },
+      ]);
+      prisma.tx.pointTransaction.findMany.mockResolvedValue([
+        {
+          pointTransactionId: 1n,
+          userId: 100n,
+          points: 100,
+          expiresAt: futureDate,
+          createdAt: new Date('2025-11-30T10:00:00Z'),
+        },
+      ]);
+
+      const service = new RewardsService(prisma as unknown as PrismaService);
+      const expiredCount = await service.expireUserPoints(100n, now);
+
+      expect(expiredCount).toBe(0);
+      expect(prisma.tx.pointTransaction.create).not.toHaveBeenCalled();
+      expect(prisma.tx.user.update).not.toHaveBeenCalled();
+    });
+
+    it('sweeps all candidate users with overdue point transactions', async () => {
+      const prisma = createMockPrisma();
+      const now = new Date();
+
+      prisma.pointTransaction.findMany.mockResolvedValue([
+        { userId: 101n },
+        { userId: 102n },
+      ]);
+
+      const service = new RewardsService(prisma as unknown as PrismaService);
+      const expireSpy = vi
+        .spyOn(service, 'expireUserPoints')
+        .mockResolvedValueOnce(30)
+        .mockResolvedValueOnce(0);
+
+      const result = await service.sweepExpiredPoints(now);
+
+      expect(prisma.pointTransaction.findMany).toHaveBeenCalledWith({
+        where: {
+          points: { gt: 0 },
+          expiresAt: { lte: now },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+      expect(expireSpy).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ sweptUsersCount: 1, totalPointsExpired: 30 });
+    });
+
+    it('auto-expires points during coupon redemption and rejects if remaining points are insufficient', async () => {
+      const prisma = createMockPrisma();
+
+      // User has 100 balance in DB, but 60 points are overdue
+      prisma.tx.$queryRaw.mockResolvedValue([
+        { user_id: 100n, point_balance: 100, status: 'ACTIVE' },
+      ]);
+      prisma.tx.coupon.findUnique.mockResolvedValue({
+        couponId: 1n,
+        merchantId: null,
+        couponName: 'ส่วนลด 20 บาท',
+        description: null,
+        discountType: 'FIXED',
+        discountValue: new Prisma.Decimal(20),
+        pointCost: 50, // requires 50, but after 60 expired, user only has 40
+        minPurchase: new Prisma.Decimal(150),
+        validityDays: 14,
+        status: 'ACTIVE',
+        merchant: null,
+      });
+
+      const service = new RewardsService(prisma as unknown as PrismaService);
+      vi.spyOn(service, 'expireUserPointsInternal').mockResolvedValue(60);
+
+      await expect(service.redeemCoupon(100n, 1n)).rejects.toThrow(
+        'พอยต์สะสมไม่เพียงพอสำหรับการแลกคูปองนี้',
+      );
+      expect(prisma.tx.userCoupon.create).not.toHaveBeenCalled();
+    });
   });
 });

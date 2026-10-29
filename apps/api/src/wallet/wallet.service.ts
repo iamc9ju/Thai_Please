@@ -787,12 +787,24 @@ export class WalletService {
     if (!merchant) {
       throw new NotFoundException('MERCHANT_NOT_FOUND');
     }
-    if (merchant.ownerUserId !== userId) {
+
+    const membership = await this.prisma.merchantMember.findFirst({
+      where: {
+        merchantId,
+        userId,
+        status: 'ACTIVE',
+      },
+    });
+
+    const isMember = Boolean(membership) || merchant.ownerUserId === userId;
+    if (!isMember) {
       throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
     }
 
     const merchantWallet = await this.getOrCreateMerchantWallet(merchantId);
-    const isOwner = merchant.ownerUserId === userId;
+    const isOwner = membership
+      ? membership.role === 'OWNER'
+      : merchant.ownerUserId === userId;
     const hasConsumerRole = await this.hasActiveConsumerRole(userId);
     const consumerWallet = await this.prisma.wallet.findUnique({
       where: { userId },
@@ -999,7 +1011,15 @@ export class WalletService {
     if (!merchant) {
       throw new NotFoundException('MERCHANT_NOT_FOUND');
     }
-    if (merchant.ownerUserId !== userId) {
+
+    const membership = await this.prisma.merchantMember.findFirst({
+      where: {
+        merchantId,
+        userId,
+        status: 'ACTIVE',
+      },
+    });
+    if (!membership && merchant.ownerUserId !== userId) {
       throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
     }
 
@@ -1128,7 +1148,20 @@ export class WalletService {
     if (!merchant) {
       throw new NotFoundException('MERCHANT_NOT_FOUND');
     }
-    if (merchant.ownerUserId !== userId) {
+
+    const membership = await this.prisma.merchantMember.findFirst({
+      where: {
+        merchantId,
+        userId,
+        status: 'ACTIVE',
+      },
+    });
+
+    const isOwner = membership
+      ? membership.role === 'OWNER'
+      : merchant.ownerUserId === userId;
+
+    if (!isOwner) {
       throw new ForbiddenException('WITHDRAWAL_OWNER_ONLY');
     }
     if (merchant.status !== 'ACTIVE') {
@@ -1393,7 +1426,15 @@ export class WalletService {
     if (!merchant) {
       throw new NotFoundException('MERCHANT_NOT_FOUND');
     }
-    if (merchant.ownerUserId !== userId) {
+
+    const membership = await this.prisma.merchantMember.findFirst({
+      where: {
+        merchantId,
+        userId,
+        status: 'ACTIVE',
+      },
+    });
+    if (!membership && merchant.ownerUserId !== userId) {
       throw new ForbiddenException('MERCHANT_ACCESS_DENIED');
     }
 

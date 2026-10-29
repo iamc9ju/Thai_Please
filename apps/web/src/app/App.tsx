@@ -25,6 +25,13 @@ const MerchantPos = lazy(async () => {
   return { default: mod.MerchantPos };
 });
 
+const MerchantPendingApproval = lazy(async () => {
+  const mod = await import(
+    '../features/merchant/pages/MerchantPendingApproval'
+  );
+  return { default: mod.MerchantPendingApproval };
+});
+
 function PortalLoadingFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface p-6">
@@ -34,7 +41,7 @@ function PortalLoadingFallback() {
 }
 
 function MainContent() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logout, refreshSession } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
   if (isLoading) {
@@ -55,10 +62,31 @@ function MainContent() {
     }
 
     if (user.role === 'MERCHANT') {
+      const isApproved = user.merchantStatus === 'ACTIVE';
+
+      if (!isApproved) {
+        return (
+          <Suspense fallback={<PortalLoadingFallback />}>
+            <MerchantPendingApproval
+              merchantName={
+                user.merchantName ?? user.fullName ?? 'ร้านค้าของฉัน'
+              }
+              citizenId={user.citizenId}
+              status={user.merchantStatus ?? 'PENDING'}
+              merchantRole={user.merchantRole ?? 'OWNER'}
+              onRefresh={() => void refreshSession()}
+              onLogout={() => void logout()}
+            />
+          </Suspense>
+        );
+      }
+
       return (
         <Suspense fallback={<PortalLoadingFallback />}>
           <MerchantPos
-            merchantName={user.fullName ?? 'ร้านค้าคนละครึ่ง'}
+            merchantName={
+              user.merchantName ?? user.fullName ?? 'ร้านค้าคนละครึ่ง'
+            }
             onLogout={() => void logout()}
           />
         </Suspense>

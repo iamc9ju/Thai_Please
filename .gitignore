@@ -18,3 +18,11 @@ output/
 
 # Local HTTPS certificates (generated per developer machine)
 apps/web/certs/*.pem
+
+# Editor & CLI assistant metadata
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+**/skills-lock.json
+

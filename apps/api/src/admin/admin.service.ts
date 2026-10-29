@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuestsService } from '../quests/quests.service.js';
 import { questAudit } from './quest-audit.js';
@@ -43,6 +44,95 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly quests: QuestsService,
   ) {}
+
+  /**
+   * NFR-OBS-01 & BR-POLICY-01: บันทึก Security Audit Trail ลงตาราง audit_events ในฐานข้อมูลถาวร
+   */
+  async recordAuditEvent(params: {
+    actorUserId?: bigint;
+    actorRole?: string;
+    action: string;
+    targetType: string;
+    targetId?: string;
+    result?: string;
+    correlationId?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    try {
+      await this.prisma.auditEvent.create({
+        data: {
+          actorUserId: params.actorUserId,
+          actorRole: params.actorRole ?? 'ADMIN',
+          action: params.action,
+          targetType: params.targetType,
+          targetId: params.targetId,
+          result: params.result ?? 'SUCCESS',
+          correlationId: params.correlationId,
+          metadata: params.metadata
+            ? (params.metadata as unknown as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
+    } catch (err) {
+      this.logger.error('Failed to persist audit event', err);
+    }
+    this.logger.log(
+      JSON.stringify(params, (_k, v) =>
+        typeof v === 'bigint' ? v.toString() : v,
+      ),
+    );
+  }
+
+  /**
+   * NFR-OBS-01: ดึงประวัติ Security Audit Events สำหรับผู้ดูแลระบบ
+   */
+  async listAuditEvents(query?: {
+    action?: string;
+    targetType?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const limit = Math.min(100, Math.max(1, query?.limit ?? 50));
+    const offset = Math.max(0, query?.offset ?? 0);
+    const where: Prisma.AuditEventWhereInput = {
+      ...(query?.action ? { action: query.action } : {}),
+      ...(query?.targetType ? { targetType: query.targetType } : {}),
+    };
+
+    const [total, items] = await Promise.all([
+      this.prisma.auditEvent.count({ where }),
+      this.prisma.auditEvent.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          actorUser: {
+            select: { userId: true, fullName: true, citizenId: true },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      limit,
+      offset,
+      items: items.map((e) => ({
+        auditEventId: e.auditEventId.toString(),
+        actorUserId: e.actorUserId?.toString() ?? null,
+        actorFullName: e.actorUser?.fullName ?? null,
+        actorRole: e.actorRole,
+        action: e.action,
+        targetType: e.targetType,
+        targetId: e.targetId,
+        result: e.result,
+        correlationId: e.correlationId,
+        metadata: e.metadata,
+        createdAt: e.createdAt.toISOString(),
+      })),
+    };
+  }
 
   /**
    * FR-A01: Platform Overview
@@ -409,7 +499,18 @@ export class AdminService {
       occurredAt: now.toISOString(),
     };
 
-    this.logger.log(JSON.stringify(auditEvent));
+    await this.recordAuditEvent({
+      actorUserId: adminUserId,
+      action: 'ADMIN_MERCHANT_STATUS_CHANGED',
+      targetType: 'MERCHANT',
+      targetId: merchantId.toString(),
+      metadata: {
+        merchantName: updated.merchantName,
+        previousStatus,
+        newStatus: nextStatus,
+        reason: reason?.trim() || null,
+      },
+    });
 
     return {
       merchantId: updated.merchantId.toString(),
@@ -528,7 +629,17 @@ export class AdminService {
       status: roleRecord.status,
       occurredAt: now.toISOString(),
     };
-    this.logger.log(JSON.stringify(audit));
+    await this.recordAuditEvent({
+      actorUserId: actorAdminId,
+      action: 'ADMIN_ROLE_GRANTED',
+      targetType: 'USER_ROLE',
+      targetId: targetUserId.toString(),
+      metadata: {
+        targetFullName: user.fullName,
+        role: 'ADMIN',
+        status: roleRecord.status,
+      },
+    });
 
     return {
       userRoleId: roleRecord.userRoleId.toString(),
@@ -611,7 +722,17 @@ export class AdminService {
       newStatus: updated.status,
       occurredAt: now.toISOString(),
     };
-    this.logger.log(JSON.stringify(audit));
+    await this.recordAuditEvent({
+      actorUserId: actorAdminId,
+      action: 'ADMIN_ROLE_STATUS_UPDATED',
+      targetType: 'USER_ROLE',
+      targetId: targetUserId.toString(),
+      metadata: {
+        targetFullName: existingRole.user.fullName,
+        previousStatus: existingRole.status,
+        newStatus: updated.status,
+      },
+    });
 
     return {
       userRoleId: updated.userRoleId.toString(),
@@ -696,14 +817,19 @@ export class AdminService {
       },
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: 'ADMIN_SUBSIDY_PROGRAM_CREATED',
-        actorAdminId: actorAdminId.toString(),
-        programId: created.programId.toString(),
+    await this.recordAuditEvent({
+      actorUserId: actorAdminId,
+      action: 'ADMIN_SUBSIDY_PROGRAM_CREATED',
+      targetType: 'SUBSIDY_PROGRAM',
+      targetId: created.programId.toString(),
+      metadata: {
         programName: created.programName,
-      }),
-    );
+        initialGrant: toNumber(created.initialGrant),
+        subsidyPercentage: toNumber(created.subsidyPercentage),
+        dailySubsidyLimit: toNumber(created.dailySubsidyLimit),
+        status: created.status,
+      },
+    });
 
     return {
       programId: created.programId.toString(),
@@ -779,14 +905,17 @@ export class AdminService {
       },
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: 'ADMIN_SUBSIDY_PROGRAM_UPDATED',
-        actorAdminId: actorAdminId.toString(),
-        programId: updated.programId.toString(),
+    await this.recordAuditEvent({
+      actorUserId: actorAdminId,
+      action: 'ADMIN_SUBSIDY_PROGRAM_UPDATED',
+      targetType: 'SUBSIDY_PROGRAM',
+      targetId: updated.programId.toString(),
+      metadata: {
         status: updated.status,
-      }),
-    );
+        dailySubsidyLimit: toNumber(updated.dailySubsidyLimit),
+        endDate: updated.endDate,
+      },
+    });
 
     return {
       programId: updated.programId.toString(),

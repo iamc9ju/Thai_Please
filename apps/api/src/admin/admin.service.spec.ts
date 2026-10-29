@@ -65,6 +65,11 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
     questGenerationLog: {
       findMany: ReturnType<typeof vi.fn>;
     };
+    auditEvent: {
+      create: ReturnType<typeof vi.fn>;
+      findMany: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
+    };
     $transaction: ReturnType<typeof vi.fn>;
   };
 
@@ -121,6 +126,11 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
       },
       questGenerationLog: {
         findMany: vi.fn(),
+      },
+      auditEvent: {
+        create: vi.fn().mockResolvedValue({ id: 'ae_test' }),
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
       },
       $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
         callback(prismaMock),
@@ -523,6 +533,55 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
       );
       expect(result.dailyTrend).toHaveLength(7);
       expect(result.reportingTimezone).toBe('Asia/Bangkok');
+    });
+  });
+
+  describe('Audit Events (NFR-OBS-01 & BR-POLICY-01)', () => {
+    it('records an audit event successfully to prisma.auditEvent', async () => {
+      await service.recordAuditEvent({
+        actorUserId: 1n,
+        actorRole: 'ADMIN',
+        action: 'TEST_ACTION',
+        targetType: 'MERCHANT',
+        targetId: '10',
+        metadata: { key: 'value' },
+      });
+
+      expect(prismaMock.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorUserId: 1n,
+          actorRole: 'ADMIN',
+          action: 'TEST_ACTION',
+          targetType: 'MERCHANT',
+          targetId: '10',
+          result: 'SUCCESS',
+        }),
+      });
+    });
+
+    it('lists audit events with pagination and filters', async () => {
+      const mockEvent = {
+        auditEventId: 'ae_1',
+        action: 'ADMIN_MERCHANT_STATUS_CHANGED',
+        actorRole: 'ADMIN',
+        targetType: 'MERCHANT',
+        targetId: '10',
+        result: 'SUCCESS',
+        createdAt: new Date(),
+        actorUser: { fullName: 'Super Admin', email: 'admin@tp.th' },
+      };
+      prismaMock.auditEvent.findMany.mockResolvedValue([mockEvent]);
+      prismaMock.auditEvent.count.mockResolvedValue(1);
+
+      const result = await service.listAuditEvents({
+        action: 'ADMIN_MERCHANT_STATUS_CHANGED',
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].action).toBe('ADMIN_MERCHANT_STATUS_CHANGED');
     });
   });
 });

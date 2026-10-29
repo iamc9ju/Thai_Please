@@ -23,6 +23,10 @@ interface MockMerchantPrisma {
     create: Mock;
   };
   order: { findMany: Mock };
+  merchantMember: {
+    findFirst: Mock;
+    findUnique: Mock;
+  };
   $queryRaw: Mock;
   $transaction: Mock;
 }
@@ -35,6 +39,10 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
     prismaMock = {
       merchant: {
         findUnique: vi.fn(),
+      },
+      merchantMember: {
+        findFirst: vi.fn().mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
+        findUnique: vi.fn().mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
       },
       user: {
         findUnique: vi.fn(),
@@ -199,6 +207,48 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
         consumerName: 'สมชาย ใจดี',
       });
       expect(result.orderIncomes).toHaveLength(1);
+    });
+
+    it('allows STAFF member to view wallet overview but denies withdrawal eligibility (BR-MERCHANT-01)', async () => {
+      const staffUserId = 102n;
+      const ownerId = 101n;
+      const merchantId = 301n;
+
+      prismaMock.merchant.findUnique.mockResolvedValue({
+        merchantId,
+        merchantName: 'ร้านป้าศรี ข้าวแกงไทย',
+        ownerUserId: ownerId,
+        status: 'ACTIVE',
+      });
+
+      prismaMock.merchantMember.findFirst.mockResolvedValue({
+        role: 'STAFF',
+        status: 'ACTIVE',
+      });
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        userId: staffUserId,
+        status: 'ACTIVE',
+        role: 'MERCHANT',
+        roles: [{ role: 'MERCHANT', status: 'ACTIVE' }],
+      });
+
+      prismaMock.wallet.findUnique.mockResolvedValue({
+        walletId: 801n,
+        merchantId,
+        walletType: 'MERCHANT',
+        merchantBalance: new Prisma.Decimal('500.00'),
+        personalBalance: new Prisma.Decimal('0.00'),
+        subsidyBalance: new Prisma.Decimal('0.00'),
+        status: 'ACTIVE',
+      });
+
+      prismaMock.walletTransaction.findMany.mockResolvedValue([]);
+
+      const result = await service.getMerchantWalletOverview(staffUserId, merchantId);
+
+      expect(result.withdrawalEligibility.isOwner).toBe(false);
+      expect(result.withdrawalEligibility.canWithdraw).toBe(false);
     });
 
     it('rejects access when requestedMerchantId does not match activeMerchantId', async () => {
@@ -372,6 +422,21 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
           idempotencyKey: 'withdraw-key-over',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects withdrawal when user is STAFF (WITHDRAWAL_OWNER_ONLY) (BR-MERCHANT-01)', async () => {
+      const staffUserId = 999n;
+      prismaMock.merchantMember.findFirst.mockResolvedValueOnce({
+        role: 'STAFF',
+        status: 'ACTIVE',
+      });
+
+      await expect(
+        service.withdrawFromMerchantWallet(staffUserId, merchantId, {
+          amount: 100,
+          idempotencyKey: 'withdraw-key-staff',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('rejects withdrawal when owner lacks an active CONSUMER role', async () => {

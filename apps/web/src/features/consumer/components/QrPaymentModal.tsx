@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { th } from '../../../i18n/th';
 import { QrPaymentScanner } from '../../merchant/components/QrPaymentScanner';
 import type { PaymentResult } from '../../merchant/merchant.types';
 
@@ -40,7 +41,7 @@ export function QrPaymentModal({
         <button
           onClick={onClose}
           type="button"
-          aria-label="ปิดหน้าต่าง"
+          aria-label={th.consumerPortal.qrScanner.closeWindow}
           className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
         >
           <X className="size-5" />
