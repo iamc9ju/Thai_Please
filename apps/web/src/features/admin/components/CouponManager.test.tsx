@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CouponManager } from './CouponManager';
 
 const coupon = {
@@ -19,6 +19,7 @@ const coupon = {
 };
 
 describe('CouponManager', () => {
+  afterEach(cleanup);
   it('creates a coupon with a retry key and keeps the draft after an error', async () => {
     const onCreate = vi
       .fn()
@@ -39,6 +40,12 @@ describe('CouponManager', () => {
     fireEvent.change(screen.getByLabelText('มูลค่าส่วนลด'), {
       target: { value: '10' },
     });
+    fireEvent.change(screen.getByLabelText('แต้มที่ใช้แลก'), {
+      target: { value: '100' },
+    });
+    fireEvent.change(screen.getByLabelText('อายุคูปอง (วัน)'), {
+      target: { value: '7' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'สร้างคูปอง' }));
     await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
     expect(onCreate.mock.calls[0]?.[0]).toMatchObject({
@@ -50,6 +57,35 @@ describe('CouponManager', () => {
     await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(2));
     expect(onCreate.mock.calls[1]?.[0]?.idempotencyKey).toBe(
       onCreate.mock.calls[0]?.[0]?.idempotencyKey,
+    );
+  });
+
+  it('starts numeric fields empty and toggles status before edit', async () => {
+    const onUpdate = vi.fn().mockResolvedValue(undefined);
+    render(
+      <CouponManager
+        items={[coupon]}
+        busy={false}
+        onCreate={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('แต้มที่ใช้แลก')).toHaveValue(null);
+    expect(screen.getByLabelText('อายุคูปอง (วัน)')).toHaveValue(null);
+    expect(
+      screen.queryByRole('combobox', { name: 'สถานะ' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้งาน' }));
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          status: 'INACTIVE',
+          pointCost: 30,
+          validityDays: 30,
+        }),
+      ),
     );
   });
 

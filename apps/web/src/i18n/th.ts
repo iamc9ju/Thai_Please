@@ -1805,6 +1805,8 @@ export const th = {
       status: 'สถานะ',
       active: 'เปิดใช้งาน',
       inactive: 'ปิดการแลก',
+      enable: 'เปิดใช้งาน',
+      disable: 'ปิดใช้งาน',
       platformWide: 'ใช้ได้ทุกร้าน',
       removeConfirm: (name: string) => `ลบคูปอง ${name}?`,
       summary: (discount: string, points: number, issued: number) =>

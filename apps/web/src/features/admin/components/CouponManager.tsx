@@ -2,13 +2,18 @@ import { useRef, useState, type FormEvent } from 'react';
 import { th } from '../../../i18n/th';
 import type { AdminCouponInput, AdminCouponItem } from '../admin.types';
 
-const empty: AdminCouponInput = {
+type CouponDraft = Omit<AdminCouponInput, 'pointCost' | 'validityDays'> & {
+  pointCost: string;
+  validityDays: string;
+};
+
+const empty: CouponDraft = {
   couponName: '',
   discountType: 'FIXED',
   discountValue: '',
-  pointCost: 1,
+  pointCost: '',
   minPurchase: '0',
-  validityDays: 30,
+  validityDays: '',
   status: 'ACTIVE',
 };
 
@@ -30,20 +35,23 @@ export function CouponManager({
   onLoadMore?: () => void;
 }) {
   const copy = th.adminPortal.coupons;
-  const [form, setForm] = useState<AdminCouponInput>(empty);
+  const [form, setForm] = useState<CouponDraft>(empty);
   const createKey = useRef<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const set = <K extends keyof AdminCouponInput>(
-    key: K,
-    value: AdminCouponInput[K],
-  ) => setForm((previous) => ({ ...previous, [key]: value }));
+  const set = <K extends keyof CouponDraft>(key: K, value: CouponDraft[K]) =>
+    setForm((previous) => ({ ...previous, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      if (editing) await onUpdate(editing, form);
+      const input: AdminCouponInput = {
+        ...form,
+        pointCost: Number(form.pointCost),
+        validityDays: Number(form.validityDays),
+      };
+      if (editing) await onUpdate(editing, input);
       else
         await onCreate({
-          ...form,
+          ...input,
           idempotencyKey:
             createKey.current ?? (createKey.current = crypto.randomUUID()),
         });
@@ -78,17 +86,6 @@ export function CouponManager({
             className="rounded-xl border p-3"
           />
           <select
-            aria-label={copy.status}
-            value={form.status}
-            onChange={(event) =>
-              set('status', event.target.value as AdminCouponInput['status'])
-            }
-            className="rounded-xl border p-3"
-          >
-            <option value="ACTIVE">{copy.active}</option>
-            <option value="INACTIVE">{copy.inactive}</option>
-          </select>
-          <select
             aria-label={copy.discountType}
             value={form.discountType}
             onChange={(e) =>
@@ -117,7 +114,7 @@ export function CouponManager({
             type="number"
             min="1"
             value={form.pointCost}
-            onChange={(e) => set('pointCost', Number(e.target.value))}
+            onChange={(e) => set('pointCost', e.target.value)}
             placeholder={copy.pointCost}
             className="rounded-xl border p-3"
           />
@@ -135,7 +132,7 @@ export function CouponManager({
             type="number"
             min="1"
             value={form.validityDays}
-            onChange={(e) => set('validityDays', Number(e.target.value))}
+            onChange={(e) => set('validityDays', e.target.value)}
             placeholder={copy.validityDays}
             className="rounded-xl border p-3"
           />
@@ -198,6 +195,26 @@ export function CouponManager({
               </div>
               <div className="flex gap-2">
                 <button
+                  type="button"
+                  disabled={busy || coupon.issuedCount > 0}
+                  onClick={() =>
+                    void onUpdate(coupon.couponId, {
+                      couponName: coupon.couponName,
+                      description: coupon.description ?? '',
+                      discountType: coupon.discountType,
+                      discountValue: String(coupon.discountValue),
+                      pointCost: coupon.pointCost,
+                      minPurchase: String(coupon.minPurchase),
+                      validityDays: coupon.validityDays,
+                      status:
+                        coupon.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                    }).catch(() => undefined)
+                  }
+                  className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50"
+                >
+                  {coupon.status === 'ACTIVE' ? copy.disable : copy.enable}
+                </button>
+                <button
                   disabled={busy || coupon.issuedCount > 0}
                   onClick={() => {
                     setEditing(coupon.couponId);
@@ -206,9 +223,9 @@ export function CouponManager({
                       description: coupon.description ?? '',
                       discountType: coupon.discountType,
                       discountValue: String(coupon.discountValue),
-                      pointCost: coupon.pointCost,
+                      pointCost: String(coupon.pointCost),
                       minPurchase: String(coupon.minPurchase),
-                      validityDays: coupon.validityDays,
+                      validityDays: String(coupon.validityDays),
                       status: coupon.status,
                     });
                   }}
