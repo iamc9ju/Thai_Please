@@ -432,7 +432,11 @@ export class AuthService {
         data: {
           ownerUserId: user.userId,
           merchantName: dto.merchantName,
-          merchantTypes: dto.merchantTypes,
+          categoryAssignments: {
+            create: dto.merchantTypes.map((categoryCode) => ({
+              category: { connect: { categoryCode } },
+            })),
+          },
           description: dto.merchantDescription,
           address: merchantFullAddress,
           phone: dto.merchantPhone,
@@ -465,7 +469,7 @@ export class AuthService {
         success: true,
         merchantId: merchant.merchantId.toString(),
         merchantName: merchant.merchantName,
-        merchantTypes: merchant.merchantTypes,
+        merchantTypes: dto.merchantTypes,
       };
     });
   }

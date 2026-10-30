@@ -39,15 +39,45 @@ export class CatalogService {
                 mode: 'insensitive',
               },
             },
-            { merchantTypes: { has: normalizedSearch } },
+            {
+              categoryAssignments: {
+                some: {
+                  category: {
+                    status: 'ACTIVE',
+                    OR: [
+                      {
+                        categoryName: {
+                          contains: normalizedSearch,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        categoryCode: {
+                          contains: normalizedSearch,
+                          mode: 'insensitive',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
           ],
         },
         select: {
           merchantId: true,
           merchantName: true,
-          merchantTypes: true,
           description: true,
           address: true,
+          categoryAssignments: {
+            where: { category: { status: 'ACTIVE' } },
+            select: {
+              category: {
+                select: { categoryCode: true, categoryName: true },
+              },
+            },
+            orderBy: { category: { sortOrder: 'asc' } },
+          },
         },
         orderBy: [{ merchantName: 'asc' }, { merchantId: 'asc' }],
         take: normalizedLimit,
@@ -56,7 +86,9 @@ export class CatalogService {
       return merchants.map((merchant) => ({
         merchantId: merchant.merchantId.toString(),
         merchantName: merchant.merchantName,
-        merchantTypes: merchant.merchantTypes,
+        merchantTypes: merchant.categoryAssignments.map(
+          (assignment) => assignment.category.categoryName,
+        ),
         description: merchant.description,
         address: merchant.address,
       }));
@@ -72,13 +104,22 @@ export class CatalogService {
       }>
     >(Prisma.sql`
       SELECT
-        merchant_id,
-        merchant_name,
-        merchant_types,
-        description,
-        address
-      FROM merchants
-      WHERE status = 'ACTIVE'
+        m.merchant_id,
+        m.merchant_name,
+        COALESCE(
+          array_agg(c.category_name ORDER BY c.sort_order)
+            FILTER (WHERE c.merchant_category_id IS NOT NULL AND c.status = 'ACTIVE'),
+          ARRAY[]::VARCHAR[]
+        ) AS merchant_types,
+        m.description,
+        m.address
+      FROM merchants m
+      LEFT JOIN merchant_category_assignments a
+        ON a.merchant_id = m.merchant_id
+      LEFT JOIN merchant_categories c
+        ON c.merchant_category_id = a.merchant_category_id
+      WHERE m.status = 'ACTIVE'
+      GROUP BY m.merchant_id, m.merchant_name, m.description, m.address
       ORDER BY RANDOM()
       LIMIT ${normalizedLimit}
     `);

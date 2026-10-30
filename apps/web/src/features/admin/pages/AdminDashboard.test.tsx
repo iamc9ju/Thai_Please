@@ -754,28 +754,18 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     vi.mocked(adminApi.getAdminMerchants).mockResolvedValue([
       {
         ...base,
-        merchantType: 'อาหารและเครื่องดื่ม',
         merchantTypes: ['FOOD_BEVERAGE'],
       },
       {
         ...base,
         merchantId: '12',
         merchantName: 'ร้านของชำทดสอบ',
-        merchantType: 'ร้านขายของชำ',
         merchantTypes: ['OTOP', 'GENERAL_GOODS'],
       },
       {
         ...base,
         merchantId: '13',
         merchantName: 'ร้านเก่าที่ไม่ระบุประเภท',
-        merchantType: null,
-        merchantTypes: [],
-      },
-      {
-        ...base,
-        merchantId: '14',
-        merchantName: 'ร้านข้อมูลเก่า',
-        merchantType: 'ประเภทเดิม',
         merchantTypes: [],
       },
     ]);
@@ -824,9 +814,5 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     });
     expect(screen.getByText('ร้านเก่าที่ไม่ระบุประเภท')).toBeInTheDocument();
     expect(screen.queryByText('ร้านของชำทดสอบ')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(merchantCopy.typeLabel), {
-      target: { value: 'legacy:ประเภทเดิม' },
-    });
-    expect(screen.getByText('ร้านข้อมูลเก่า')).toBeInTheDocument();
   });
 });

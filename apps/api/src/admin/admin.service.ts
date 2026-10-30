@@ -456,6 +456,16 @@ export class AdminService {
             finalAmount: true,
           },
         },
+        categoryAssignments: {
+          select: {
+            category: {
+              select: {
+                categoryCode: true,
+              },
+            },
+          },
+          orderBy: { category: { sortOrder: 'asc' } },
+        },
       },
       orderBy: [{ createdAt: 'desc' }, { merchantId: 'desc' }],
     });
@@ -464,8 +474,9 @@ export class AdminService {
       items: merchants.map((m) => ({
         merchantId: m.merchantId.toString(),
         merchantName: m.merchantName,
-        merchantType: m.merchantType,
-        merchantTypes: m.merchantTypes,
+        merchantTypes: m.categoryAssignments.map(
+          (assignment) => assignment.category.categoryCode,
+        ),
         description: m.description,
         address: m.address,
         phone: m.phone ?? m.owner.phone,

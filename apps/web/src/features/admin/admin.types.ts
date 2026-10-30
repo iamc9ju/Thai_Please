@@ -61,7 +61,6 @@ export interface PlatformOverviewResponse {
 }
 
 export interface AdminMerchantItem {
-  merchantType?: string | null;
   merchantId: string;
   merchantName: string;
   merchantTypes: MerchantBusinessType[];

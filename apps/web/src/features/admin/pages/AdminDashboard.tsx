@@ -79,7 +79,6 @@ import type {
 
 const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
 const BUSINESS_TYPE_FILTER_PREFIX = 'business:';
-const LEGACY_TYPE_FILTER_PREFIX = 'legacy:';
 const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
   overview: 'dashboard',
   merchants: 'table',
@@ -173,38 +172,20 @@ export function AdminDashboard({
         th.registration.merchantTypes.find((option) => option.value === value)
           ?.label ?? value,
     })),
-    ...[
-      ...new Set(
-        merchants.flatMap((merchant) =>
-          merchant.merchantType &&
-          !MERCHANT_BUSINESS_TYPES.includes(
-            merchant.merchantType as MerchantBusinessType,
-          )
-            ? [merchant.merchantType]
-            : [],
-        ),
-      ),
-    ].map((value) => ({
-      value: `${LEGACY_TYPE_FILTER_PREFIX}${value}`,
-      label: value,
-    })),
   ];
   const visibleMerchants = merchants.filter((merchant) => {
     const merchantTypes = merchant.merchantTypes ?? [];
     const typeMatches = !merchantTypeFilter
       ? true
       : merchantTypeFilter === UNSPECIFIED_MERCHANT_TYPE
-        ? merchantTypes.length === 0 && !merchant.merchantType
+        ? merchantTypes.length === 0
         : merchantTypeFilter.startsWith(BUSINESS_TYPE_FILTER_PREFIX)
           ? merchantTypes.includes(
               merchantTypeFilter.slice(
                 BUSINESS_TYPE_FILTER_PREFIX.length,
               ) as MerchantBusinessType,
             )
-          : merchantTypeFilter.startsWith(LEGACY_TYPE_FILTER_PREFIX)
-            ? merchant.merchantType ===
-              merchantTypeFilter.slice(LEGACY_TYPE_FILTER_PREFIX.length)
-            : false;
+          : false;
     const searchText = [
       merchant.merchantName,
       merchant.owner.fullName,
@@ -1136,8 +1117,17 @@ export function AdminDashboard({
                           </div>
                           <p className="text-xs text-muted">
                             {merchantActionsCopy.typeLabel}:{' '}
-                            {merchant.merchantType ||
-                              merchantActionsCopy.unknownType}
+                            {merchant.merchantTypes.length > 0
+                              ? merchant.merchantTypes
+                                  .map(
+                                    (merchantType) =>
+                                      th.registration.merchantTypes.find(
+                                        (option) =>
+                                          option.value === merchantType,
+                                      )?.label ?? merchantType,
+                                  )
+                                  .join(', ')
+                              : merchantActionsCopy.unknownType}
                           </p>
                           {merchant.description && (
                             <p className="text-xs text-slate-600">

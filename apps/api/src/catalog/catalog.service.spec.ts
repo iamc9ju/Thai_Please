@@ -64,9 +64,16 @@ describe('CatalogService (FR-M02)', () => {
       {
         merchantId: 10n,
         merchantName: 'ร้านน้ำสมุนไพรไทย',
-        merchantTypes: ['เครื่องดื่ม'],
         description: null,
         address: 'เชียงใหม่',
+        categoryAssignments: [
+          {
+            category: {
+              categoryCode: 'BEVERAGE_SHOP',
+              categoryName: 'ร้านเครื่องดื่ม',
+            },
+          },
+        ],
       },
     ]);
 
@@ -79,6 +86,7 @@ describe('CatalogService (FR-M02)', () => {
       }),
     );
     expect(merchants[0]?.merchantName).toBe('ร้านน้ำสมุนไพรไทย');
+    expect(merchants[0]?.merchantTypes).toEqual(['ร้านเครื่องดื่ม']);
   });
 
   it('lists only ACTIVE products by default and all products when includeInactive=true', async () => {

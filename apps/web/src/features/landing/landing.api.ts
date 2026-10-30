@@ -8,7 +8,10 @@ export type PublicMerchant = {
   address: string | null;
 };
 
-export function getPublicMerchants(search = '', limit = 12): Promise<PublicMerchant[]> {
+export function getPublicMerchants(
+  search = '',
+  limit = 10,
+): Promise<PublicMerchant[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   const normalizedSearch = search.trim();
   if (normalizedSearch) params.set('search', normalizedSearch);
