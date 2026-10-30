@@ -83,10 +83,15 @@ export class AdminController {
   }
 
   @Get(ADMIN_ROUTES.coupons)
-  async listCoupons(@Req() req: Request, @Query('before') before?: string) {
+  async listCoupons(
+    @Req() req: Request,
+    @Query('before') before?: string,
+    @Query('search') search?: string,
+  ) {
     this.requireAdminId(req);
     return this.adminService.listCoupons(
       before ? parseBigIntId(before, 'คูปอง') : undefined,
+      search,
     );
   }
 

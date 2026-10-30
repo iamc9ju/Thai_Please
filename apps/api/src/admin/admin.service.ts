@@ -246,9 +246,37 @@ export class AdminService {
     };
   }
 
-  async listCoupons(beforeId?: bigint) {
+  async listCoupons(beforeId?: bigint, search?: string) {
     const coupons = await this.prisma.coupon.findMany({
-      where: beforeId ? { couponId: { lt: beforeId } } : undefined,
+      where: {
+        ...(beforeId ? { couponId: { lt: beforeId } } : {}),
+        ...(search?.trim()
+          ? {
+              OR: [
+                {
+                  couponName: {
+                    contains: search.trim(),
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  description: {
+                    contains: search.trim(),
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  merchant: {
+                    merchantName: {
+                      contains: search.trim(),
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       include: {
         merchant: { select: { merchantName: true } },
         _count: { select: { userCoupons: true } },

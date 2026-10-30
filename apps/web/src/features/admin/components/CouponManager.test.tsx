@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CouponManager } from './CouponManager';
 
@@ -72,6 +78,7 @@ describe('CouponManager', () => {
       />,
     );
     expect(screen.getByLabelText('แต้มที่ใช้แลก')).toHaveValue(null);
+    expect(screen.getByLabelText('ยอดซื้อขั้นต่ำ')).toHaveValue('');
     expect(screen.getByLabelText('อายุคูปอง (วัน)')).toHaveValue(null);
     expect(
       screen.queryByRole('combobox', { name: 'สถานะ' }),
@@ -87,6 +94,34 @@ describe('CouponManager', () => {
         }),
       ),
     );
+  });
+
+  it('shows ten coupons per page and searches the catalogue', () => {
+    const onSearchChange = vi.fn();
+    const items = Array.from({ length: 11 }, (_, index) => ({
+      ...coupon,
+      couponId: String(index + 1),
+      couponName: `Coupon ${index + 1}`,
+    }));
+    render(
+      <CouponManager
+        items={items}
+        busy={false}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onSearchChange={onSearchChange}
+      />,
+    );
+    expect(screen.getAllByRole('article')).toHaveLength(10);
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    fireEvent.change(
+      screen.getByLabelText('ค้นหาชื่อคูปอง รายละเอียด หรือร้านค้า'),
+      { target: { value: 'Coupon 11' } },
+    );
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(onSearchChange).toHaveBeenCalledWith('Coupon 11');
   });
 
   it('disables edits and deletes for issued coupons', () => {

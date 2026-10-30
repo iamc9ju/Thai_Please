@@ -33,9 +33,12 @@ export const ADMIN_API_ROUTES = {
   coupons: `${ADMIN_API_BASE}/coupons`,
 } as const;
 
-export function getAdminCoupons(before?: string): Promise<AdminCouponPage> {
+export function getAdminCoupons(
+  before?: string,
+  search?: string,
+): Promise<AdminCouponPage> {
   return apiClient.get<AdminCouponPage>(
-    `${ADMIN_API_ROUTES.coupons}${before ? `?before=${encodeURIComponent(before)}` : ''}`,
+    `${ADMIN_API_ROUTES.coupons}?${new URLSearchParams({ ...(before ? { before } : {}), ...(search ? { search } : {}) })}`,
   );
 }
 async function couponMutation<T>(request: Promise<T>): Promise<T> {

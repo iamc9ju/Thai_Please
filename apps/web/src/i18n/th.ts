@@ -1811,7 +1811,12 @@ export const th = {
       removeConfirm: (name: string) => `ลบคูปอง ${name}?`,
       summary: (discount: string, points: number, issued: number) =>
         `${discount} · ${points} แต้ม · ใช้แล้ว ${issued} ใบ`,
-      listLimit: 'แสดงรายการล่าสุดไม่เกิน 100 รายการ',
+      search: 'ค้นหาชื่อคูปอง รายละเอียด หรือร้านค้า',
+      pagination: 'หน้ารายการคูปอง',
+      previous: 'ก่อนหน้า',
+      next: 'ถัดไป',
+      page: (page: number, total: number) =>
+        `หน้า ${page} / ${total} · หน้าละ 10 รายการ`,
       loadMore: 'โหลดคูปองเพิ่มเติม',
     },
     quests: {

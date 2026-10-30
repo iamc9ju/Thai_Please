@@ -243,6 +243,7 @@ export function AdminDashboard({
   const merchantSubmissionLock = useRef(false);
 
   const [programs, setPrograms] = useState<SubsidyProgramItem[]>([]);
+  const [couponSearch, setCouponSearch] = useState('');
   const [coupons, setCoupons] = useState<AdminCouponItem[]>([]);
   const [couponPage, setCouponPage] = useState<AdminCouponPage | null>(null);
   const [isCouponSubmitting, setIsCouponSubmitting] = useState(false);
@@ -315,7 +316,7 @@ export function AdminDashboard({
           if (!isCurrent()) return;
           setPrograms(items);
         } else if (tab === 'coupons') {
-          const page = await getAdminCoupons();
+          const page = await getAdminCoupons(undefined, couponSearch);
           if (!isCurrent()) return;
           setCoupons(page.items);
           setCouponPage(page);
@@ -353,7 +354,7 @@ export function AdminDashboard({
         if (isCurrent()) setIsLoading(false);
       }
     },
-    [beginRequest, copy.errorTitle, impactDays, merchantFilter],
+    [beginRequest, copy.errorTitle, impactDays, merchantFilter, couponSearch],
   );
 
   const manageCoupon = async (
@@ -367,7 +368,7 @@ export function AdminDashboard({
       if (action === 'update' && input && couponId)
         await updateAdminCoupon(couponId, input);
       if (action === 'delete' && couponId) await deleteAdminCoupon(couponId);
-      const page = await getAdminCoupons();
+      const page = await getAdminCoupons(undefined, couponSearch);
       setCoupons(page.items);
       setCouponPage(page);
       setActionBanner({
@@ -390,7 +391,7 @@ export function AdminDashboard({
     if (!couponPage?.nextCursor || isCouponSubmitting) return;
     setIsCouponSubmitting(true);
     try {
-      const page = await getAdminCoupons(couponPage.nextCursor);
+      const page = await getAdminCoupons(couponPage.nextCursor, couponSearch);
       setCoupons((previous) => [...previous, ...page.items]);
       setCouponPage(page);
     } catch (err) {
@@ -1345,9 +1346,10 @@ export function AdminDashboard({
           </section>
         )}
 
-        {!isLoading && !error && activeTab === 'coupons' && (
+        {!error && activeTab === 'coupons' && (
           <CouponManager
             items={coupons}
+            onSearchChange={setCouponSearch}
             busy={isCouponSubmitting}
             onCreate={(input) => manageCoupon('create', input)}
             onUpdate={(couponId, input) =>
