@@ -309,12 +309,12 @@ describe('ConsumerDashboard', () => {
     expect(await screen.findByText('พบ 1 รายการ')).toBeInTheDocument();
   });
 
-  it('completes the mock payment review and opens its receipt', () => {
+  it('completes the mock payment review and opens its receipt', async () => {
     renderDashboard();
     clickFirstNavigation(th.consumerPortal.navigation.payment);
 
     fireEvent.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: th.consumerPortal.payment.demoAction,
       }),
     );

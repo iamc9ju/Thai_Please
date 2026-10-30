@@ -273,8 +273,10 @@ describe('WalletView FR-C02 integration', () => {
       th.consumerPortal.wallet.loading,
     );
     expect(
-      screen.getByRole('status').querySelector('[aria-hidden="true"]'),
-    ).toHaveClass('motion-safe:animate-spin');
+      screen
+        .getByRole('status')
+        .querySelector('[class*="motion-safe:animate-pulse"]'),
+    ).toBeInTheDocument();
     expect(screen.getByText(th.consumerPortal.wallet.loading)).toBeVisible();
     firstRender.unmount();
 

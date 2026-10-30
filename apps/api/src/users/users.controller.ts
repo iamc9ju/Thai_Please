@@ -41,6 +41,9 @@ export class UsersController {
         fullName: user.fullName,
         role: user.role,
         activeMerchantId: user.activeMerchantId?.toString() ?? null,
+        merchantStatus: user.merchantStatus ?? null,
+        merchantName: user.merchantName ?? null,
+        merchantRole: user.merchantRole ?? null,
       },
     };
   }

@@ -154,7 +154,7 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
       if (err instanceof Error) {
         setFeedback(err.message);
       } else {
-        setFeedback('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+        setFeedback(th.login.generalError);
       }
     } finally {
       setIsSubmitting(false);
@@ -388,7 +388,7 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
             className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0056b3] py-3.5 text-sm sm:text-base font-bold text-white shadow-md hover:bg-[#004494] active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
             <span>
-              {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : th.login.submit}
+              {isSubmitting ? th.login.submitting : th.login.submit}
             </span>
             <ArrowRight className="size-4.5" aria-hidden="true" />
           </button>

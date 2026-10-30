@@ -1,20 +1,36 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
-import { LoadingState } from './LoadingState';
+import { afterEach, describe, expect, it } from 'vitest';
+import { LoadingState, type LoadingStateVariant } from './LoadingState';
 
 afterEach(cleanup);
 
-it('shows a consistent visible label and decorative spinner with reduced-motion support (NFR-UI-03, NFR-A11Y-01)', () => {
-  const label = 'กำลังโหลดข้อมูลทดสอบ...';
-  render(<LoadingState label={label} />);
-  const status = screen.getByRole('status');
-  expect(status).toHaveAttribute('aria-busy', 'true');
-  expect(status).toHaveAttribute('aria-live', 'polite');
-  expect(screen.getByText(label)).toBeVisible();
-  expect(screen.getByText(label)).not.toHaveClass('sr-only');
-  expect(status.querySelector('[aria-hidden="true"]')).toHaveClass(
-    'size-8',
-    'border-loading',
-    'motion-safe:animate-spin',
-  );
+describe('LoadingState', () => {
+  it('exposes an accessible loading status and visible label', () => {
+    const label = 'กำลังโหลดข้อมูลทดสอบ...';
+    render(<LoadingState label={label} />);
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-busy', 'true');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveAttribute('data-loading-variant', 'compact');
+    expect(screen.getByText(label)).toBeVisible();
+    expect(status.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
+    expect(
+      status.querySelector('[class*="animate-pulse"]'),
+    ).toBeInTheDocument();
+  });
+
+  it.each<LoadingStateVariant>([
+    'compact',
+    'dashboard',
+    'cards',
+    'table',
+    'profile',
+  ])('renders the %s skeleton variant', (variant) => {
+    render(<LoadingState label="กำลังโหลด" variant={variant} />);
+    expect(screen.getByRole('status')).toHaveAttribute(
+      'data-loading-variant',
+      variant,
+    );
+  });
 });

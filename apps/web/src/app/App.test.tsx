@@ -171,4 +171,26 @@ describe('App', () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it('renders MerchantPendingApproval screen when merchant status is PENDING (FR-AUTH-04)', async () => {
+    const { getMe } = await import('../features/auth/api/auth.api');
+    vi.mocked(getMe).mockResolvedValueOnce({
+      userId: '101',
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ค้าขาย',
+      role: 'MERCHANT',
+      activeMerchantId: '1',
+      merchantStatus: 'PENDING',
+      merchantName: 'ร้านค้าสมชาย',
+      merchantRole: 'OWNER',
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('อยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ'),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('ร้านค้าสมชาย').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('รออนุมัติ (PENDING)').length).toBeGreaterThanOrEqual(1);
+  });
 });

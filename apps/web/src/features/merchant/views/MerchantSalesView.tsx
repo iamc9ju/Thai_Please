@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Edit3, Plus, Power, Settings2, ShoppingCart } from 'lucide-react';
+import { LoadingState } from '../../../components/LoadingState';
 import { th } from '../../../i18n/th';
 import type { CartItem, Category, Product } from '../merchant.types';
 
@@ -474,9 +475,7 @@ export function MerchantSalesView({
         )}
 
         {isLoading ? (
-          <div className="flex h-48 items-center justify-center rounded-3xl border border-slate-200/80 bg-white">
-            <div className="size-8 animate-spin rounded-full border-4 border-[#0056b3] border-r-transparent" />
-          </div>
+          <LoadingState label={th.merchantPortal.pos.loading} variant="cards" />
         ) : filteredProducts.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white text-slate-500">
             <span className="text-3xl">📦</span>

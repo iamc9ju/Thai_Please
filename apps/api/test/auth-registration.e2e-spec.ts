@@ -262,6 +262,28 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
           return created;
         },
       },
+      merchantMember: {
+        findFirst: async ({
+          where,
+        }: {
+          where: { userId?: bigint; status?: string };
+        }) => {
+          const m = [...merchants.values()].find(
+            (m) => m.ownerUserId === where.userId,
+          );
+          if (!m) return null;
+          return {
+            merchantMemberId: 1n,
+            merchantId: m.merchantId,
+            userId: where.userId,
+            role: 'OWNER',
+            status: 'ACTIVE',
+            merchant: m,
+          };
+        },
+        findUnique: async () => ({ role: 'OWNER' }),
+        create: async ({ data }: { data: unknown }) => data,
+      },
       authSession: {
         create: async ({
           data,
@@ -516,6 +538,9 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
       user: {
         fullName: 'สมศักดิ์ รักไทย',
         role: 'MERCHANT',
+        merchantStatus: 'PENDING',
+        merchantName: 'ร้านสมศักดิ์ โภชนา',
+        merchantRole: 'OWNER',
       },
     });
     // Both sessions store SHA-256 tokenHash in auth_sessions

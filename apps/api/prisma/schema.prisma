@@ -65,6 +65,7 @@ model Merchant {
   products     Product[]
   quests       Quest[]
   wallet       Wallet?
+  members      MerchantMember[]
 
   @@map("merchants")
 }
@@ -344,6 +345,7 @@ model User {
 
   authSessions        AuthSession[]
   merchants           Merchant[]
+  merchantMembers     MerchantMember[]
   orders              Order[]
   pointTransactions   PointTransaction[]
   questGenerationLogs QuestGenerationLog[]
@@ -355,6 +357,7 @@ model User {
   walletTransactions  WalletTransaction[]  @relation("user_wallet_tx")
   wallet              Wallet?
   requestedQuestLogs  QuestGenerationLog[] @relation("quest_log_actor")
+  auditEvents         AuditEvent[]         @relation("audit_events_actor")
 
   @@map("users")
 }
@@ -414,3 +417,43 @@ model Wallet {
 
   @@map("wallets")
 }
+
+model MerchantMember {
+  merchantMemberId BigInt   @id @default(autoincrement()) @map("merchant_member_id")
+  merchantId       BigInt   @map("merchant_id")
+  userId           BigInt   @map("user_id")
+  role             String   @default("STAFF") @db.VarChar(20)
+  status           String   @default("ACTIVE") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  merchant Merchant @relation(fields: [merchantId], references: [merchantId], onDelete: Cascade, onUpdate: NoAction)
+  user     User     @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([merchantId, userId], map: "uq_merchant_members_merchant_user")
+  @@index([userId], map: "idx_merchant_members_user")
+  @@index([merchantId, status], map: "idx_merchant_members_merchant_status")
+  @@map("merchant_members")
+}
+
+model AuditEvent {
+  auditEventId  BigInt   @id @default(autoincrement()) @map("audit_event_id")
+  actorUserId   BigInt?  @map("actor_user_id")
+  actorRole     String?  @map("actor_role") @db.VarChar(30)
+  action        String   @db.VarChar(80)
+  targetType    String   @map("target_type") @db.VarChar(50)
+  targetId      String?  @map("target_id") @db.VarChar(80)
+  result        String   @default("SUCCESS") @db.VarChar(20)
+  correlationId String?  @map("correlation_id") @db.VarChar(100)
+  metadata      Json?    @db.JsonB
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actorUser User? @relation("audit_events_actor", fields: [actorUserId], references: [userId], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([action, createdAt], map: "idx_audit_events_action_date")
+  @@index([actorUserId, createdAt], map: "idx_audit_events_actor_date")
+  @@index([targetType, targetId], map: "idx_audit_events_target")
+  @@map("audit_events")
+}
+
+

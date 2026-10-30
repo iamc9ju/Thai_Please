@@ -5,6 +5,8 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -105,14 +107,51 @@ function splitPayment(
 }
 
 @Injectable()
-export class OrderService {
+export class OrderService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OrderService.name);
+  private sweepTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly questsService: QuestsService,
   ) {}
+
+  onModuleInit() {
+    this.sweepTimer = setInterval(() => {
+      this.sweepExpiredOrders().catch((err) => {
+        this.logger.error('Failed to sweep expired orders', err);
+      });
+    }, 15_000);
+    this.sweepTimer.unref();
+    this.sweepExpiredOrders().catch(() => {});
+  }
+
+  onModuleDestroy() {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = undefined;
+    }
+  }
+
+  /**
+   * FR-M05: กวาดล้างคำสั่งซื้อที่หมดอายุ (Sweep Overdue Orders to EXPIRED)
+   */
+  async sweepExpiredOrders(now = new Date()): Promise<number> {
+    const result = await this.prisma.order.updateMany({
+      where: {
+        status: { in: ['PENDING', 'CHECKED_OUT'] },
+        qrExpiresAt: { lte: now },
+      },
+      data: {
+        status: 'EXPIRED',
+      },
+    });
+    if (result.count > 0) {
+      this.logger.log(`Swept ${result.count} overdue orders to EXPIRED status`);
+    }
+    return result.count;
+  }
 
   private paymentConfirmationToken(facts: ConfirmationFacts): string {
     const canonicalFacts = [
@@ -497,13 +536,25 @@ export class OrderService {
         return this.paymentResponse(lockedOrder, true);
       }
 
-      if (lockedOrder.status !== 'PENDING') {
-        throw new ConflictException('Order นี้ไม่อยู่ในสถานะที่ชำระเงินได้');
+      const now = new Date();
+      if (
+        lockedOrder.status === 'EXPIRED' ||
+        (lockedOrder.qrExpiresAt && lockedOrder.qrExpiresAt <= now)
+      ) {
+        if (lockedOrder.status !== 'EXPIRED') {
+          await tx.order.update({
+            where: { orderId: lockedOrder.orderId },
+            data: { status: 'EXPIRED' },
+          });
+        }
+        throw new BadRequestException('QR Code หมดอายุแล้ว');
       }
 
-      const now = new Date();
-      if (lockedOrder.qrExpiresAt && lockedOrder.qrExpiresAt <= now) {
-        throw new BadRequestException('QR Code หมดอายุแล้ว');
+      if (
+        lockedOrder.status !== 'PENDING' &&
+        lockedOrder.status !== 'CHECKED_OUT'
+      ) {
+        throw new ConflictException('Order นี้ไม่อยู่ในสถานะที่ชำระเงินได้');
       }
       if (lockedOrder.merchant.status !== 'ACTIVE') {
         throw new ForbiddenException('ร้านค้าไม่พร้อมให้บริการ');
@@ -794,6 +845,16 @@ export class OrderService {
       throw new BadRequestException('วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด');
     }
 
+    const now = new Date();
+    await this.prisma.order.updateMany?.({
+      where: {
+        merchantId,
+        status: { in: ['PENDING', 'CHECKED_OUT'] },
+        qrExpiresAt: { lte: now },
+      },
+      data: { status: 'EXPIRED' },
+    });
+
     const orders = await this.prisma.order.findMany({
       where: {
         merchantId,
@@ -809,7 +870,13 @@ export class OrderService {
 
     return orders.map((order) => ({
       orderId: order.orderId.toString(),
-      status: order.status,
+      status:
+        order.status === 'PAID'
+          ? 'PAID'
+          : order.status === 'EXPIRED' ||
+              (order.qrExpiresAt && order.qrExpiresAt <= now)
+            ? 'EXPIRED'
+            : order.status,
       subtotal: Number(order.subtotal),
       discountAmount: Number(order.discountAmount),
       finalAmount: Number(order.finalAmount),
@@ -844,6 +911,16 @@ export class OrderService {
       }
       where.createdAt = createdAtFilter;
     }
+
+    const now = new Date();
+    await this.prisma.order.updateMany?.({
+      where: {
+        userId: consumerId,
+        status: { in: ['PENDING', 'CHECKED_OUT'] },
+        qrExpiresAt: { lte: now },
+      },
+      data: { status: 'EXPIRED' },
+    });
 
     const orders = await this.prisma.order.findMany({
       where,
@@ -880,7 +957,13 @@ export class OrderService {
     return orders.map((order) => ({
       orderId: order.orderId.toString(),
       receiptNumber: `TP-${order.orderId.toString().padStart(6, '0')}`,
-      status: order.status,
+      status:
+        order.status === 'PAID'
+          ? 'PAID'
+          : order.status === 'EXPIRED' ||
+              (order.qrExpiresAt && order.qrExpiresAt <= now)
+            ? 'EXPIRED'
+            : order.status,
       merchantId: order.merchant.merchantId.toString(),
       merchantName: order.merchant.merchantName,
       merchantAddress: order.merchant.address ?? null,
@@ -1121,11 +1204,20 @@ export class OrderService {
     if (!order) {
       throw new NotFoundException('ไม่พบ QR Code นี้ในระบบ');
     }
-    if (order.status !== 'PENDING') {
-      throw new ConflictException('Order นี้ถูกชำระเงินแล้วหรือยกเลิกแล้ว');
-    }
-    if (order.qrExpiresAt && order.qrExpiresAt <= now) {
+    if (
+      order.status === 'EXPIRED' ||
+      (order.qrExpiresAt && order.qrExpiresAt <= now)
+    ) {
+      if (order.status !== 'EXPIRED') {
+        await this.prisma.order.update({
+          where: { orderId: order.orderId },
+          data: { status: 'EXPIRED' },
+        });
+      }
       throw new BadRequestException('QR Code หมดอายุแล้ว');
+    }
+    if (order.status !== 'PENDING' && order.status !== 'CHECKED_OUT') {
+      throw new ConflictException('Order นี้ถูกชำระเงินแล้วหรือยกเลิกแล้ว');
     }
     if (order.merchant.status !== 'ACTIVE') {
       throw new ForbiddenException('ร้านค้าไม่พร้อมให้บริการ');

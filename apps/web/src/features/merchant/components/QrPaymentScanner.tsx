@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { th } from '../../../i18n/th';
 import { previewOrder, payByQr } from '../api/merchant.api';
 import type { OrderPreview, PaymentResult } from '../merchant.types';
 
@@ -46,7 +47,7 @@ export function QrPaymentScanner({
       setPreview(data);
       setStep('preview');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ไม่สามารถโหลดข้อมูล QR ได้');
+      setError(e instanceof Error ? e.message : th.consumerPortal.qrScanner.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +67,7 @@ export function QrPaymentScanner({
       setStep('success');
       onPaymentSuccess?.(paid);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ไม่สามารถชำระเงินได้');
+      setError(e instanceof Error ? e.message : th.consumerPortal.qrScanner.payError);
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +88,7 @@ export function QrPaymentScanner({
         <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm shadow">
           📱
         </span>
-        สแกน QR ชำระเงิน
+        {th.consumerPortal.qrScanner.title}
       </h2>
 
       {error && (
@@ -107,13 +108,13 @@ export function QrPaymentScanner({
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              รหัส QR Token (วาง/สแกน QR Code)
+              {th.consumerPortal.qrScanner.inputLabel}
             </label>
             <textarea
               id="qr-token-input"
               className="w-full resize-none rounded-xl bg-slate-800 px-3 py-2.5 font-mono text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               rows={3}
-              placeholder="วาง QR Token ที่ได้รับจากร้านค้า..."
+              placeholder={th.consumerPortal.qrScanner.inputPlaceholder}
               value={qrToken}
               onChange={(e) => setQrToken(e.target.value)}
             />
@@ -122,14 +123,14 @@ export function QrPaymentScanner({
           {availableCoupons.length > 0 && (
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-400">
-                ใช้คูปองส่วนลด (ไม่บังคับ)
+                {th.consumerPortal.qrScanner.couponLabel}
               </label>
               <select
                 className="w-full rounded-xl bg-slate-800 px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={selectedCouponId}
                 onChange={(e) => setSelectedCouponId(e.target.value)}
               >
-                <option value="">— ไม่ใช้คูปอง —</option>
+                <option value="">{th.consumerPortal.qrScanner.noCoupon}</option>
                 {availableCoupons.map((c) => (
                   <option key={c.userCouponId} value={c.userCouponId}>
                     {c.couponName} (
@@ -152,10 +153,10 @@ export function QrPaymentScanner({
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="size-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                กำลังโหลด...
+                {th.consumerPortal.qrScanner.loading}
               </span>
             ) : (
-              'ดูรายละเอียดก่อนชำระ →'
+              th.consumerPortal.qrScanner.previewAction
             )}
           </button>
         </div>
@@ -186,23 +187,23 @@ export function QrPaymentScanner({
           {/* Summary */}
           <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 space-y-2">
             <div className="flex justify-between text-xs text-slate-400">
-              <span>ราคารวม</span>
+              <span>{th.consumerPortal.qrScanner.totalPrice}</span>
               <span>{formatCurrency(preview.subtotal)}</span>
             </div>
             {preview.discountAmount > 0 && (
               <div className="flex justify-between text-xs text-green-400">
-                <span>ส่วนลดคูปอง</span>
+                <span>{th.consumerPortal.qrScanner.couponDiscount}</span>
                 <span>−{formatCurrency(preview.discountAmount)}</span>
               </div>
             )}
             {preview.subsidyAmount > 0 && (
               <div className="flex justify-between text-xs text-purple-400">
-                <span>เงินอุดหนุนโครงการ</span>
+                <span>{th.consumerPortal.qrScanner.subsidyShare}</span>
                 <span>−{formatCurrency(preview.subsidyAmount)}</span>
               </div>
             )}
             <div className="border-t border-slate-700 pt-2 flex justify-between text-sm font-bold">
-              <span className="text-white">คุณจ่าย</span>
+              <span className="text-white">{th.consumerPortal.qrScanner.youPay}</span>
               <span className="text-orange-400">
                 {formatCurrency(preview.userPaidAmount)}
               </span>
@@ -212,7 +213,7 @@ export function QrPaymentScanner({
           {/* Balance info */}
           <div className="rounded-xl bg-slate-800/50 p-3 space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">ยอดในกระเป๋า</span>
+              <span className="text-slate-400">{th.consumerPortal.qrScanner.walletBalance}</span>
               <span
                 className={
                   preview.canAfford ? 'text-green-400' : 'text-red-400'
@@ -223,7 +224,7 @@ export function QrPaymentScanner({
             </div>
             {!preview.canAfford && (
               <p className="text-xs text-red-400">
-                ⚠️ ยอดเงินไม่เพียงพอ กรุณาเติมเงินก่อน
+                {th.consumerPortal.qrScanner.insufficientFunds}
               </p>
             )}
           </div>
@@ -233,7 +234,7 @@ export function QrPaymentScanner({
               onClick={handleReset}
               className="flex-1 rounded-xl bg-slate-700 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-600 transition-colors"
             >
-              ← ยกเลิก
+              {th.consumerPortal.qrScanner.cancelAction}
             </button>
             <button
               id="confirm-payment-btn"
@@ -244,10 +245,10 @@ export function QrPaymentScanner({
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="size-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                  กำลังชำระ...
+                  {th.consumerPortal.qrScanner.paying}
                 </span>
               ) : (
-                `✓ ยืนยันชำระ ${formatCurrency(preview.userPaidAmount)}`
+                th.consumerPortal.qrScanner.confirmPay(formatCurrency(preview.userPaidAmount))
               )}
             </button>
           </div>
@@ -261,19 +262,19 @@ export function QrPaymentScanner({
             <span className="text-3xl">✓</span>
           </div>
           <div>
-            <p className="text-base font-bold text-white">ชำระเงินสำเร็จ!</p>
+            <p className="text-base font-bold text-white">{th.consumerPortal.qrScanner.successTitle}</p>
             <p className="text-sm text-slate-400">Order #{result.orderId}</p>
           </div>
           <div className="w-full rounded-xl bg-slate-800/50 p-3 space-y-1.5 text-left">
             <div className="flex justify-between text-xs text-slate-400">
-              <span>ยอดชำระจริง</span>
+              <span>{th.consumerPortal.qrScanner.actualPaid}</span>
               <span className="font-bold text-orange-400">
                 {formatCurrency(result.userPaidAmount)}
               </span>
             </div>
             {result.subsidyAmount > 0 && (
               <div className="flex justify-between text-xs text-purple-400">
-                <span>โครงการอุดหนุน</span>
+                <span>{th.consumerPortal.qrScanner.subsidyReceived}</span>
                 <span>{formatCurrency(result.subsidyAmount)}</span>
               </div>
             )}
@@ -282,7 +283,7 @@ export function QrPaymentScanner({
             onClick={handleReset}
             className="w-full rounded-xl bg-slate-700 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-600 transition-colors"
           >
-            สแกน QR อีกครั้ง
+            {th.consumerPortal.qrScanner.scanAgain}
           </button>
         </div>
       )}

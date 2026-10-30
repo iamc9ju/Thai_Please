@@ -109,14 +109,36 @@ export class AuthService {
     );
     if (!hasRole) return failLogin();
 
-    // 5. กรณี MERCHANT: ดึง merchant ของ user
+    // 5. กรณี MERCHANT: ดึง merchant ของ user (จาก merchant_members หรือ owner)
     let merchantId: bigint | null = null;
+    let merchantStatus: string | null = null;
+    let merchantName: string | null = null;
+    let merchantRole: string | null = null;
+
     if (role === 'MERCHANT') {
-      const merchant = await this.prisma.merchant.findFirst({
-        where: { ownerUserId: user.userId },
+      const membership = await this.prisma.merchantMember.findFirst({
+        where: {
+          userId: user.userId,
+          status: 'ACTIVE',
+        },
+        include: { merchant: true },
+        orderBy: [{ role: 'asc' }],
       });
+
+      let merchant = membership?.merchant ?? null;
+      merchantRole = membership?.role ?? 'OWNER';
+
+      if (!merchant) {
+        merchant = await this.prisma.merchant.findFirst({
+          where: { ownerUserId: user.userId },
+        });
+        merchantRole = 'OWNER';
+      }
+
       if (!merchant) return failLogin();
       merchantId = merchant.merchantId;
+      merchantStatus = merchant.status;
+      merchantName = merchant.merchantName;
     }
 
     // ล้างสถิติการเข้าสู่ระบบผิดพลาดเมื่อยืนยันตัวตนสำเร็จ
@@ -157,6 +179,9 @@ export class AuthService {
       user: {
         fullName: user.fullName,
         role,
+        ...(merchantStatus !== null ? { merchantStatus } : {}),
+        ...(merchantName !== null ? { merchantName } : {}),
+        ...(merchantRole !== null ? { merchantRole } : {}),
       },
     };
   }
@@ -412,6 +437,16 @@ export class AuthService {
           address: merchantFullAddress,
           phone: dto.merchantPhone,
           status: 'PENDING',
+        },
+      });
+
+      // FR-AUTH-02 & BR-MERCHANT-01: บันทึก Merchant Membership ระดับ OWNER ใน transaction เดียวกัน
+      await tx.merchantMember.create({
+        data: {
+          merchantId: merchant.merchantId,
+          userId: user.userId,
+          role: 'OWNER',
+          status: 'ACTIVE',
         },
       });
 

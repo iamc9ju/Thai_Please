@@ -159,7 +159,9 @@ export function MerchantOrdersView() {
   }, [orders, statusFilter, searchQuery, currentTime]);
 
   if (isLoading) {
-    return <LoadingState label={th.merchantPortal.orders.loading} />;
+    return (
+      <LoadingState label={th.merchantPortal.orders.loading} variant="table" />
+    );
   }
 
   if (error) {

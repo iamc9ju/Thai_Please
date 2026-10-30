@@ -249,4 +249,22 @@ export class AdminController {
       : SOCIAL_IMPACT_DEFAULTS.DEFAULT_TREND_DAYS;
     return this.adminService.getSocialImpactDashboard(parsedDays);
   }
+
+  /** NFR-OBS-01 & BR-POLICY-01: Persistent Security Audit Events */
+  @Get('admin/audit-events')
+  async listAuditEvents(
+    @Req() req: Request,
+    @Query('action') action?: string,
+    @Query('targetType') targetType?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    this.requireAdminId(req);
+    return this.adminService.listAuditEvents({
+      action,
+      targetType,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+  }
 }

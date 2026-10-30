@@ -70,4 +70,35 @@ describe('FR-C01 private profile', () => {
       ),
     ).toEqual(['CONSUMER']);
   });
+
+  it('returns authenticated user session info including merchant status and role (FR-AUTH-04)', () => {
+    const controller = new UsersController({} as never);
+    const mockReq = {
+      user: {
+        userId: 101n,
+        citizenId: '1100000000001',
+        fullName: 'เจ้าของ ร้านค้า',
+        role: 'MERCHANT',
+        activeMerchantId: 301n,
+        merchantStatus: 'PENDING',
+        merchantName: 'ร้านป้าสมศรี',
+        merchantRole: 'OWNER',
+        sessionId: 99n,
+      },
+    };
+
+    const result = controller.getMe(mockReq as never);
+    expect(result).toEqual({
+      user: {
+        userId: '101',
+        citizenId: '1100000000001',
+        fullName: 'เจ้าของ ร้านค้า',
+        role: 'MERCHANT',
+        activeMerchantId: '301',
+        merchantStatus: 'PENDING',
+        merchantName: 'ร้านป้าสมศรี',
+        merchantRole: 'OWNER',
+      },
+    });
+  });
 });

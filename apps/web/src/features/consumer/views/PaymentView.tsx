@@ -1,11 +1,12 @@
 import {
   AlertCircle,
+  ArrowLeft,
   Camera,
-  CameraOff,
   CheckCircle2,
   Clock,
   ImageUp,
-  QrCode,
+  Images,
+  LoaderCircle,
   ReceiptText,
   RotateCcw,
   ShieldCheck,
@@ -14,7 +15,6 @@ import {
 } from 'lucide-react';
 import {
   type ChangeEvent,
-  type FormEvent,
   useCallback,
   useEffect,
   useRef,
@@ -95,7 +95,6 @@ export function PaymentView({
   onPaymentSuccess,
 }: PaymentViewProps) {
   const [step, setStep] = useState<PaymentStep>('scan');
-  const [qrTokenInput, setQrTokenInput] = useState('');
   const [activeQrToken, setActiveQrToken] = useState('');
   const [preview, setPreview] = useState<OrderPreviewResponse | null>(null);
   const [paymentResult, setPaymentResult] =
@@ -107,16 +106,20 @@ export function PaymentView({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
 
   // Camera & Image QR scanner states (FR-C04)
+  const [isScannerOpen, setIsScannerOpen] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [isDecodingImage, setIsDecodingImage] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const cameraRequestRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const copy = th.consumerPortal.payment;
 
   const stopCamera = useCallback(() => {
+    cameraRequestRef.current += 1;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -139,6 +142,23 @@ export function PaymentView({
       stopCamera();
     };
   }, [stopCamera]);
+
+  // Attach the stream only after React has rendered the camera video element.
+  // A fixed timeout is unreliable on slower mobile browsers.
+  useEffect(() => {
+    if (!isCameraActive || !videoRef.current || !streamRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    const playPromise = video.play();
+    if (playPromise) {
+      void playPromise.catch(() => {
+        stopCamera();
+        setIsScannerOpen(false);
+        setErrorMessage(copy.cameraPlaybackError);
+      });
+    }
+  }, [copy.cameraPlaybackError, isCameraActive, stopCamera]);
 
   // Countdown timer for previewed QR
   useEffect(() => {
@@ -187,6 +207,7 @@ export function PaymentView({
         }
       } finally {
         setIsLoading(false);
+        setIsScannerOpen(false);
       }
     },
     [copy.invalidQrMessage],
@@ -204,7 +225,6 @@ export function PaymentView({
           if (!active || !decodedToken) return;
           active = false;
           stopCamera();
-          setQrTokenInput(decodedToken);
           void handleFetchPreview(decodedToken);
         },
       );
@@ -216,34 +236,60 @@ export function PaymentView({
     };
   }, [isCameraActive, step, stopCamera, handleFetchPreview]);
 
-  const handleStartCamera = async () => {
+  const handleStartCamera = useCallback(async () => {
+    setIsScannerOpen(true);
     setErrorMessage(null);
+    if (window.isSecureContext === false) {
+      setIsScannerOpen(false);
+      setErrorMessage(copy.cameraSecureContextError);
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
+      setIsScannerOpen(false);
       setErrorMessage(copy.cameraPermissionError);
       return;
     }
+    setIsStartingCamera(true);
+    const requestId = ++cameraRequestRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
+      if (requestId !== cameraRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       setIsCameraActive(true);
-      // Attach stream after video element renders
-      setTimeout(() => {
-        if (videoRef.current && streamRef.current) {
-          videoRef.current.srcObject = streamRef.current;
-          void videoRef.current.play().catch(() => {});
-        }
-      }, 50);
     } catch {
       stopCamera();
+      setIsScannerOpen(false);
       setErrorMessage(copy.cameraPermissionError);
+    } finally {
+      setIsStartingCamera(false);
     }
+  }, [copy.cameraPermissionError, copy.cameraSecureContextError, stopCamera]);
+
+  // Entering Scan to Pay should behave like a mobile banking scanner:
+  // request the camera immediately instead of showing an intermediate form.
+  useEffect(() => {
+    if (step !== 'scan') return;
+
+    const startTimer = window.setTimeout(() => {
+      void handleStartCamera();
+    }, 0);
+    return () => window.clearTimeout(startTimer);
+  }, [handleStartCamera, step]);
+
+  const handleCloseScanner = () => {
+    stopCamera();
+    setIsScannerOpen(false);
+    onNavigate('overview');
   };
 
   const handleQrImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -251,27 +297,23 @@ export function PaymentView({
     e.target.value = '';
     if (!file) return;
 
+    stopCamera();
     setIsDecodingImage(true);
     setErrorMessage(null);
     try {
       const decodedToken = await decodeQrFromImageFile(file);
       if (!decodedToken) {
+        setIsScannerOpen(false);
         setErrorMessage(copy.qrImageReadError);
         return;
       }
-      setQrTokenInput(decodedToken);
       await handleFetchPreview(decodedToken);
     } catch {
+      setIsScannerOpen(false);
       setErrorMessage(copy.qrImageReadError);
     } finally {
       setIsDecodingImage(false);
     }
-  };
-
-  // Submit manual QR token form
-  const handleScanSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    void handleFetchPreview(qrTokenInput);
   };
 
   // Fast demo preview action
@@ -387,15 +429,105 @@ export function PaymentView({
 
   return (
     <section className="consumer-view max-w-[1200px] mx-auto py-2">
-      <PortalPageHeader
-        eyebrow={copy.eyebrow}
-        title={copy.title}
-        description={copy.description}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        data-testid="qr-image-input"
+        onChange={(e) => void handleQrImageFileChange(e)}
+        className="hidden"
       />
 
-      {/* ── STEP 1: SCAN OR INPUT QR (FR-C04) ── */}
-      {step === 'scan' && (
-        <article className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs max-w-xl mx-auto text-center">
+      {/* Full-screen mobile-banking style QR scanner */}
+      {step === 'scan' && isScannerOpen && (
+        <div
+          data-testid="qr-camera-overlay"
+          className="fixed inset-0 z-[100] overflow-hidden bg-black text-white"
+        >
+          {isCameraActive && (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              data-testid="qr-camera-video"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-b from-black/75 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-black/80 to-transparent" />
+
+          <header className="absolute inset-x-0 top-0 z-20 flex items-center gap-3 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
+            <button
+              type="button"
+              onClick={handleCloseScanner}
+              aria-label={copy.closeScannerAction}
+              className="pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+            >
+              <ArrowLeft className="size-6" aria-hidden="true" />
+            </button>
+            <div>
+              <h2 className="text-lg font-bold drop-shadow-sm">
+                {copy.fullScreenScannerTitle}
+              </h2>
+              <p className="text-xs text-white/75">{copy.scannerSubtitle}</p>
+            </div>
+          </header>
+
+          {isCameraActive && (
+            <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[74vw] max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
+              <span className="absolute -left-0.5 -top-0.5 size-12 rounded-tl-3xl border-l-4 border-t-4 border-white" />
+              <span className="absolute -right-0.5 -top-0.5 size-12 rounded-tr-3xl border-r-4 border-t-4 border-white" />
+              <span className="absolute -bottom-0.5 -left-0.5 size-12 rounded-bl-3xl border-b-4 border-l-4 border-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 size-12 rounded-br-3xl border-b-4 border-r-4 border-white" />
+              <span
+                data-testid="qr-scan-line"
+                className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.8)]"
+              />
+            </div>
+          )}
+
+          {(isStartingCamera || isDecodingImage || isLoading) && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/55">
+              <LoaderCircle className="size-9 animate-spin text-white" />
+              <p className="text-sm font-semibold">
+                {isDecodingImage || isLoading
+                  ? copy.scanning
+                  : copy.startingCamera}
+              </p>
+            </div>
+          )}
+
+          <p className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-1/2 z-20 w-[65%] max-w-md -translate-x-1/2 text-center text-xs font-medium leading-relaxed text-white/90 drop-shadow-sm">
+            {copy.cameraHint}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isDecodingImage || isLoading}
+            aria-label={copy.chooseQrImageAction}
+            className="absolute bottom-[max(1.35rem,env(safe-area-inset-bottom))] right-5 z-30 flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/50 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50 sm:right-8"
+          >
+            <Images className="size-6" aria-hidden="true" />
+          </button>
+
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+      )}
+
+      {(step !== 'scan' || !isScannerOpen) && (
+        <PortalPageHeader
+          eyebrow={copy.eyebrow}
+          title={copy.title}
+          description={copy.description}
+        />
+      )}
+
+      {/* ── STEP 1: SCAN QR (FR-C04) ── */}
+      {step === 'scan' && !isScannerOpen && (
+        <article className="relative mx-auto w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 text-center shadow-xs sm:p-10">
           <div className="flex justify-center mb-5">
             <div className="size-24 rounded-3xl bg-blue-50/60 p-4 flex items-center justify-center border border-blue-100 shadow-inner">
               <img
@@ -431,27 +563,18 @@ export function PaymentView({
           )}
 
           {/* Camera & QR Image Upload Action Buttons (FR-C04) */}
-          <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {isCameraActive ? (
-              <button
-                type="button"
-                onClick={stopCamera}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
-              >
-                <CameraOff className="size-4" />
-                <span>{copy.stopCameraAction}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void handleStartCamera()}
-                disabled={isLoading || isDecodingImage}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <Camera className="size-4" />
-                <span>{copy.cameraAction}</span>
-              </button>
-            )}
+          <div className="mx-auto mb-5 grid max-w-xl grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => void handleStartCamera()}
+              disabled={isLoading || isDecodingImage || isStartingCamera}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              <Camera className="size-4" />
+              <span>
+                {isStartingCamera ? copy.startingCamera : copy.cameraAction}
+              </span>
+            </button>
 
             <button
               type="button"
@@ -464,87 +587,7 @@ export function PaymentView({
                 {isDecodingImage ? copy.scanning : copy.uploadQrImageAction}
               </span>
             </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              data-testid="qr-image-input"
-              onChange={(e) => void handleQrImageFileChange(e)}
-              className="hidden"
-            />
           </div>
-
-          {/* Live Camera Viewfinder */}
-          {isCameraActive && (
-            <div className="mb-6 overflow-hidden rounded-2xl border-2 border-[#0056b3] bg-slate-950 p-3 text-white shadow-md">
-              <div className="relative mx-auto aspect-video max-h-64 overflow-hidden rounded-xl bg-black">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  data-testid="qr-camera-video"
-                  className="h-full w-full object-cover"
-                />
-                <div className="pointer-events-none absolute inset-6 rounded-2xl border-2 border-dashed border-sky-400/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
-              </div>
-              <canvas ref={canvasRef} className="hidden" />
-              <p className="mt-2.5 text-[11px] font-medium text-blue-100">
-                {copy.cameraHint}
-              </p>
-            </div>
-          )}
-
-          {/* QR Token Form */}
-          <form onSubmit={handleScanSubmit} className="space-y-4">
-            <div className="text-left">
-              <label
-                htmlFor="qr-token-input"
-                className="block text-xs font-bold text-slate-700 mb-1.5"
-              >
-                {copy.qrInputLabel}
-              </label>
-              <div className="relative">
-                <input
-                  id="qr-token-input"
-                  type="text"
-                  value={qrTokenInput}
-                  onChange={(e) => setQrTokenInput(e.target.value)}
-                  placeholder={copy.qrInputPlaceholder}
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:border-[#0056b3] focus:ring-2 focus:ring-[#0056b3]/15 text-sm font-mono text-slate-800 placeholder:text-slate-400 transition-all outline-none"
-                />
-                {qrTokenInput && (
-                  <button
-                    type="button"
-                    onClick={() => setQrTokenInput('')}
-                    className="absolute right-3 top-3.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    ล้าง
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={!qrTokenInput.trim() || isLoading}
-              className="w-full py-3 px-5 rounded-xl bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-xs active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {isLoading ? (
-                <>
-                  <span className="size-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                  <span>{copy.scanning}</span>
-                </>
-              ) : (
-                <>
-                  <QrCode className="size-4" />
-                  <span>{copy.checkQrAction}</span>
-                </>
-              )}
-            </button>
-          </form>
 
           {/* Alternative Demo Action */}
           <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-center gap-3">

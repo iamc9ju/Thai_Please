@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin.api';
@@ -282,15 +283,22 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
 
     await screen.findByText('10 บัญชี');
 
+    const adminNav = screen.getByRole('navigation', {
+      name: th.adminPortal.shell.navigation,
+    });
     fireEvent.click(
-      screen.getByRole('button', { name: /อนุมัติร้านค้า \(FR-A02\)/i }),
+      within(adminNav).getByRole('button', { name: /อนุมัติร้านค้า/i }),
     );
 
     expect(
       await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม'),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /อนุมัติร้านค้า$/i }));
+    fireEvent.click(
+      within(screen.getByRole('main')).getByRole('button', {
+        name: /อนุมัติร้านค้า$/i,
+      }),
+    );
     expect(
       screen.getByRole('dialog', { name: merchantCopy.confirmApprove }),
     ).toBeInTheDocument();
@@ -316,9 +324,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
 
     await screen.findByText('10 บัญชี');
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /ผลกระทบทางสังคม \(FR-A07\)/i }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: /ผลกระทบทางสังคม/i }));
 
     expect(await screen.findByText('ร้านป้าศรี ข้าวแกง')).toBeInTheDocument();
     expect(screen.getByText(/อาหารและเครื่องดื่ม/i)).toBeInTheDocument();
@@ -352,10 +358,16 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     );
     await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
     expect(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     ).toHaveAttribute('aria-current', 'page');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.logout }),
+      screen.getByRole('button', {
+        name: th.adminPortal.logout,
+      }),
     );
     expect(onLogout).toHaveBeenCalledOnce();
   });
@@ -393,7 +405,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     expect(
       await screen.findByText(th.adminPortal.merchants.empty),
@@ -428,7 +444,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     );
     render(<AdminDashboard onLogout={vi.fn()} />);
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
     rejectOld(new Error('stale error from overview'));
@@ -593,7 +613,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
     fireEvent.click(
@@ -643,7 +667,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText(base.merchantName);
     expect(
@@ -692,7 +720,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText(th.adminPortal.merchants.empty);
     fireEvent.click(
@@ -718,11 +750,17 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.merchants.approveBtn }),
+      within(screen.getByRole('main')).getByRole('button', {
+        name: th.adminPortal.merchants.approveBtn,
+      }),
     );
     const confirm = screen.getByRole('button', { name: merchantCopy.approve });
     fireEvent.click(confirm);
@@ -771,7 +809,11 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
-      screen.getByRole('button', { name: th.adminPortal.nav.merchants }),
+      within(
+        screen.getByRole('navigation', {
+          name: th.adminPortal.shell.navigation,
+        }),
+      ).getByRole('button', { name: th.adminPortal.nav.merchants }),
     );
     await screen.findByText('ร้านของชำทดสอบ');
     fireEvent.change(screen.getByLabelText(merchantCopy.searchLabel), {

@@ -19,6 +19,9 @@ export type AuthUser = {
   fullName: string;
   role: ApiAuthRole;
   activeMerchantId: string | null;
+  merchantStatus?: string | null;
+  merchantName?: string | null;
+  merchantRole?: string | null;
 };
 
 export type LoginResponse = {

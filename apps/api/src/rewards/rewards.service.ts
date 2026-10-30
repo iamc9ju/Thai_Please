@@ -2,7 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -23,14 +26,171 @@ const TRANSACTION_OPTIONS: {
 };
 
 @Injectable()
-export class RewardsService {
+export class RewardsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RewardsService.name);
+  private sweepTimer?: NodeJS.Timeout;
+
   constructor(private readonly prisma: PrismaService) {}
+
+  onModuleInit() {
+    this.sweepTimer = setInterval(() => {
+      this.sweepExpiredPoints().catch((err) => {
+        this.logger.error('Failed to sweep expired points', err);
+      });
+    }, 60_000);
+    this.sweepTimer.unref();
+    this.sweepExpiredPoints().catch(() => {});
+  }
+
+  onModuleDestroy() {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = undefined;
+    }
+  }
+
+  /**
+   * BR-POINT-02: ตรวจสอบและตัดแต้มที่หมดอายุของ User ตาม FIFO by Expiry
+   */
+  async expireUserPoints(userId: bigint, now = new Date()): Promise<number> {
+    return this.prisma.$transaction(async (tx) => {
+      return this.expireUserPointsInternal(userId, now, tx);
+    }, TRANSACTION_OPTIONS);
+  }
+
+  async expireUserPointsInternal(
+    userId: bigint,
+    now: Date,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    const lockedUsers = await tx.$queryRaw<
+      Array<{ user_id: bigint; point_balance: number }>
+    >`
+      SELECT "user_id", "point_balance"
+      FROM "users"
+      WHERE "user_id" = ${userId}
+      FOR UPDATE
+    `;
+    const user = lockedUsers[0];
+    if (!user || user.point_balance <= 0) {
+      return 0;
+    }
+
+    const transactions = await tx.pointTransaction.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: 'asc' }, { pointTransactionId: 'asc' }],
+    });
+
+    const positiveLots = transactions
+      .filter((t) => t.points > 0)
+      .sort((a, b) => {
+        const aExp = a.expiresAt?.getTime() ?? Infinity;
+        const bExp = b.expiresAt?.getTime() ?? Infinity;
+        return aExp - bExp;
+      });
+
+    let totalDeducted = transactions
+      .filter((t) => t.points < 0)
+      .reduce((sum, t) => sum + Math.abs(t.points), 0);
+
+    let expiredUnconsumed = 0;
+    for (const lot of positiveLots) {
+      const lotPoints = lot.points;
+      if (totalDeducted >= lotPoints) {
+        totalDeducted -= lotPoints;
+        continue;
+      }
+
+      const remainingInLot = lotPoints - totalDeducted;
+      totalDeducted = 0;
+
+      if (lot.expiresAt && lot.expiresAt <= now) {
+        expiredUnconsumed += remainingInLot;
+      }
+    }
+
+    const pointsToExpire = Math.min(user.point_balance, expiredUnconsumed);
+    if (pointsToExpire <= 0) {
+      return 0;
+    }
+
+    await tx.pointTransaction.create({
+      data: {
+        userId,
+        transactionType: 'EXPIRED',
+        points: -pointsToExpire,
+        createdAt: now,
+      },
+    });
+
+    await tx.user.update({
+      where: { userId },
+      data: {
+        pointBalance: { decrement: pointsToExpire },
+        updatedAt: now,
+      },
+    });
+
+    return pointsToExpire;
+  }
+
+  /**
+   * BR-POINT-02: กวาดล้างพอยต์ที่หมดอายุของผู้ใช้งานทุกคน
+   */
+  async sweepExpiredPoints(
+    now = new Date(),
+  ): Promise<{ sweptUsersCount: number; totalPointsExpired: number }> {
+    const candidateUsers = await this.prisma.pointTransaction.findMany({
+      where: {
+        points: { gt: 0 },
+        expiresAt: { lte: now },
+      },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+
+    let sweptUsersCount = 0;
+    let totalPointsExpired = 0;
+
+    for (const { userId } of candidateUsers) {
+      try {
+        const expired = await this.expireUserPoints(userId, now);
+        if (expired > 0) {
+          sweptUsersCount++;
+          totalPointsExpired += expired;
+        }
+      } catch (err) {
+        this.logger.error(
+          `Failed to expire points for user ${userId.toString()}`,
+          err,
+        );
+      }
+    }
+
+    if (totalPointsExpired > 0) {
+      this.logger.log(
+        `Swept ${totalPointsExpired} expired points for ${sweptUsersCount} users`,
+      );
+    }
+
+    return { sweptUsersCount, totalPointsExpired };
+  }
 
   /**
    * FR-C08: ดูยอดพอยต์ แหล่งที่มา วันหมดอายุ และประวัติพอยต์ของ Consumer
    */
   async getConsumerPoints(userId: bigint) {
     const now = new Date();
+
+    try {
+      await this.expireUserPoints(userId, now);
+    } catch (err) {
+      this.logger.error(
+        `Error auto-expiring points for user ${userId.toString()}`,
+        err,
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { userId },
       select: { pointBalance: true },
@@ -213,6 +373,12 @@ export class RewardsService {
       }
       if (lockedUser.status !== 'ACTIVE') {
         throw new ConflictException('บัญชีผู้ใช้งานไม่พร้อมทำรายการ');
+      }
+
+      // Expire any overdue points for this user inside this transaction before balance check
+      const expiredCount = await this.expireUserPointsInternal(userId, now, tx);
+      if (expiredCount > 0) {
+        lockedUser.point_balance -= expiredCount;
       }
 
       // 2. Fetch and validate coupon

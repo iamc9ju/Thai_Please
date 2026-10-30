@@ -52,7 +52,7 @@ const cases = [
 
 describe('page request lifecycle (NFR-UI-01)', () => {
   it.each(cases)(
-    '$name ignores an old failure and keeps the current spinner until its own failure',
+    '$name ignores an old failure and keeps the current skeleton until its own failure',
     async ({ view, mock, loading }) => {
       let rejectOld: ((reason: Error) => void) | undefined;
       let rejectCurrent: ((reason: Error) => void) | undefined;
@@ -76,8 +76,10 @@ describe('page request lifecycle (NFR-UI-01)', () => {
       expect(screen.getByText(loading)).toBeInTheDocument();
       expect(screen.getByText(loading)).toBeVisible();
       expect(
-        screen.getByRole('status').querySelector('[aria-hidden="true"]'),
-      ).toHaveClass('motion-safe:animate-spin');
+        screen
+          .getByRole('status')
+          .querySelector('[class*="motion-safe:animate-pulse"]'),
+      ).toBeInTheDocument();
       expect(screen.queryByText('Old failure')).not.toBeInTheDocument();
 
       await act(async () => {

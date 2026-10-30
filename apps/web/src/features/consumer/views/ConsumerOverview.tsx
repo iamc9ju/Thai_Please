@@ -65,7 +65,12 @@ function OverviewStatus({
   onRetry: () => void;
 }>) {
   if (state.status === 'loading') {
-    return <LoadingState label={th.consumerDashboard.states.loading} />;
+    return (
+      <LoadingState
+        label={th.consumerDashboard.states.loading}
+        variant="dashboard"
+      />
+    );
   }
 
   if (state.status === 'permission-denied') {

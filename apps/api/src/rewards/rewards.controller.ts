@@ -52,4 +52,14 @@ export class RewardsController {
     }
     return this.rewardsService.redeemCoupon(req.user!.userId, BigInt(id));
   }
+
+  /**
+   * BR-POINT-02: Admin กวาดล้างแต้มที่หมดอายุ (Sweep expired points)
+   */
+  @Post('admin/rewards/sweep-expired-points')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  async sweepExpiredPoints() {
+    return this.rewardsService.sweepExpiredPoints();
+  }
 }

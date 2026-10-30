@@ -1,6 +1,9 @@
 import { MerchantSales } from '../components/MerchantSales';
 import { formatTrendDate } from '../format-trend-date';
-import { LoadingState } from '../../../components/LoadingState';
+import {
+  LoadingState,
+  type LoadingStateVariant,
+} from '../../../components/LoadingState';
 import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
   useCallback,
@@ -75,9 +78,18 @@ import type {
 const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
 const BUSINESS_TYPE_FILTER_PREFIX = 'business:';
 const LEGACY_TYPE_FILTER_PREFIX = 'legacy:';
+const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
+  overview: 'dashboard',
+  merchants: 'table',
+  programs: 'cards',
+  quests: 'table',
+  rewards: 'dashboard',
+  socialImpact: 'dashboard',
+  admins: 'table',
+};
 
 export interface AdminDashboardProps {
-  adminName?: string;
+  adminName?: string | undefined;
   onLogout: () => void;
 }
 
@@ -663,7 +675,10 @@ export function AdminDashboard({
         )}
 
         {isLoading ? (
-          <LoadingState label={copy.loading} />
+          <LoadingState
+            label={copy.loading}
+            variant={loadingVariantByTab[activeTab]}
+          />
         ) : error ? (
           <div
             role="alert"

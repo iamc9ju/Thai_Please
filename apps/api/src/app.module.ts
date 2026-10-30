@@ -11,6 +11,7 @@ import { validateEnvironment } from './config/environment.js';
 import { QuestsModule } from './quests/quests.module.js';
 import { RewardsModule } from './rewards/rewards.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { ReconciliationModule } from './reconciliation/reconciliation.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AdminModule } from './admin/admin.module.js';
     QuestsModule,
     RewardsModule,
     AdminModule,
+    ReconciliationModule,
   ],
   controllers: [AppController],
 })

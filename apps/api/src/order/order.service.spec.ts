@@ -10,6 +10,7 @@ interface MockPrisma {
     update: Mock;
     create: Mock;
     findMany: Mock;
+    updateMany: Mock;
   };
   wallet: { findUnique: Mock; findFirst: Mock; update: Mock };
   walletTransaction: { findMany: Mock; create: Mock };
@@ -60,6 +61,7 @@ describe('OrderService payment', () => {
         update: vi.fn(),
         create: vi.fn(),
         findMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       wallet: {
         findUnique: vi.fn(),
@@ -426,8 +428,8 @@ describe('OrderService payment', () => {
 
   describe('FR-C06 & FR-M08: Orders and Receipts', () => {
     it('listMerchantOrders exposes QR expiry for pending-payment history', async () => {
-      const createdAt = new Date('2026-10-27T12:00:00.000Z');
-      const qrExpiresAt = new Date('2026-10-27T12:10:00.000Z');
+      const createdAt = new Date(Date.now() - 60_000);
+      const qrExpiresAt = new Date(Date.now() + 600_000);
       prismaMock.order.findMany.mockResolvedValueOnce([
         {
           orderId: 20n,
@@ -572,6 +574,91 @@ describe('OrderService payment', () => {
       await expect(service.getMerchantReceipt(1n, 999n)).rejects.toThrow(
         'ไม่พบคำสั่งซื้อหรือไม่มีสิทธิ์เข้าถึงใบเสร็จนี้',
       );
+    });
+  });
+
+  describe('FR-M05: Order Lifecycle and Expiration Sweeping', () => {
+    it('sweepExpiredOrders transitions overdue pending/checked_out orders to EXPIRED', async () => {
+      prismaMock.order.updateMany.mockResolvedValueOnce({ count: 5 });
+      const now = new Date('2026-10-30T10:00:00.000Z');
+      const sweptCount = await service.sweepExpiredOrders(now);
+
+      expect(sweptCount).toBe(5);
+      expect(prismaMock.order.updateMany).toHaveBeenCalledWith({
+        where: {
+          status: { in: ['PENDING', 'CHECKED_OUT'] },
+          qrExpiresAt: { lte: now },
+        },
+        data: {
+          status: 'EXPIRED',
+        },
+      });
+    });
+
+    it('payByQr updates database status to EXPIRED and rejects with BadRequestException when QR expired', async () => {
+      const past = new Date('2020-01-01T00:00:00.000Z');
+      prismaMock.order.findUnique.mockResolvedValue({
+        orderId: 10n,
+        status: 'PENDING',
+        qrExpiresAt: past,
+        merchant: { status: 'ACTIVE' },
+      });
+
+      await expect(
+        service.payByQr(100n, {
+          qrToken: 'raw-token',
+          confirmationToken: 'a'.repeat(64),
+        }),
+      ).rejects.toThrow('QR Code หมดอายุแล้ว');
+
+      expect(prismaMock.order.update).toHaveBeenCalledWith({
+        where: { orderId: 10n },
+        data: { status: 'EXPIRED' },
+      });
+    });
+
+    it('previewOrder updates database status to EXPIRED and rejects with BadRequestException when QR expired', async () => {
+      const past = new Date('2020-01-01T00:00:00.000Z');
+      prismaMock.order.findUnique.mockResolvedValueOnce({
+        orderId: 10n,
+        status: 'PENDING',
+        qrExpiresAt: past,
+        merchant: { status: 'ACTIVE' },
+      });
+
+      await expect(
+        service.previewOrder(100n, {
+          qrToken: 'raw-token',
+        }),
+      ).rejects.toThrow('QR Code หมดอายุแล้ว');
+
+      expect(prismaMock.order.update).toHaveBeenCalledWith({
+        where: { orderId: 10n },
+        data: { status: 'EXPIRED' },
+      });
+    });
+
+    it('listMerchantOrders returns EXPIRED status for overdue pending orders', async () => {
+      const past = new Date('2020-01-01T00:00:00.000Z');
+      prismaMock.order.findMany.mockResolvedValueOnce([
+        {
+          orderId: 21n,
+          status: 'PENDING',
+          subtotal: '100.00',
+          discountAmount: '0.00',
+          finalAmount: '100.00',
+          subsidyAmount: '0.00',
+          userPaidAmount: '100.00',
+          createdAt: past,
+          qrExpiresAt: past,
+          paidAt: null,
+          user: null,
+          orderItems: [],
+        },
+      ]);
+
+      const result = await service.listMerchantOrders(1n);
+      expect(result[0]?.status).toBe('EXPIRED');
     });
   });
 });
