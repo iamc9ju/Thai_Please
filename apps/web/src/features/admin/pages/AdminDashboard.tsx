@@ -1,3 +1,4 @@
+import { RewardHistoryPages } from '../components/RewardHistoryPages';
 import { MerchantSales } from '../components/MerchantSales';
 import { formatTrendDate } from '../format-trend-date';
 import {
@@ -1901,40 +1902,42 @@ export function AdminDashboard({
                         {adminManagementCopy.noRecords}
                       </p>
                     )}
-                    {rewardMonitoring.recentQuestAssignments.map((item) => (
-                      <div
-                        key={item.userQuestId}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {item.questName} (+{item.rewardPoint} พอยต์)
-                          </p>
-                          <p className="text-slate-500">
-                            ผู้ใช้: {item.userFullName} · มอบหมายเมื่อ{' '}
-                            {formatDateTime(item.assignedAt)} · หมดอายุ{' '}
-                            {formatDateTime(item.expiresAt)}
-                          </p>
-                          {item.completedAt && (
-                            <p className="text-muted">
-                              {adminManagementCopy.completedAt}:{' '}
-                              {formatDateTime(item.completedAt)}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 font-semibold ${
-                            item.status === 'COMPLETED'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : item.status === 'EXPIRED'
-                                ? 'bg-slate-200 text-slate-600'
-                                : 'bg-blue-50 text-brand'
-                          }`}
+                    <RewardHistoryPages key="quests">
+                      {rewardMonitoring.recentQuestAssignments.map((item) => (
+                        <div
+                          key={item.userQuestId}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
                         >
-                          {item.status}
-                        </span>
-                      </div>
-                    ))}
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {item.questName} (+{item.rewardPoint} พอยต์)
+                            </p>
+                            <p className="text-slate-500">
+                              ผู้ใช้: {item.userFullName} · มอบหมายเมื่อ{' '}
+                              {formatDateTime(item.assignedAt)} · หมดอายุ{' '}
+                              {formatDateTime(item.expiresAt)}
+                            </p>
+                            {item.completedAt && (
+                              <p className="text-muted">
+                                {adminManagementCopy.completedAt}:{' '}
+                                {formatDateTime(item.completedAt)}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 font-semibold ${
+                              item.status === 'COMPLETED'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : item.status === 'EXPIRED'
+                                  ? 'bg-slate-200 text-slate-600'
+                                  : 'bg-blue-50 text-brand'
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+                      ))}
+                    </RewardHistoryPages>
                   </div>
                 </div>
               )}
@@ -1947,37 +1950,39 @@ export function AdminDashboard({
                         {adminManagementCopy.noRecords}
                       </p>
                     )}
-                    {rewardMonitoring.recentPointTransactions.map((pt) => (
-                      <div
-                        key={pt.pointTransactionId}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {pt.sourceName} ({pt.transactionType})
-                          </p>
-                          <p className="text-slate-500">
-                            ผู้ใช้: {pt.userFullName} ·{' '}
-                            {formatDateTime(pt.createdAt)}
-                          </p>
-                          <p className="text-muted">
-                            {adminManagementCopy.expiresAt}:{' '}
-                            {pt.expiresAt
-                              ? formatDateTime(pt.expiresAt)
-                              : adminManagementCopy.noExpiry}
-                          </p>
-                        </div>
-                        <span
-                          className={`text-sm font-extrabold ${
-                            pt.points > 0
-                              ? 'text-emerald-700'
-                              : 'text-amber-700'
-                          }`}
+                    <RewardHistoryPages key="points">
+                      {rewardMonitoring.recentPointTransactions.map((pt) => (
+                        <div
+                          key={pt.pointTransactionId}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
                         >
-                          {pt.points > 0 ? `+${pt.points}` : pt.points} พอยต์
-                        </span>
-                      </div>
-                    ))}
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {pt.sourceName} ({pt.transactionType})
+                            </p>
+                            <p className="text-slate-500">
+                              ผู้ใช้: {pt.userFullName} ·{' '}
+                              {formatDateTime(pt.createdAt)}
+                            </p>
+                            <p className="text-muted">
+                              {adminManagementCopy.expiresAt}:{' '}
+                              {pt.expiresAt
+                                ? formatDateTime(pt.expiresAt)
+                                : adminManagementCopy.noExpiry}
+                            </p>
+                          </div>
+                          <span
+                            className={`text-sm font-extrabold ${
+                              pt.points > 0
+                                ? 'text-emerald-700'
+                                : 'text-amber-700'
+                            }`}
+                          >
+                            {pt.points > 0 ? `+${pt.points}` : pt.points} พอยต์
+                          </span>
+                        </div>
+                      ))}
+                    </RewardHistoryPages>
                   </div>
                 </div>
               )}
@@ -1990,40 +1995,42 @@ export function AdminDashboard({
                         {adminManagementCopy.noRecords}
                       </p>
                     )}
-                    {rewardMonitoring.recentCouponRedemptions.map((uc) => (
-                      <div
-                        key={uc.userCouponId}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {uc.couponName} (ใช้ {uc.pointCost} พอยต์)
-                          </p>
-                          <p className="text-slate-500">
-                            ผู้ใช้: {uc.userFullName} · แลกเมื่อ{' '}
-                            {formatDateTime(uc.redeemedAt)} · หมดอายุ{' '}
-                            {formatDateTime(uc.expiresAt)}
-                          </p>
-                          {uc.usedAt && (
-                            <p className="text-muted">
-                              {adminManagementCopy.usedAt}:{' '}
-                              {formatDateTime(uc.usedAt)}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 font-semibold ${
-                            uc.status === 'USED'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : uc.status === 'EXPIRED'
-                                ? 'bg-slate-200 text-slate-600'
-                                : 'bg-blue-50 text-brand'
-                          }`}
+                    <RewardHistoryPages key="coupons">
+                      {rewardMonitoring.recentCouponRedemptions.map((uc) => (
+                        <div
+                          key={uc.userCouponId}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs"
                         >
-                          {uc.status}
-                        </span>
-                      </div>
-                    ))}
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {uc.couponName} (ใช้ {uc.pointCost} พอยต์)
+                            </p>
+                            <p className="text-slate-500">
+                              ผู้ใช้: {uc.userFullName} · แลกเมื่อ{' '}
+                              {formatDateTime(uc.redeemedAt)} · หมดอายุ{' '}
+                              {formatDateTime(uc.expiresAt)}
+                            </p>
+                            {uc.usedAt && (
+                              <p className="text-muted">
+                                {adminManagementCopy.usedAt}:{' '}
+                                {formatDateTime(uc.usedAt)}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 font-semibold ${
+                              uc.status === 'USED'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : uc.status === 'EXPIRED'
+                                  ? 'bg-slate-200 text-slate-600'
+                                  : 'bg-blue-50 text-brand'
+                            }`}
+                          >
+                            {uc.status}
+                          </span>
+                        </div>
+                      ))}
+                    </RewardHistoryPages>
                   </div>
                 </div>
               )}

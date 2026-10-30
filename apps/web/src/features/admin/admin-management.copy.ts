@@ -1,4 +1,10 @@
 export const adminManagementCopy = {
+  rewardPagination: 'เปลี่ยนหน้าประวัติภารกิจ พอยต์ และคูปอง',
+  previousPage: 'ก่อนหน้า',
+  nextPage: 'ถัดไป',
+  rewardPage: (page: number) => `หน้า ${page}`,
+  rewardPageRange: (start: number, end: number, total: number) =>
+    `แสดง ${start}–${end} จาก ${total} รายการล่าสุด`,
   saving: 'กำลังบันทึก…',
   failed: 'ไม่สามารถบันทึกได้ กรุณาตรวจสอบข้อมูลและสิทธิ์ของคุณ แล้วลองใหม่',
   noPrograms: 'ยังไม่มีโครงการเงินอุดหนุน กรุณาสร้างโครงการแรก',
