@@ -172,6 +172,32 @@ describe('HttpExceptionFilter', () => {
     );
   });
 
+  it('maps the subsidy-program date overlap trigger to a localized conflict', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Overlapping date range',
+      {
+        code: 'P2039',
+        clientVersion: '7.10.0',
+        meta: {
+          driverAdapterError: {
+            originalMessage:
+              'violates exclusion constraint "subsidy_programs_date_overlap"',
+          },
+        },
+      },
+    );
+
+    filter.catch(exception, mockHost as never);
+
+    expect(mockStatus).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    expect(mockJson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'ADMIN_PROGRAM_DATES_OVERLAP',
+        message: 'ช่วงเวลาของโครงการซ้ำกับโครงการที่มีอยู่',
+      }),
+    );
+  });
+
   it('maps unhandled generic Error to 500 Internal Server Error', () => {
     const exception = new Error('Unexpected crash');
 

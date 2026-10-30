@@ -2,6 +2,7 @@ import {
   Award,
   BarChart3,
   Coins,
+  Ticket,
   Layers,
   LogOut,
   Sparkles,
@@ -15,6 +16,7 @@ export type AdminTab =
   | 'overview'
   | 'merchants'
   | 'programs'
+  | 'coupons'
   | 'quests'
   | 'rewards'
   | 'socialImpact'
@@ -47,6 +49,7 @@ export function AdminSidebar({
     { key: 'overview', label: copy.nav.overview, icon: Layers },
     { key: 'merchants', label: copy.nav.merchants, icon: Store },
     { key: 'programs', label: copy.nav.programs, icon: Coins },
+    { key: 'coupons', label: copy.nav.coupons, icon: Ticket },
     { key: 'quests', label: copy.nav.quests, icon: Sparkles },
     { key: 'rewards', label: copy.nav.rewards, icon: Award },
     { key: 'socialImpact', label: copy.nav.socialImpact, icon: BarChart3 },

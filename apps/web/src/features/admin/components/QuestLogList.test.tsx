@@ -27,7 +27,7 @@ const logs: QuestGenerationLogItem[] = Array.from(
   }),
 );
 
-it('sorts and filters the full recent dataset before ten-row pagination (FR-A05)', () => {
+it('sorts by date before ten-row pagination without status controls (FR-A05)', () => {
   render(
     <QuestLogList logs={logs}>
       {(log) => <p key={log.generationId}>log-{log.generationId}</p>}
@@ -42,17 +42,8 @@ it('sorts and filters the full recent dataset before ten-row pagination (FR-A05)
   });
   expect(screen.getByText('log-1')).toBeInTheDocument();
   expect(screen.queryByText('log-11')).toBeNull();
-  fireEvent.change(screen.getByLabelText(copy.status), {
-    target: { value: 'FAILED' },
-  });
-  expect(screen.getByText('log-2')).toBeInTheDocument();
-  expect(screen.queryByText('log-1')).toBeNull();
-  fireEvent.change(screen.getByLabelText(copy.status), {
-    target: { value: '' },
-  });
-  fireEvent.change(screen.getByLabelText(copy.sort), {
-    target: { value: 'status' },
-  });
-  expect(screen.getByText('log-23')).toBeInTheDocument();
-  expect(screen.queryByText('log-22')).toBeNull();
+  expect(
+    screen.queryByRole('combobox', { name: 'สถานะ' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole('option', { name: 'A–Z' })).not.toBeInTheDocument();
 });

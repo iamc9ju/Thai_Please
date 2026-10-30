@@ -1,8 +1,10 @@
+import { useToast } from '../../../components/toast/ToastProvider';
 import { ProgramList } from '../components/ProgramList';
 import { AdminDirectoryList } from '../components/AdminDirectoryList';
 import { QuestLogList } from '../components/QuestLogList';
 import { RewardHistoryPages } from '../components/RewardHistoryPages';
 import { MerchantSales } from '../components/MerchantSales';
+import { CouponManager } from '../components/CouponManager';
 import { formatTrendDate } from '../format-trend-date';
 import {
   LoadingState,
@@ -54,6 +56,9 @@ import { SubsidyProgramEditor } from '../components/SubsidyProgramEditor';
 import { adminManagementCopy } from '../admin-management.copy';
 import {
   createSubsidyProgram,
+  createAdminCoupon,
+  deleteAdminCoupon,
+  getAdminCoupons,
   getAdminMerchants,
   getAdminUsersAndRoles,
   getPlatformOverview,
@@ -65,6 +70,7 @@ import {
   updateAdminRoleStatus,
   updateMerchantApprovalStatus,
   updateSubsidyProgramStatus,
+  updateAdminCoupon,
 } from '../api/admin.api';
 import type {
   AdminMerchantItem,
@@ -75,6 +81,9 @@ import type {
   RewardMonitoringResponse,
   SocialImpactDashboardResponse,
   SubsidyProgramItem,
+  AdminCouponInput,
+  AdminCouponItem,
+  AdminCouponPage,
 } from '../admin.types';
 
 const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
@@ -83,6 +92,7 @@ const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
   overview: 'dashboard',
   merchants: 'table',
   programs: 'cards',
+  coupons: 'cards',
   quests: 'table',
   rewards: 'dashboard',
   socialImpact: 'dashboard',
@@ -147,6 +157,7 @@ export function AdminDashboard({
   onLogout,
 }: AdminDashboardProps) {
   const copy = th.adminPortal;
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,6 +226,10 @@ export function AdminDashboard({
   const merchantSubmissionLock = useRef(false);
 
   const [programs, setPrograms] = useState<SubsidyProgramItem[]>([]);
+  const [couponSearch, setCouponSearch] = useState('');
+  const [coupons, setCoupons] = useState<AdminCouponItem[]>([]);
+  const [couponPage, setCouponPage] = useState<AdminCouponPage | null>(null);
+  const [isCouponSubmitting, setIsCouponSubmitting] = useState(false);
   const [newProgram, setNewProgram] = useState({
     programName: '',
     initialGrant: '',
@@ -283,6 +298,11 @@ export function AdminDashboard({
           const items = await getSubsidyPrograms();
           if (!isCurrent()) return;
           setPrograms(items);
+        } else if (tab === 'coupons') {
+          const page = await getAdminCoupons(undefined, couponSearch);
+          if (!isCurrent()) return;
+          setCoupons(page.items);
+          setCouponPage(page);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
           if (!isCurrent()) return;
@@ -317,8 +337,55 @@ export function AdminDashboard({
         if (isCurrent()) setIsLoading(false);
       }
     },
-    [beginRequest, copy.errorTitle, impactDays, merchantFilter],
+    [beginRequest, copy.errorTitle, impactDays, merchantFilter, couponSearch],
   );
+
+  const manageCoupon = async (
+    action: 'create' | 'update' | 'delete',
+    input?: AdminCouponInput,
+    couponId?: string,
+  ) => {
+    setIsCouponSubmitting(true);
+    try {
+      if (action === 'create' && input) await createAdminCoupon(input);
+      if (action === 'update' && input && couponId)
+        await updateAdminCoupon(couponId, input);
+      if (action === 'delete' && couponId) await deleteAdminCoupon(couponId);
+      const page = await getAdminCoupons(undefined, couponSearch);
+      setCoupons(page.items);
+      setCouponPage(page);
+      setActionBanner({
+        type: 'success',
+        message: th.adminPortal.coupons.saved,
+      });
+    } catch (err) {
+      setActionBanner({
+        type: 'error',
+        message:
+          err instanceof Error ? err.message : th.adminPortal.coupons.failed,
+      });
+      throw err;
+    } finally {
+      setIsCouponSubmitting(false);
+    }
+  };
+
+  const loadNextCouponPage = async () => {
+    if (!couponPage?.nextCursor || isCouponSubmitting) return;
+    setIsCouponSubmitting(true);
+    try {
+      const page = await getAdminCoupons(couponPage.nextCursor, couponSearch);
+      setCoupons((previous) => [...previous, ...page.items]);
+      setCouponPage(page);
+    } catch (err) {
+      setActionBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : copy.errorTitle,
+      });
+    } finally {
+      setIsCouponSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     void loadActiveTabData(activeTab);
@@ -463,10 +530,12 @@ export function AdminDashboard({
     event.preventDefault();
     if (!newProgram.programName.trim() || isSavingProgram) return;
     if (newProgram.startDate > newProgram.endDate) {
-      setActionBanner({
-        type: 'error',
-        message: adminManagementCopy.dateOrder,
+      showToast({
+        type: 'warning',
+        title: adminManagementCopy.programCreateRejected,
+        description: adminManagementCopy.dateOrder,
       });
+      setActionBanner(null);
       return;
     }
     setIsSavingProgram(true);
@@ -489,12 +558,15 @@ export function AdminDashboard({
       const refreshed = await getSubsidyPrograms();
       setPrograms(refreshed);
     } catch (err) {
-      setActionBanner({
-        type: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : 'ไม่สามารถสร้างโครงการเงินอุดหนุนได้',
+      const message =
+        err instanceof Error
+          ? err.message
+          : adminManagementCopy.programCreateFailed;
+      setActionBanner(null);
+      showToast({
+        type: 'warning',
+        title: adminManagementCopy.programCreateRejected,
+        description: message,
       });
     } finally {
       setIsSavingProgram(false);
@@ -1042,7 +1114,7 @@ export function AdminDashboard({
               ))}
             </div>
 
-            {merchantFilter === 'PENDING' && (
+            {(merchantFilter === 'ALL' || merchantFilter === 'PENDING') && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-panel p-4">
                 <p className="text-sm font-semibold">
                   {merchantActionsCopy.total(
@@ -1269,6 +1341,21 @@ export function AdminDashboard({
               </div>
             )}
           </section>
+        )}
+
+        {!error && activeTab === 'coupons' && (
+          <CouponManager
+            items={coupons}
+            onSearchChange={setCouponSearch}
+            busy={isCouponSubmitting}
+            onCreate={(input) => manageCoupon('create', input)}
+            onUpdate={(couponId, input) =>
+              manageCoupon('update', input, couponId)
+            }
+            onDelete={(couponId) => manageCoupon('delete', undefined, couponId)}
+            hasMore={couponPage?.nextCursor !== null}
+            onLoadMore={() => void loadNextCouponPage()}
+          />
         )}
 
         {/* TAB 3: FR-A04 Subsidy Program Management */}
@@ -1689,9 +1776,7 @@ export function AdminDashboard({
                               <span className="rounded-lg bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
                                 Log #{log.generationId}
                               </span>
-                              <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
-                                {log.status}
-                              </span>
+
                               <span className="text-xs font-semibold text-slate-700">
                                 ผู้รับภารกิจ: {log.user.fullName} (
                                 {log.user.citizenIdMasked})

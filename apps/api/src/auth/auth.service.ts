@@ -492,6 +492,7 @@ export class AuthService {
         merchantId: merchant.merchantId.toString(),
         merchantName: merchant.merchantName,
         merchantTypes: dto.merchantTypes,
+        merchantTypes: dto.merchantTypes,
       };
     });
   }

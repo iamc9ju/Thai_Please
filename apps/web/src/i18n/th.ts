@@ -241,7 +241,7 @@ export const th = {
       mockNotice: 'หน้าจอนี้ใช้ข้อมูลจำลองและยังไม่เชื่อมต่อ API',
     },
     wallet: {
-      eyebrow: 'FR-C02 · FR-C03',
+      eyebrow: 'กระเป๋าเงินของคุณ',
       title: 'กระเป๋าเงินและสิทธิ์สนับสนุน',
       description: 'ตรวจสอบเงินส่วนตัว เงินสนับสนุน และสถานะสิทธิ์รายวันของคุณ',
       personalBalance: 'เงินส่วนตัว',
@@ -323,7 +323,7 @@ export const th = {
       },
     },
     payment: {
-      eyebrow: 'FR-C04 · FR-C05',
+      eyebrow: 'ชำระเงินด้วย QR',
       title: 'สแกนและชำระเงิน',
       description: 'ตรวจสอบข้อมูลจาก QR ให้ครบก่อนยืนยันทุกครั้ง',
       scanTitle: 'พร้อมสแกน QR ร้านค้า',
@@ -371,6 +371,15 @@ export const th = {
       finalAmount: 'ยอดชำระสุทธิ',
       subsidyExpected: 'คาดว่าจะใช้เงินสนับสนุน',
       personalExpected: 'ชำระจากเงินส่วนตัว',
+      subsidyUsed: 'เงินสนับสนุนโครงการที่ใช้',
+      personalPaid: 'หักจากกระเป๋าเงินส่วนตัว',
+      paidAtLabel: 'วันเวลาที่ชำระ',
+      merchantLabel: 'ร้านค้าที่รับชำระ',
+      paymentStatusLabel: 'สถานะรายการ',
+      paymentStatusCompleted: 'ชำระเงินสำเร็จแล้ว',
+      receiptVerifiedBadge: 'ใบเสร็จอิเล็กทรอนิกส์ยืนยันแล้ว (Immutable e-Receipt)',
+      coPaySummaryTitle: 'สรุปแหล่งเงินที่ใช้ชำระ',
+      orderSummaryTitle: 'รายละเอียดคำสั่งซื้อ',
       walletAfter: 'ยอดเงินส่วนตัวหลังชำระ 1,767.50 บาท',
       walletAfterAmount: (balance: string) =>
         `ยอดเงินส่วนตัวคงเหลือหลังชำระ ฿${balance}`,
@@ -419,7 +428,7 @@ export const th = {
       closeWindow: 'ปิดหน้าต่าง',
     },
     orders: {
-      eyebrow: 'FR-C06',
+      eyebrow: 'ประวัติการซื้อ',
       title: 'รายการซื้อและใบเสร็จ',
       description: 'ดูเฉพาะรายการที่ชำระสำเร็จและข้อมูล ณ เวลาที่ทำรายการ',
       filterAll: 'ทั้งหมด',
@@ -514,7 +523,7 @@ export const th = {
       immutableNote: 'ใบเสร็จที่ชำระสำเร็จเป็นข้อมูลประวัติและแก้ไขไม่ได้',
     },
     quests: {
-      eyebrow: 'FR-C07',
+      eyebrow: 'ภารกิจและรางวัล',
       title: 'ภารกิจสำหรับคุณ',
       description:
         'เลือกหนึ่งภารกิจสำหรับคุณ แล้วทำให้สำเร็จด้วยเงินส่วนตัวหลังส่วนลดในใบเสร็จหนึ่งรายการ',
@@ -659,7 +668,7 @@ export const th = {
         'ภารกิจใหม่ตรวจจากเงินส่วนตัวหลังส่วนลด ไม่รวมเงินรัฐช่วย และไม่รวมยอดหลายใบเสร็จ ภารกิจในประวัติใช้กฎของรอบนั้น',
     },
     rewards: {
-      eyebrow: 'FR-C08 · FR-C09',
+      eyebrow: 'สิทธิพิเศษของคุณ',
       title: 'พอยต์และคูปอง',
       description: 'ตรวจสอบที่มาของพอยต์ แลกคูปองส่วนลด และดูสิทธิ์ที่พร้อมใช้',
       pointBalance: 'พอยต์คงเหลือ',
@@ -726,7 +735,7 @@ export const th = {
       usageNote: 'พอยต์ใช้แลกได้เฉพาะคูปองส่วนลดในขอบเขตต้นแบบ',
     },
     profile: {
-      eyebrow: 'FR-C01',
+      eyebrow: 'ข้อมูลบัญชีของคุณ',
       title: 'ข้อมูลส่วนตัว',
       description: 'ข้อมูลบัญชีประชาชนและการตั้งค่าพื้นฐาน',
       identity: 'ข้อมูลยืนยันตัวตน',
@@ -1560,8 +1569,8 @@ export const th = {
       filterActive: 'พร้อมขาย',
       filterInactive: 'ปิดการขาย',
       filterAll: 'ทุกสถานะ',
-      editModalTitle: 'แก้ไขข้อมูลสินค้า (FR-M02)',
-      addModalTitle: 'เพิ่มสินค้าใหม่เข้าหน้าร้าน (FR-M02)',
+      editModalTitle: 'แก้ไขข้อมูลสินค้า',
+      addModalTitle: 'เพิ่มสินค้าใหม่เข้าหน้าร้าน',
       immutableSnapshotNote:
         'การแก้ไขชื่อ ราคา หรือปิดการขายสินค้า จะมีผลเฉพาะคำสั่งซื้อใหม่เท่านั้น ไม่เปลี่ยนแปลงใบเสร็จย้อนหลัง (Immutable Snapshot)',
       downloadQrImage: 'ดาวน์โหลดรูป QR Code',
@@ -1573,7 +1582,7 @@ export const th = {
           : `ปิดการขายสินค้า "${name}" ชั่วคราวเรียบร้อยแล้ว (ไม่กระทบใบเสร็จย้อนหลัง)`,
     },
     wallet: {
-      eyebrow: 'FR-M06 · กระเป๋าเงินร้านค้าและการถอนเงิน',
+      eyebrow: 'กระเป๋าเงินร้านค้าและการถอนเงิน',
       title: 'กระเป๋าเงินร้านค้า (Merchant Wallet)',
       description:
         'ตรวจสอบยอดเงินคงเหลือของร้านค้า รายรับแยกตามสัดส่วนเงินสนับสนุนรัฐและเงินส่วนตัวลูกค้า พร้อมโอนเงินเข้ากระเป๋าประชาชนของเจ้าของร้าน',
@@ -1634,7 +1643,7 @@ export const th = {
       },
     },
     dashboard: {
-      eyebrow: 'FR-M07 · การวิเคราะห์ยอดขายและผลลัพธ์ร้านค้า',
+      eyebrow: 'การวิเคราะห์ยอดขายและผลลัพธ์ร้านค้า',
       title: 'แดชบอร์ดสรุปยอดขายร้านค้า (Merchant Analytics)',
       description:
         'ติดตามยอดขายรวม สัดส่วนเงินอุดหนุนภาครัฐ การใช้คูปองส่วนลด สินค้าขายดี และแนวโน้มยอดขายรายวัน',
@@ -1754,6 +1763,7 @@ export const th = {
       overview: 'ภาพรวมแพลตฟอร์ม',
       merchants: 'อนุมัติร้านค้า',
       programs: 'โครงการเงินอุดหนุน',
+      coupons: 'จัดการคูปอง',
       quests: 'ภารกิจ',
       rewards: 'ติดตามแต้ม/คูปอง',
       socialImpact: 'ผลกระทบทางสังคม',
@@ -1818,6 +1828,55 @@ export const th = {
       activateBtn: 'เปิดใช้งาน',
       pauseBtn: 'หยุดชั่วคราว',
       archiveBtn: 'เก็บเข้าคลัง',
+    },
+    coupons: {
+      saved: 'บันทึกคูปองเรียบร้อยแล้ว',
+      failed: 'ไม่สามารถบันทึกคูปองได้',
+      errors: {
+        ADMIN_COUPON_INVALID_MONEY:
+          'กรุณาระบุจำนวนเงินให้ถูกต้อง ไม่เกินสองตำแหน่งทศนิยม',
+        ADMIN_COUPON_INVALID_PERCENTAGE:
+          'ส่วนลดต้องมากกว่า 0 และไม่เกิน 100 เปอร์เซ็นต์',
+        ADMIN_COUPON_ISSUED_IMMUTABLE:
+          'คูปองนี้มีผู้แลกแล้ว จึงแก้ไขหรือลบไม่ได้',
+        ADMIN_COUPON_NOT_FOUND: 'ไม่พบคูปอง กรุณาโหลดข้อมูลใหม่',
+        ADMIN_COUPON_IDEMPOTENCY_CONFLICT:
+          'คำขอนี้เคยใช้กับข้อมูลอื่นแล้ว กรุณาเริ่มสร้างใหม่',
+      },
+      eyebrow: 'คูปองส่วนลด',
+      title: 'จัดการแค็ตตาล็อกคูปอง',
+      description: 'สร้าง แก้ไข หรือลบคูปองที่ยังไม่มีผู้แลก',
+      name: 'ชื่อคูปอง',
+      discountType: 'ประเภทส่วนลด',
+      fixed: 'ลดเป็นบาท',
+      percentage: 'ลดเป็นเปอร์เซ็นต์',
+      value: 'มูลค่าส่วนลด',
+      pointCost: 'แต้มที่ใช้แลก',
+      minPurchase: 'ยอดซื้อขั้นต่ำ',
+      validityDays: 'อายุคูปอง (วัน)',
+      descriptionLabel: 'รายละเอียด (ไม่บังคับ)',
+      create: 'สร้างคูปอง',
+      save: 'บันทึกการแก้ไข',
+      cancel: 'ยกเลิก',
+      empty: 'ยังไม่มีคูปอง',
+      edit: 'แก้ไข',
+      remove: 'ลบ',
+      status: 'สถานะ',
+      active: 'เปิดใช้งาน',
+      inactive: 'ปิดการแลก',
+      enable: 'เปิดใช้งาน',
+      disable: 'ปิดใช้งาน',
+      platformWide: 'ใช้ได้ทุกร้าน',
+      removeConfirm: (name: string) => `ลบคูปอง ${name}?`,
+      summary: (discount: string, points: number, issued: number) =>
+        `${discount} · ${points} แต้ม · ใช้แล้ว ${issued} ใบ`,
+      search: 'ค้นหาชื่อคูปอง รายละเอียด หรือร้านค้า',
+      pagination: 'หน้ารายการคูปอง',
+      previous: 'ก่อนหน้า',
+      next: 'ถัดไป',
+      page: (page: number, total: number) =>
+        `หน้า ${page} / ${total} · หน้าละ 10 รายการ`,
+      loadMore: 'โหลดคูปองเพิ่มเติม',
     },
     quests: {
       eyebrow: 'ระบบ AI วิเคราะห์และสร้างภารกิจเฉพาะบุคคล',
