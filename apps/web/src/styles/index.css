@@ -3741,6 +3741,15 @@ input[type='password']::-ms-clear {
   }
 }
 
+@keyframes toast-shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
 .animate-bounce-subtle {
   animation: bounce-subtle 2.8s ease-in-out infinite;
 }

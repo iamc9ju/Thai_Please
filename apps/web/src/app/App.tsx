@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { BrandLoadingScreen } from '../components/BrandLoadingScreen';
+import { ToastProvider } from '../components/toast';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
 import { LandingPage } from '../features/landing/pages/LandingPage';
@@ -138,9 +139,11 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <MainContent />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <MainContent />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

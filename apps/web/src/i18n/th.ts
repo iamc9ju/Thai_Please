@@ -19,6 +19,21 @@ export const th = {
     checkingSession: 'กำลังตรวจสอบการใช้งาน...',
     checkingSessionSub: 'ระบบไทยช่วยไทยพรีส • กำลังตรวจสอบสถานะการใช้งาน',
   },
+  authToast: {
+    loginSuccessTitle: 'เข้าสู่ระบบสำเร็จ',
+    loginSuccessDesc: (name: string, roleLabel: string) =>
+      `ยินดีต้อนรับคุณ ${name} (${roleLabel}) เข้าสู่ระบบเรียบร้อยแล้ว`,
+    logoutSuccessTitle: 'ออกจากระบบสำเร็จ',
+    logoutSuccessDesc:
+      'คุณได้ออกจากระบบเรียบร้อยแล้ว ขอบคุณที่ใช้งานไทยช่วยไทยพรีส',
+    roles: {
+      consumer: 'ประชาชน',
+      merchant: 'ร้านค้า',
+      admin: 'ผู้ดูแลระบบ',
+    },
+    timeJustNow: 'เมื่อสักครู่',
+    dismiss: 'ปิดการแจ้งเตือน',
+  },
   brand: 'ไทยช่วยไทยพรีส',
   login: {
     brandEnglish: 'THAI PLEASE',
