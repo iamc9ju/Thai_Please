@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin.api';
@@ -272,15 +273,27 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
 
     await screen.findByText('10 บัญชี');
 
+    const adminNav = screen.getByRole('navigation', {
+      name: 'เมนูหลักผู้ดูแลระบบ',
+    });
     fireEvent.click(
-      screen.getByRole('button', { name: /อนุมัติร้านค้า \(FR-A02\)/i }),
+      within(adminNav).getByRole('button', { name: /อนุมัติร้านค้า/i }),
     );
 
     expect(
       await screen.findByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม'),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /อนุมัติร้านค้า$/i }));
+    const approveButtons = screen.getAllByRole('button', {
+      name: /อนุมัติร้านค้า/i,
+    });
+    const tableApproveBtn =
+      approveButtons.find((btn) => btn.className.includes('bg-emerald-600')) ??
+      approveButtons[1];
+    expect(tableApproveBtn).toBeDefined();
+    if (tableApproveBtn) {
+      fireEvent.click(tableApproveBtn);
+    }
 
     await waitFor(() => {
       expect(adminApi.updateMerchantApprovalStatus).toHaveBeenCalledWith(
@@ -301,7 +314,7 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     await screen.findByText('10 บัญชี');
 
     fireEvent.click(
-      screen.getByRole('button', { name: /ผลกระทบทางสังคม \(FR-A07\)/i }),
+      screen.getByRole('button', { name: /ผลกระทบทางสังคม/i }),
     );
 
     expect(await screen.findByText('ร้านป้าศรี ข้าวแกง')).toBeInTheDocument();

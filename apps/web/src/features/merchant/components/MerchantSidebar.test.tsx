@@ -104,7 +104,7 @@ describe('MerchantSidebar (Role-based Navigation & Layout)', () => {
     ).not.toBeInTheDocument();
 
     // Displays staff role
-    expect(screen.getByText(/พนักงานร้านค้า \(STAFF\)/)).toBeInTheDocument();
+    expect(screen.getByText(/พนักงานร้าน/)).toBeInTheDocument();
   });
 
   it('renders QR navigation item when hasActiveQr is true', () => {

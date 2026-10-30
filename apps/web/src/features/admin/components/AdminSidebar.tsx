@@ -4,7 +4,6 @@ import {
   Coins,
   Layers,
   LogOut,
-  ShieldCheck,
   Sparkles,
   Store,
   UserCheck,
@@ -82,19 +81,6 @@ export function AdminSidebar({
               <X className="size-5" />
             </button>
           )}
-        </div>
-
-        {/* Role & Duty Indicator Badge */}
-        <div className="mx-4 mb-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2">
-          <ShieldCheck className="size-4 text-[#0056b3] shrink-0" />
-          <div className="min-w-0 flex-1">
-            <span className="text-[11px] font-bold text-slate-700 block truncate">
-              {copy.roleBadge}
-            </span>
-            <span className="text-[10px] text-slate-500 block truncate">
-              ศูนย์ควบคุม: อนุมัติร้านค้า · โครงการ · ระบบ
-            </span>
-          </div>
         </div>
 
         {/* Navigation Tabs List */}
