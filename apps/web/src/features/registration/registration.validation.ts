@@ -93,9 +93,9 @@ export function validateRegistration(
   ];
   const requiredHomeAddressFields = [
     'homeNumber',
-    'subdistrict',
-    'district',
     'province',
+    'district',
+    'subdistrict',
     'postalCode',
   ];
 
@@ -149,9 +149,9 @@ export function validateRegistration(
       'merchantPhone',
       'merchantDescription',
       'merchantAddress',
-      'merchantSubdistrict',
-      'merchantDistrict',
       'merchantProvince',
+      'merchantDistrict',
+      'merchantSubdistrict',
       'merchantPostalCode',
     ];
 

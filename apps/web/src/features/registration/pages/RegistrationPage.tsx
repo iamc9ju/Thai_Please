@@ -23,6 +23,7 @@ import type { RegisterMerchantPayload } from '../../auth/auth.types';
 import { MerchantTypeMultiSelect } from '../components/MerchantTypeMultiSelect';
 import { RegistrationField as Field } from '../components/RegistrationField';
 import { RegistrationSection } from '../components/RegistrationSection';
+import { ThaiAddressCascadeFields } from '../components/ThaiAddressCascadeFields';
 import {
   getBangkokDateInputValue,
   isValidBirthDate,
@@ -119,6 +120,20 @@ export function RegistrationPage({
       const nextErrors = { ...currentErrors };
       delete nextErrors[fieldName];
       return nextErrors;
+    });
+  };
+
+  const clearFieldErrors = (fields: string[]) => {
+    setErrors((currentErrors) => {
+      let hasChange = false;
+      const nextErrors = { ...currentErrors };
+      for (const fieldName of fields) {
+        if (nextErrors[fieldName]) {
+          delete nextErrors[fieldName];
+          hasChange = true;
+        }
+      }
+      return hasChange ? nextErrors : currentErrors;
     });
   };
 
@@ -558,59 +573,16 @@ export function RegistrationPage({
               <Field label={th.registration.fields.road} name="road" optional>
                 <input id="road" name="road" />
               </Field>
-              <Field
-                error={errors.subdistrict}
-                label={th.registration.fields.subdistrict}
-                name="subdistrict"
-              >
-                <input
-                  {...getAccessibilityProps('subdistrict', errors)}
-                  id="subdistrict"
-                  name="subdistrict"
-                />
-              </Field>
-              <Field
-                error={errors.district}
-                label={th.registration.fields.district}
-                name="district"
-              >
-                <input
-                  {...getAccessibilityProps('district', errors)}
-                  id="district"
-                  name="district"
-                />
-              </Field>
-              <Field
-                error={errors.province}
-                label={th.registration.fields.province}
-                name="province"
-              >
-                <input
-                  {...getAccessibilityProps('province', errors)}
-                  id="province"
-                  name="province"
-                />
-              </Field>
-              <Field
-                error={errors.postalCode}
-                label={th.registration.fields.postalCode}
-                name="postalCode"
-              >
-                <input
-                  {...getAccessibilityProps('postalCode', errors)}
-                  autoComplete="postal-code"
-                  id="postalCode"
-                  inputMode="numeric"
-                  maxLength={5}
-                  name="postalCode"
-                  onInput={(event) => {
-                    event.currentTarget.value = digitsOnly(
-                      event.currentTarget.value,
-                      5,
-                    );
-                  }}
-                />
-              </Field>
+              <ThaiAddressCascadeFields
+                errors={errors}
+                fieldNames={{
+                  province: 'province',
+                  district: 'district',
+                  subdistrict: 'subdistrict',
+                  postalCode: 'postalCode',
+                }}
+                onClearFieldErrors={clearFieldErrors}
+              />
             </div>
           </RegistrationSection>
 
@@ -772,58 +744,16 @@ export function RegistrationPage({
                     />
                   </Field>
                 </div>
-                <Field
-                  error={errors.merchantSubdistrict}
-                  label={th.registration.fields.subdistrict}
-                  name="merchantSubdistrict"
-                >
-                  <input
-                    {...getAccessibilityProps('merchantSubdistrict', errors)}
-                    id="merchantSubdistrict"
-                    name="merchantSubdistrict"
-                  />
-                </Field>
-                <Field
-                  error={errors.merchantDistrict}
-                  label={th.registration.fields.district}
-                  name="merchantDistrict"
-                >
-                  <input
-                    {...getAccessibilityProps('merchantDistrict', errors)}
-                    id="merchantDistrict"
-                    name="merchantDistrict"
-                  />
-                </Field>
-                <Field
-                  error={errors.merchantProvince}
-                  label={th.registration.fields.province}
-                  name="merchantProvince"
-                >
-                  <input
-                    {...getAccessibilityProps('merchantProvince', errors)}
-                    id="merchantProvince"
-                    name="merchantProvince"
-                  />
-                </Field>
-                <Field
-                  error={errors.merchantPostalCode}
-                  label={th.registration.fields.postalCode}
-                  name="merchantPostalCode"
-                >
-                  <input
-                    {...getAccessibilityProps('merchantPostalCode', errors)}
-                    id="merchantPostalCode"
-                    inputMode="numeric"
-                    maxLength={5}
-                    name="merchantPostalCode"
-                    onInput={(event) => {
-                      event.currentTarget.value = digitsOnly(
-                        event.currentTarget.value,
-                        5,
-                      );
-                    }}
-                  />
-                </Field>
+                <ThaiAddressCascadeFields
+                  errors={errors}
+                  fieldNames={{
+                    province: 'merchantProvince',
+                    district: 'merchantDistrict',
+                    subdistrict: 'merchantSubdistrict',
+                    postalCode: 'merchantPostalCode',
+                  }}
+                  onClearFieldErrors={clearFieldErrors}
+                />
               </div>
             </RegistrationSection>
           ) : null}

@@ -808,6 +808,12 @@ export const th = {
     placeholders: {
       selectTitle: 'เลือกคำนำหน้าชื่อ',
       selectMerchantTypes: 'เลือกได้มากกว่าหนึ่งประเภท',
+      selectProvince: 'เลือกจังหวัด',
+      selectDistrict: 'เลือกเขต / อำเภอ',
+      selectDistrictDisabled: 'กรุณาเลือกจังหวัดก่อน',
+      selectSubdistrict: 'เลือกแขวง / ตำบล',
+      selectSubdistrictDisabled: 'กรุณาเลือกเขต / อำเภอก่อน',
+      autoPostalCode: 'เติมอัตโนมัติเมื่อเลือกตำบล',
       citizenId: 'ตัวเลข 13 หลัก',
       phone: 'เช่น 0812345678',
       password: 'อย่างน้อย 8 ตัวอักษร',
