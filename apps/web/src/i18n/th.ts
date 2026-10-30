@@ -1172,6 +1172,15 @@ export const th = {
       couponsTab: 'การแลกและใช้คูปองล่าสุด',
     },
     socialImpact: {
+      weekdayAbbreviations: {
+        Sunday: 'อา.',
+        Monday: 'จ.',
+        Tuesday: 'อ.',
+        Wednesday: 'พ.',
+        Thursday: 'พฤ.',
+        Friday: 'ศ.',
+        Saturday: 'ส.',
+      },
       eyebrow: 'FR-A07 · รายงานผลลัพธ์ทางเศรษฐกิจและสังคมระดับชุมชน',
       title:
         'แดชบอร์ดผลกระทบทางสังคมและเศรษฐกิจชุมชน (Social Impact Dashboard)',

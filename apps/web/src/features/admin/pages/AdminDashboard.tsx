@@ -1,3 +1,5 @@
+import { MerchantSales } from '../components/MerchantSales';
+import { formatTrendDate } from '../format-trend-date';
 import { LoadingState } from '../../../components/LoadingState';
 import { useLatestRequest } from '../../../lib/use-latest-request';
 import {
@@ -2115,44 +2117,10 @@ export function AdminDashboard({
               </div>
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                {/* Sales by Merchant */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-7">
-                  <h3 className="text-base font-bold text-slate-900">
-                    {copy.socialImpact.salesByMerchantTitle}
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {socialImpact.salesByMerchant.length === 0 && (
-                      <p className="py-6 text-sm text-muted">
-                        {adminManagementCopy.noRecords}
-                      </p>
-                    )}
-                    {socialImpact.salesByMerchant.map((m, idx) => (
-                      <div
-                        key={m.merchantId}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-xs"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex size-7 items-center justify-center rounded-lg bg-brand font-bold text-white">
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <p className="font-bold text-slate-900">
-                              {m.merchantName}
-                            </p>
-                            <p className="text-slate-500">
-                              {m.orderCount} บิลสำเร็จ · รัฐอุดหนุน{' '}
-                              {formatBaht(m.subsidyUsed)} · จ่ายเอง{' '}
-                              {formatBaht(m.personalPaid)}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-extrabold text-brand">
-                          {formatBaht(m.totalSales)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <MerchantSales
+                  merchants={socialImpact.salesByMerchant}
+                  days={impactDays}
+                />
 
                 {/* Sales by Category */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-5">
@@ -2213,7 +2181,7 @@ export function AdminDashboard({
                       className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs"
                     >
                       <p className="font-semibold text-slate-600">
-                        {formatShortDate(day.date)}
+                        {formatTrendDate(day.date)}
                       </p>
                       <p className="mt-1 text-sm font-extrabold text-brand">
                         {formatBaht(day.totalSales)}
