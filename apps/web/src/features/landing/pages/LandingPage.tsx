@@ -3,6 +3,9 @@ import { LandingHeader, type LandingNavSection } from '../components/LandingHead
 import { LandingHeroSection } from '../components/LandingHeroSection';
 import { MerchantDiscoverySection } from '../components/MerchantDiscoverySection';
 import { ProjectInfoAndEligibilityPage } from './ProjectInfoAndEligibilityPage';
+import { MerchantSearchPage } from './MerchantSearchPage';
+import { MofNewsPage } from './MofNewsPage';
+import { FaqPage } from './FaqPage';
 import type { EligibilityRoleTab } from '../components/HowToJoinSection';
 
 export interface LandingPageProps {
@@ -29,21 +32,26 @@ export function LandingPage({
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
 
+  const sharedHeaderProps = {
+    onLogin,
+    onOpenNews: () => setCurrentNav('news'),
+    onOpenFaq: () => setCurrentNav('faq'),
+    activeNav: currentNav,
+    onNavigateHome: () => setCurrentNav('home'),
+    onNavigateProjectInfo: () => setCurrentNav('project-info'),
+    onNavigateHowToJoin: (role?: 'consumer' | 'merchant') => {
+      setCurrentNav('how-to-join');
+      if (role) setCurrentRole(role);
+    },
+    onNavigateMerchantSearch: () => setCurrentNav('merchant-search'),
+    onNavigateNews: () => setCurrentNav('news'),
+    onNavigateFaq: () => setCurrentNav('faq'),
+  };
+
   if (currentNav === 'project-info' || currentNav === 'how-to-join') {
     return (
       <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
-        <LandingHeader
-          onLogin={onLogin}
-          onOpenNews={() => setIsNewsOpen(true)}
-          onOpenFaq={() => setIsFaqOpen(true)}
-          activeNav={currentNav}
-          onNavigateHome={() => setCurrentNav('home')}
-          onNavigateProjectInfo={() => setCurrentNav('project-info')}
-          onNavigateHowToJoin={(role) => {
-            setCurrentNav('how-to-join');
-            if (role) setCurrentRole(role);
-          }}
-        />
+        <LandingHeader {...sharedHeaderProps} />
         <ProjectInfoAndEligibilityPage
           initialTab={currentNav}
           initialRole={currentRole}
@@ -57,20 +65,45 @@ export function LandingPage({
     );
   }
 
+  if (currentNav === 'merchant-search') {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
+        <LandingHeader {...sharedHeaderProps} />
+        <MerchantSearchPage
+          onBackToHome={() => setCurrentNav('home')}
+          onLogin={onLogin}
+        />
+      </div>
+    );
+  }
+
+  if (currentNav === 'news') {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
+        <LandingHeader {...sharedHeaderProps} />
+        <MofNewsPage
+          onBackToHome={() => setCurrentNav('home')}
+          onLogin={onLogin}
+        />
+      </div>
+    );
+  }
+
+  if (currentNav === 'faq') {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
+        <LandingHeader {...sharedHeaderProps} />
+        <FaqPage
+          onBackToHome={() => setCurrentNav('home')}
+          onLogin={onLogin}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
-      <LandingHeader
-        onLogin={onLogin}
-        onOpenNews={() => setIsNewsOpen(true)}
-        onOpenFaq={() => setIsFaqOpen(true)}
-        activeNav="home"
-        onNavigateHome={() => setCurrentNav('home')}
-        onNavigateProjectInfo={() => setCurrentNav('project-info')}
-        onNavigateHowToJoin={(role) => {
-          setCurrentNav('how-to-join');
-          if (role) setCurrentRole(role);
-        }}
-      />
+      <LandingHeader {...sharedHeaderProps} activeNav="home" />
       <main className="flex-1 flex flex-col">
         <LandingHeroSection
           onLogin={onLogin}

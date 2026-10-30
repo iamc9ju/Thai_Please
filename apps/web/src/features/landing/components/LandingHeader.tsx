@@ -2,7 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { th } from '../../../i18n/th';
 
-export type LandingNavSection = 'home' | 'project-info' | 'how-to-join';
+export type LandingNavSection =
+  | 'home'
+  | 'project-info'
+  | 'how-to-join'
+  | 'merchant-search'
+  | 'news'
+  | 'faq';
 
 export interface LandingHeaderProps {
   onLogin: () => void;
@@ -12,6 +18,9 @@ export interface LandingHeaderProps {
   onNavigateHome?: (() => void) | undefined;
   onNavigateProjectInfo?: (() => void) | undefined;
   onNavigateHowToJoin?: ((role?: 'consumer' | 'merchant') => void) | undefined;
+  onNavigateMerchantSearch?: (() => void) | undefined;
+  onNavigateNews?: (() => void) | undefined;
+  onNavigateFaq?: (() => void) | undefined;
 }
 
 export function LandingHeader({
@@ -22,6 +31,9 @@ export function LandingHeader({
   onNavigateHome,
   onNavigateProjectInfo,
   onNavigateHowToJoin,
+  onNavigateMerchantSearch,
+  onNavigateNews,
+  onNavigateFaq,
 }: LandingHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -193,27 +205,75 @@ export function LandingHeader({
           {/* Find Shops */}
           <a
             href="#merchant-search-section"
-            className="font-semibold text-slate-800 transition-colors hover:text-[#0056b3] py-2"
+            onClick={(e) => {
+              if (onNavigateMerchantSearch) {
+                e.preventDefault();
+                onNavigateMerchantSearch();
+              }
+            }}
+            className={`relative font-bold transition-colors py-2 cursor-pointer ${
+              activeNav === 'merchant-search'
+                ? 'text-[#0056b3]'
+                : 'text-slate-800 hover:text-[#0056b3]'
+            }`}
           >
             {th.landing.nav.findShops}
+            {activeNav === 'merchant-search' && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+              />
+            )}
           </a>
 
           {/* MOF News */}
           <button
             type="button"
-            onClick={onOpenNews}
-            className="font-semibold text-slate-800 transition-colors hover:text-[#0056b3] cursor-pointer py-2"
+            onClick={() => {
+              if (onNavigateNews) {
+                onNavigateNews();
+              } else {
+                onOpenNews?.();
+              }
+            }}
+            className={`relative font-bold transition-colors py-2 cursor-pointer ${
+              activeNav === 'news'
+                ? 'text-[#0056b3]'
+                : 'text-slate-800 hover:text-[#0056b3]'
+            }`}
           >
             {th.landing.nav.mofNews}
+            {activeNav === 'news' && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+              />
+            )}
           </button>
 
           {/* FAQ */}
           <button
             type="button"
-            onClick={onOpenFaq}
-            className="font-semibold text-slate-800 transition-colors hover:text-[#0056b3] cursor-pointer py-2"
+            onClick={() => {
+              if (onNavigateFaq) {
+                onNavigateFaq();
+              } else {
+                onOpenFaq?.();
+              }
+            }}
+            className={`relative font-bold transition-colors py-2 cursor-pointer ${
+              activeNav === 'faq'
+                ? 'text-[#0056b3]'
+                : 'text-slate-800 hover:text-[#0056b3]'
+            }`}
           >
             {th.landing.nav.faq}
+            {activeNav === 'faq' && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+              />
+            )}
           </button>
 
           {/* Login Button */}
@@ -307,8 +367,18 @@ export function LandingHeader({
             </button>
             <a
               href="#merchant-search-section"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="rounded-lg px-3 py-2 hover:bg-slate-50"
+              onClick={(e) => {
+                setIsMobileMenuOpen(false);
+                if (onNavigateMerchantSearch) {
+                  e.preventDefault();
+                  onNavigateMerchantSearch();
+                }
+              }}
+              className={`rounded-lg px-3 py-2 cursor-pointer ${
+                activeNav === 'merchant-search'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               {th.landing.nav.findShops}
             </a>
@@ -316,9 +386,17 @@ export function LandingHeader({
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(false);
-                onOpenNews?.();
+                if (onNavigateNews) {
+                  onNavigateNews();
+                } else {
+                  onOpenNews?.();
+                }
               }}
-              className="rounded-lg px-3 py-2 text-left hover:bg-slate-50 cursor-pointer"
+              className={`rounded-lg px-3 py-2 text-left cursor-pointer ${
+                activeNav === 'news'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               {th.landing.nav.mofNews}
             </button>
@@ -326,9 +404,17 @@ export function LandingHeader({
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(false);
-                onOpenFaq?.();
+                if (onNavigateFaq) {
+                  onNavigateFaq();
+                } else {
+                  onOpenFaq?.();
+                }
               }}
-              className="rounded-lg px-3 py-2 text-left hover:bg-slate-50 cursor-pointer"
+              className={`rounded-lg px-3 py-2 text-left cursor-pointer ${
+                activeNav === 'faq'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               {th.landing.nav.faq}
             </button>
