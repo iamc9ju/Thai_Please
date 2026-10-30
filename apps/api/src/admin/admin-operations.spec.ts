@@ -20,7 +20,12 @@ const programFixture = () => ({
 function makeDatabase() {
   const db = {
     $queryRaw: vi.fn().mockResolvedValue([]),
-    subsidyProgram: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    subsidyProgram: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn(),
+      create: vi.fn(),
+    },
     merchant: { findUnique: vi.fn(), update: vi.fn() },
     userRole: { upsert: vi.fn() },
     wallet: { create: vi.fn(), update: vi.fn() },
@@ -115,6 +120,84 @@ describe('Non-account admin operations', () => {
       service.updateSubsidyProgram(21n, { timezone: 'UTC' } as never, 1n),
     ).rejects.toThrow(ADMIN_OPERATION_ERRORS.programTimezoneUnsupported);
     expect(db.subsidyProgram.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['contains an existing period', '2026-09-01', '2027-01-01'],
+    ['starts inside an existing period', '2026-11-01', '2027-01-01'],
+    ['ends inside an existing period', '2026-09-01', '2026-11-01'],
+    ['shares an inclusive boundary', '2026-12-31', '2027-01-10'],
+  ])('FR-A04 rejects a new program that %s', async (_, startDate, endDate) => {
+    db.subsidyProgram.findFirst.mockResolvedValue({ programId: 99n });
+    await expect(
+      service.createSubsidyProgram(
+        {
+          programName: 'ช่วงวันที่ซ้ำ',
+          initialGrant: 1000,
+          subsidyPercentage: 50,
+          dailySubsidyLimit: 200,
+          startDate,
+          endDate,
+        },
+        1n,
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: ADMIN_OPERATION_ERRORS.programDatesOverlap,
+      }),
+    });
+    expect(db.subsidyProgram.create).not.toHaveBeenCalled();
+  });
+
+  it('FR-A04 permits a program starting the day after an existing period', async () => {
+    db.subsidyProgram.create.mockResolvedValue({
+      ...programFixture(),
+      programId: 22n,
+      startDate: new Date('2027-01-01T00:00:00Z'),
+      endDate: new Date('2027-02-01T00:00:00Z'),
+    });
+    await service.createSubsidyProgram(
+      {
+        programName: 'ช่วงต่อเนื่อง',
+        initialGrant: 1000,
+        subsidyPercentage: 50,
+        dailySubsidyLimit: 200,
+        startDate: '2027-01-01',
+        endDate: '2027-02-01',
+      },
+      1n,
+    );
+    expect(db.subsidyProgram.create).toHaveBeenCalledOnce();
+  });
+
+  it('FR-A04 rejects an edit that overlaps another program and excludes itself', async () => {
+    db.subsidyProgram.findFirst.mockResolvedValue({ programId: 22n });
+    await expect(
+      service.updateSubsidyProgram(21n, { endDate: '2027-01-01' }, 1n),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: ADMIN_OPERATION_ERRORS.programDatesOverlap,
+      }),
+    });
+    expect(db.subsidyProgram.findFirst).toHaveBeenCalledWith({
+      where: {
+        programId: { not: 21n },
+        startDate: { lte: new Date('2027-01-01') },
+        endDate: { gte: new Date('2026-10-01') },
+      },
+      select: { programId: true },
+    });
+    expect(db.subsidyProgram.update).not.toHaveBeenCalled();
+  });
+
+  it('FR-A04 allows a status-only update without evaluating legacy overlapping periods', async () => {
+    const result = await service.updateSubsidyProgram(
+      21n,
+      { status: 'INACTIVE' },
+      1n,
+    );
+    expect(result.status).toBe('INACTIVE');
+    expect(db.subsidyProgram.findFirst).not.toHaveBeenCalled();
   });
 
   it('FR-A02 reads previous status under lock and revokes only the suspended merchant sessions', async () => {

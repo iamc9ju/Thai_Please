@@ -50,7 +50,7 @@ function extractConstraintName(err: unknown): string | null {
       : 'message' in err && typeof err.message === 'string'
         ? err.message
         : '';
-  const match = /violates check constraint "([^"]+)"/i.exec(msg);
+  const match = /violates (?:check|exclusion) constraint "([^"]+)"/i.exec(msg);
   return match ? match[1]! : null;
 }
 
@@ -143,15 +143,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
           break;
         }
         case 'P2039': {
-          status = HttpStatus.BAD_REQUEST;
-          error = 'Bad Request';
-          code = 'DB_CONSTRAINT_VIOLATION';
           const constraint = extractConstraintName(
             exception.meta?.driverAdapterError,
           );
-          message = constraint
-            ? `ข้อมูลไม่เป็นไปตามเงื่อนไขของระบบ (${constraint})`
-            : 'ข้อมูลไม่เป็นไปตามเงื่อนไขของระบบ';
+          if (constraint === 'subsidy_programs_date_overlap') {
+            status = HttpStatus.CONFLICT;
+            error = 'Conflict';
+            code = 'ADMIN_PROGRAM_DATES_OVERLAP';
+            message = 'ช่วงเวลาของโครงการซ้ำกับโครงการที่มีอยู่';
+          } else {
+            status = HttpStatus.BAD_REQUEST;
+            error = 'Bad Request';
+            code = 'DB_CONSTRAINT_VIOLATION';
+            message = constraint
+              ? `ข้อมูลไม่เป็นไปตามเงื่อนไขของระบบ (${constraint})`
+              : 'ข้อมูลไม่เป็นไปตามเงื่อนไขของระบบ';
+          }
           if (isDev) {
             details = exception.meta?.driverAdapterError;
           }

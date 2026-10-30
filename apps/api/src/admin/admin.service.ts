@@ -84,6 +84,13 @@ function assertSupportedProgramSettings(dto: {
     );
 }
 
+function programDateOverlapException(): ConflictException {
+  return new ConflictException({
+    code: ADMIN_OPERATION_ERRORS.programDatesOverlap,
+    message: 'ช่วงเวลาของโครงการซ้ำกับโครงการที่มีอยู่',
+  });
+}
+
 function sanitizeQuestCandidates(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
@@ -1136,17 +1143,32 @@ export class AdminService {
         ? 'INACTIVE'
         : 'ACTIVE';
 
-    const created = await this.prisma.subsidyProgram.create({
-      data: {
-        programName: dto.programName.trim(),
-        initialGrant: dto.initialGrant,
-        subsidyPercentage: dto.subsidyPercentage,
-        userPercentage,
-        dailySubsidyLimit: dto.dailySubsidyLimit,
-        startDate,
-        endDate,
-        status,
-      },
+    const created = await this.prisma.$transaction(async (tx) => {
+      // The database trigger is authoritative. This lock makes the application
+      // check deterministic too, including while the migration is rolling out.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
+      const conflictingProgram = await tx.subsidyProgram.findFirst({
+        where: {
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+        select: { programId: true },
+      });
+      if (conflictingProgram) {
+        throw programDateOverlapException();
+      }
+      return tx.subsidyProgram.create({
+        data: {
+          programName: dto.programName.trim(),
+          initialGrant: dto.initialGrant,
+          subsidyPercentage: dto.subsidyPercentage,
+          userPercentage,
+          dailySubsidyLimit: dto.dailySubsidyLimit,
+          startDate,
+          endDate,
+          status,
+        },
+      });
     });
 
     await this.recordAuditEvent({
@@ -1186,6 +1208,9 @@ export class AdminService {
   ) {
     assertSupportedProgramSettings(dto);
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Acquire the global range lock before the row lock. Create takes the
+      // same lock, so writers observe one consistent date-range decision.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
       // FK reference inserts take KEY SHARE on this parent, so the usage check
       // and policy change must hold UPDATE until the transaction completes.
       await tx.$queryRaw`SELECT program_id FROM subsidy_programs WHERE program_id = ${programId} FOR UPDATE`;
@@ -1231,6 +1256,22 @@ export class AdminService {
         existing._count.walletTransactions;
       if (usageCount > 0 && changesPolicy) {
         throw new ConflictException(ADMIN_OPERATION_ERRORS.programPolicyInUse);
+      }
+      const datesChanged =
+        nextStartDate.getTime() !== existing.startDate.getTime() ||
+        nextEndDate.getTime() !== existing.endDate.getTime();
+      if (datesChanged) {
+        const conflictingProgram = await tx.subsidyProgram.findFirst({
+          where: {
+            programId: { not: programId },
+            startDate: { lte: nextEndDate },
+            endDate: { gte: nextStartDate },
+          },
+          select: { programId: true },
+        });
+        if (conflictingProgram) {
+          throw programDateOverlapException();
+        }
       }
       const result = await tx.subsidyProgram.update({
         where: { programId },

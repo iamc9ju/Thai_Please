@@ -66,6 +66,7 @@ export const ADMIN_OPERATION_ERRORS = {
   merchantStatusChanged: 'ADMIN_MERCHANT_STATUS_CHANGED_CONFLICT',
   programPolicyInUse: 'ADMIN_PROGRAM_POLICY_IN_USE',
   programDatesInvalid: 'ADMIN_PROGRAM_DATES_INVALID',
+  programDatesOverlap: 'ADMIN_PROGRAM_DATES_OVERLAP',
   programCurrencyUnsupported: 'ADMIN_PROGRAM_CURRENCY_UNSUPPORTED',
   programTimezoneUnsupported: 'ADMIN_PROGRAM_TIMEZONE_UNSUPPORTED',
 } as const;
