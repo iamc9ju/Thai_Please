@@ -85,9 +85,6 @@ export function ConsumerDashboard({
     setIsMobileOpen(false);
   };
 
-  const announcePrototypeAction = () =>
-    setAnnouncement(th.consumerPortal.common.mockNotice);
-
   return (
     <div className="min-h-screen bg-slate-50/70 flex font-sans text-slate-900">
       {/* Left Sidebar Navigation (Unified Theme) */}
@@ -108,7 +105,6 @@ export function ConsumerDashboard({
           displayName={displayName}
           onOpenMobile={() => setIsMobileOpen(true)}
           onNavigate={navigate}
-          onNotification={announcePrototypeAction}
           onOpenProfile={() => navigate('profile')}
           onLogout={onLogout}
         />

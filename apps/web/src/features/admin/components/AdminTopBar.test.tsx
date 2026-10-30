@@ -10,7 +10,6 @@ describe('AdminTopBar', () => {
     const onRefresh = vi.fn();
     const onLogout = vi.fn();
     const onOpenMobile = vi.fn();
-    const onNotification = vi.fn();
     const copy = th.adminPortal;
 
     render(
@@ -20,7 +19,6 @@ describe('AdminTopBar', () => {
         isLoading={false}
         onOpenMobile={onOpenMobile}
         onRefresh={onRefresh}
-        onNotification={onNotification}
         onLogout={onLogout}
       />,
     );
@@ -37,12 +35,9 @@ describe('AdminTopBar', () => {
     fireEvent.click(refreshBtn);
     expect(onRefresh).toHaveBeenCalled();
 
-    // Notification bell
-    const notifBtn = screen.getByRole('button', {
-      name: 'การแจ้งเตือนระบบ',
-    });
-    fireEvent.click(notifBtn);
-    expect(onNotification).toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: 'การแจ้งเตือนระบบ' }),
+    ).not.toBeInTheDocument();
 
     // Logout button
     const logoutBtn = screen.getByRole('button', {

@@ -10,7 +10,6 @@ describe('MerchantTopBar', () => {
     const onNavigate = vi.fn();
     const onLogout = vi.fn();
     const onOpenMobile = vi.fn();
-    const onNotification = vi.fn();
 
     render(
       <MerchantTopBar
@@ -20,14 +19,16 @@ describe('MerchantTopBar', () => {
         hasActiveQr={true}
         onOpenMobile={onOpenMobile}
         onNavigate={onNavigate}
-        onNotification={onNotification}
         onLogout={onLogout}
       />,
     );
 
     // Breadcrumb displays active view
     expect(
-      screen.getByRole('heading', { level: 1, name: th.merchantPortal.nav.orders }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.merchantPortal.nav.orders,
+      }),
     ).toBeInTheDocument();
 
     // Fast action to POS (since activeView is orders)
@@ -44,12 +45,9 @@ describe('MerchantTopBar', () => {
     fireEvent.click(qrAction);
     expect(onNavigate).toHaveBeenCalledWith('qr');
 
-    // Notification bell
-    const notifBtn = screen.getByRole('button', {
-      name: 'การแจ้งเตือนร้านค้า',
-    });
-    fireEvent.click(notifBtn);
-    expect(onNotification).toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: 'การแจ้งเตือนร้านค้า' }),
+    ).not.toBeInTheDocument();
 
     // Logout button
     const logoutBtn = screen.getByRole('button', {

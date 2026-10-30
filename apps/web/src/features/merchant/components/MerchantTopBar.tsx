@@ -1,11 +1,4 @@
-import {
-  Bell,
-  LogOut,
-  Menu,
-  QrCode,
-  ShoppingCart,
-  Store,
-} from 'lucide-react';
+import { LogOut, Menu, QrCode, ShoppingCart, Store } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { PosView } from './MerchantSidebar';
 
@@ -16,7 +9,6 @@ export interface MerchantTopBarProps {
   hasActiveQr?: boolean | undefined;
   onOpenMobile: () => void;
   onNavigate: (view: PosView) => void;
-  onNotification?: (() => void) | undefined;
   onLogout: () => void;
 }
 
@@ -35,7 +27,6 @@ export function MerchantTopBar({
   hasActiveQr = false,
   onOpenMobile,
   onNavigate,
-  onNotification,
   onLogout,
 }: MerchantTopBarProps) {
   const isOwner = merchantRole === 'OWNER';
@@ -73,7 +64,7 @@ export function MerchantTopBar({
         </div>
       </div>
 
-      {/* Right: Quick Actions, Notifications & Profile Badge */}
+      {/* Right: Quick Actions & Profile Badge */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Fast Action CTA (Desktop) */}
         {hasActiveQr && activeView !== 'qr' && (
@@ -99,20 +90,6 @@ export function MerchantTopBar({
           </button>
         )}
 
-        {/* Notification Bell */}
-        <button
-          type="button"
-          onClick={onNotification}
-          aria-label="การแจ้งเตือนร้านค้า"
-          className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <Bell className="size-5" aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute top-1.5 right-1.5 size-2 bg-emerald-500 rounded-full ring-2 ring-white"
-          />
-        </button>
-
         {/* Profile Avatar Button (Mobile/Tablet circular avatar) */}
         <button
           type="button"
@@ -125,10 +102,7 @@ export function MerchantTopBar({
 
         {/* Profile Summary Badge (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 pl-2.5 pr-3 py-1 rounded-xl border border-slate-200 bg-white">
-          <Store
-            className="size-4.5 text-[#0056b3]"
-            aria-hidden="true"
-          />
+          <Store className="size-4.5 text-[#0056b3]" aria-hidden="true" />
           <span className="text-xs font-bold text-slate-800 max-w-[140px] truncate">
             {merchantName}
           </span>

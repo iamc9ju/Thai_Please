@@ -14,11 +14,14 @@ describe('ConsumerTopBar', () => {
         activeView="overview"
         displayName="สมชาย ใจดี"
         onNavigate={vi.fn()}
-        onNotification={vi.fn()}
         onOpenProfile={vi.fn()}
         onLogout={onLogout}
       />,
     );
+
+    expect(
+      screen.queryByRole('button', { name: th.consumerDashboard.notification }),
+    ).not.toBeInTheDocument();
 
     const logoutButton = screen.getByRole('button', {
       name: th.consumerDashboard.logout,

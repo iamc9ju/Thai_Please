@@ -4,7 +4,7 @@ import { ApiError } from '../../../lib/api-client';
 import { useLatestRequest } from '../../../lib/use-latest-request';
 import { LoadingState } from '../../../components/LoadingState';
 import { getConsumerProfile } from '../api/profile.api';
-import { ChevronRight, LockKeyhole, MapPin, UserRound } from 'lucide-react';
+import { MapPin, UserRound } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import { PortalPageHeader } from '../components/PortalPageHeader';
 
@@ -97,28 +97,13 @@ export function ProfileView() {
               </div>
             </dl>
           </article>
-          <div className="profile-side-column">
-            <article className="portal-card address-card">
-              <MapPin aria-hidden="true" />
-              <div>
-                <h2>{copy.address}</h2>
-                <p>{state.data.address || copy.notProvided}</p>
-              </div>
-            </article>
-            <article className="portal-card settings-card">
-              <div className="portal-card-heading">
-                <h2>{copy.security}</h2>
-                <LockKeyhole aria-hidden="true" />
-              </div>
-              <p>{copy.settingsUnavailable}</p>
-              {[copy.changePassword, copy.privacy, copy.terms].map((item) => (
-                <button key={item} disabled type="button">
-                  <span>{item}</span>
-                  <ChevronRight aria-hidden="true" />
-                </button>
-              ))}
-            </article>
-          </div>
+          <article className="portal-card address-card">
+            <MapPin aria-hidden="true" />
+            <div>
+              <h2>{copy.address}</h2>
+              <p>{state.data.address || copy.notProvided}</p>
+            </div>
+          </article>
         </div>
       )}
     </section>

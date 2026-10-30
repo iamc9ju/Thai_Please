@@ -1807,7 +1807,6 @@ input[type='password']::-ms-clear {
 }
 .portal-two-column,
 .payment-review-layout,
-.profile-layout,
 .rewards-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2511,8 +2510,9 @@ input[type='password']::-ms-clear {
   cursor: pointer;
 }
 
-.profile-side-column {
+.profile-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 .profile-hero,
@@ -2541,23 +2541,6 @@ input[type='password']::-ms-clear {
 .address-card > svg {
   flex: 0 0 auto;
   color: #1089b8;
-}
-.settings-card button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 2.8rem;
-  border: 0;
-  border-top: 1px solid #edf2f4;
-  background: transparent;
-  color: #45616f;
-  font: inherit;
-  font-size: 0.73rem;
-  cursor: pointer;
-}
-.settings-card button svg {
-  width: 1rem;
 }
 
 @media (max-width: 900px) {
@@ -2697,7 +2680,6 @@ input[type='password']::-ms-clear {
   .portal-balance-grid,
   .portal-two-column,
   .payment-review-layout,
-  .profile-layout,
   .rewards-summary-grid,
   .quest-grid {
     grid-template-columns: 1fr;
@@ -3048,7 +3030,6 @@ input[type='password']::-ms-clear {
 .portal-balance-grid,
 .portal-two-column,
 .payment-review-layout,
-.profile-layout,
 .rewards-summary-grid,
 .quest-grid {
   grid-template-columns: 1fr;
@@ -3183,7 +3164,6 @@ input[type='password']::-ms-clear {
 
   .portal-two-column,
   .payment-review-layout,
-  .profile-layout,
   .rewards-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -479,9 +479,6 @@ export function MerchantPos({
           hasActiveQr={hasActiveQr}
           onOpenMobile={() => setIsMobileOpen(true)}
           onNavigate={handleNavigate}
-          onNotification={() =>
-            setSuccessMessage('ไม่มีการแจ้งเตือนใหม่ในขณะนี้')
-          }
           onLogout={onLogout}
         />
 

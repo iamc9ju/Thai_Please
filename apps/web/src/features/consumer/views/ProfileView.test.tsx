@@ -28,8 +28,9 @@ describe('FR-C01 persisted profile', () => {
     expect(screen.getByText(profile.maskedCitizenId)).toBeInTheDocument();
     expect(screen.queryByText('08X-XXX-4567')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: copy.changePassword }),
-    ).toBeDisabled();
+      screen.queryByRole('button', { name: copy.changePassword }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.security)).not.toBeInTheDocument();
   });
   it('shows missing fields honestly', async () => {
     read.mockResolvedValue({ ...profile, phone: null, address: null });

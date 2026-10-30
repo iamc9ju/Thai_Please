@@ -1,4 +1,4 @@
-import { Bell, CircleUserRound, LogOut, QrCode } from 'lucide-react';
+import { CircleUserRound, LogOut, QrCode } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { ConsumerView } from '../consumer.types';
 
@@ -7,7 +7,6 @@ export interface ConsumerTopBarProps {
   displayName: string;
   onOpenMobile?: () => void;
   onNavigate: (view: ConsumerView) => void;
-  onNotification: () => void;
   onOpenProfile: () => void;
   onLogout: () => void;
 }
@@ -27,7 +26,6 @@ export function ConsumerTopBar({
   displayName,
   onOpenMobile: _onOpenMobile,
   onNavigate,
-  onNotification,
   onOpenProfile,
   onLogout,
 }: ConsumerTopBarProps) {
@@ -56,7 +54,7 @@ export function ConsumerTopBar({
         </div>
       </div>
 
-      {/* Right: Quick Actions, Notifications & Profile */}
+      {/* Right: Quick Actions & Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Fast QR Payment CTA (Desktop only - mobile has bottom center bar) */}
         {activeView !== 'payment' && (
@@ -69,20 +67,6 @@ export function ConsumerTopBar({
             <span>{th.consumerDashboard.payment.action}</span>
           </button>
         )}
-
-        {/* Notification Bell */}
-        <button
-          type="button"
-          onClick={onNotification}
-          aria-label={th.consumerDashboard.notification}
-          className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <Bell className="size-5" aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full ring-2 ring-white"
-          />
-        </button>
 
         {/* Profile Avatar Button (Mobile/Tablet circular avatar matching mockup) */}
         <button

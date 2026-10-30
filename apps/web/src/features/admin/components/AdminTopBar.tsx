@@ -1,10 +1,4 @@
-import {
-  Bell,
-  LogOut,
-  Menu,
-  RefreshCw,
-  ShieldCheck,
-} from 'lucide-react';
+import { LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { AdminTab } from './AdminSidebar';
 
@@ -14,7 +8,6 @@ export interface AdminTopBarProps {
   isLoading?: boolean | undefined;
   onOpenMobile: () => void;
   onRefresh: () => void;
-  onNotification?: (() => void) | undefined;
   onLogout: () => void;
 }
 
@@ -24,7 +17,6 @@ export function AdminTopBar({
   isLoading = false,
   onOpenMobile,
   onRefresh,
-  onNotification,
   onLogout,
 }: AdminTopBarProps) {
   const copy = th.adminPortal;
@@ -73,7 +65,7 @@ export function AdminTopBar({
         </div>
       </div>
 
-      {/* Right: Quick Actions, Notifications & Profile Badge */}
+      {/* Right: Quick Actions & Profile Badge */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Refresh Action CTA */}
         <button
@@ -89,20 +81,6 @@ export function AdminTopBar({
           <span>{copy.refresh}</span>
         </button>
 
-        {/* Notification Bell */}
-        <button
-          type="button"
-          onClick={onNotification}
-          aria-label="การแจ้งเตือนระบบ"
-          className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <Bell className="size-5" aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute top-1.5 right-1.5 size-2 bg-emerald-500 rounded-full ring-2 ring-white"
-          />
-        </button>
-
         {/* Profile Avatar Button (Mobile/Tablet circular avatar) */}
         <button
           type="button"
@@ -115,10 +93,7 @@ export function AdminTopBar({
 
         {/* Profile Summary Badge (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 pl-2.5 pr-3 py-1 rounded-xl border border-slate-200 bg-white">
-          <ShieldCheck
-            className="size-4.5 text-[#0056b3]"
-            aria-hidden="true"
-          />
+          <ShieldCheck className="size-4.5 text-[#0056b3]" aria-hidden="true" />
           <span className="text-xs font-bold text-slate-800 max-w-[140px] truncate">
             {adminName}
           </span>
