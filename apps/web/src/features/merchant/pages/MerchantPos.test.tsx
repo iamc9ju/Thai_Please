@@ -57,6 +57,7 @@ const mockProducts: Product[] = [
     description: 'ผัดใบกะเพราแท้',
     price: 55,
     status: 'ACTIVE',
+    isRecommended: false,
     categoryId: '1',
     categoryName: 'อาหารตามสั่ง',
   },
@@ -66,6 +67,7 @@ const mockProducts: Product[] = [
     description: 'เมนูพิเศษ',
     price: 45,
     status: 'INACTIVE',
+    isRecommended: false,
     categoryId: '1',
     categoryName: 'อาหารตามสั่ง',
   },
@@ -99,6 +101,25 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
   });
 
   afterEach(cleanup);
+
+  it('keeps the QR payment flow in the current tab without exposing the token', async () => {
+    const windowOpen = vi.spyOn(window, 'open');
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    fireEvent.click(await screen.findByText('ข้าวกะเพราหมูสับ'));
+    fireEvent.click(screen.getByRole('button', { name: 'สร้าง QR ชำระเงิน' }));
+
+    expect(
+      await screen.findByRole('img', { name: 'QR Code' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Order #501 · รอลูกค้าสแกนชำระ/)).toBeVisible();
+    expect(windowOpen).not.toHaveBeenCalled();
+    expect(screen.queryByText('token-abc-501')).not.toBeInTheDocument();
+    expect(screen.queryByText(/QR Token/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /คัดลอก Token/ }),
+    ).not.toBeInTheDocument();
+  });
 
   it('ignores a stale order-history failure under StrictMode (NFR-UI-01)', async () => {
     let rejectOld: ((reason: Error) => void) | undefined;
@@ -194,6 +215,7 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
         description: 'เครื่องดื่มชุมชน',
         price: 25,
         status: 'ACTIVE',
+        isRecommended: false,
         categoryId: '2',
         categoryName: 'เครื่องดื่ม',
       },
@@ -228,6 +250,57 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows recommended products first and sends the recommendation when creating a product', async () => {
+    const recommendedProduct: Product = {
+      ...mockProducts[0]!,
+      productId: '12',
+      productName: 'เมนูแนะนำประจำร้าน',
+      isRecommended: true,
+    };
+    mockedGetMyProducts.mockResolvedValueOnce([
+      mockProducts[0]!,
+      recommendedProduct,
+    ]);
+    mockedCreateProduct.mockResolvedValueOnce({
+      ...recommendedProduct,
+      productId: '13',
+      productName: 'ข้าวผัดแนะนำ',
+      price: 70,
+    });
+
+    render(<MerchantPos merchantName="ร้านครัวป้าสมศรี" onLogout={vi.fn()} />);
+
+    const productCards = await screen.findAllByTestId('product-card');
+    expect(productCards[0]).toHaveTextContent('เมนูแนะนำประจำร้าน');
+    expect(productCards[0]).toHaveTextContent('แนะนำ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสินค้า' }));
+    fireEvent.change(screen.getByPlaceholderText('ชื่อสินค้า *'), {
+      target: { value: 'ข้าวผัดแนะนำ' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('ราคา (บาท) *'), {
+      target: { value: '70' },
+    });
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'สินค้าแนะนำ (แสดงก่อนสินค้าอื่น)',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึก' }));
+
+    await waitFor(() => {
+      expect(mockedCreateProduct).toHaveBeenCalledWith({
+        productName: 'ข้าวผัดแนะนำ',
+        price: 70,
+        categoryId: 1,
+        isRecommended: true,
+      });
+    });
+  });
+
   it('edits product name and price via Edit Product Modal and updates cart item (FR-M02)', async () => {
     mockedUpdateProduct.mockResolvedValueOnce({
       productId: '10',
@@ -235,6 +308,7 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
       description: 'เพิ่มไข่ดาว',
       price: 65,
       status: 'ACTIVE',
+      isRecommended: false,
       categoryId: '1',
       categoryName: 'อาหารตามสั่ง',
     });
@@ -266,6 +340,7 @@ describe('MerchantPos (FR-M02, FR-M03, FR-M04)', () => {
       price: 65,
       categoryId: 1,
       description: 'ผัดใบกะเพราแท้',
+      isRecommended: false,
       status: 'ACTIVE',
     });
 

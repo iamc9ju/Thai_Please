@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Award,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Percent,
   RefreshCw,
@@ -16,10 +18,13 @@ import { useLatestRequest } from '../../../lib/use-latest-request';
 import { getMerchantDashboard } from '../api/merchant.api';
 import type { MerchantDashboardData } from '../merchant.types';
 
+const SALES_TREND_PAGE_SIZE = 5;
+
 export function MerchantDashboardView() {
   const copy = th.merchantPortal.dashboard;
   const [data, setData] = useState<MerchantDashboardData | null>(null);
   const [days, setDays] = useState<7 | 14 | 30>(7);
+  const [trendPage, setTrendPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,14 +36,19 @@ export function MerchantDashboardView() {
 
   const beginRequest = useLatestRequest();
   const loadDashboard = useCallback(
-    async (selectedDays = days) => {
+    async (selectedDays: 7 | 14 | 30, selectedPage: number) => {
       const { isCurrent } = beginRequest();
       setIsLoading(true);
       setError(null);
       try {
-        const result = await getMerchantDashboard(selectedDays);
+        const result = await getMerchantDashboard(
+          selectedDays,
+          selectedPage,
+          SALES_TREND_PAGE_SIZE,
+        );
         if (!isCurrent()) return;
         setData(result);
+        setTrendPage(result.salesTrendPagination.page);
       } catch (caughtError: unknown) {
         if (!isCurrent()) return;
         setError(
@@ -48,12 +58,12 @@ export function MerchantDashboardView() {
         if (isCurrent()) setIsLoading(false);
       }
     },
-    [beginRequest, copy.errorTitle, days],
+    [beginRequest, copy.errorTitle],
   );
 
   useEffect(() => {
-    void loadDashboard(days);
-  }, [days, loadDashboard]);
+    void loadDashboard(days, trendPage);
+  }, [days, loadDashboard, trendPage]);
 
   if (isLoading && !data) {
     return <LoadingState label={copy.loading} variant="dashboard" />;
@@ -65,7 +75,7 @@ export function MerchantDashboardView() {
         <p className="text-sm font-bold text-rose-700">{error}</p>
         <button
           type="button"
-          onClick={() => void loadDashboard(days)}
+          onClick={() => void loadDashboard(days, trendPage)}
           className="mt-3 rounded-xl bg-[#0056b3] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#004494] transition-colors cursor-pointer"
         >
           {copy.retry}
@@ -76,7 +86,13 @@ export function MerchantDashboardView() {
 
   if (!data) return null;
 
-  const { summary, topProducts, salesTrend, dataFreshness } = data;
+  const {
+    summary,
+    topProducts,
+    salesTrend,
+    salesTrendPagination,
+    dataFreshness,
+  } = data;
   const maxTrendSale = Math.max(
     1,
     ...salesTrend.map((point) => point.totalSales),
@@ -126,7 +142,10 @@ export function MerchantDashboardView() {
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setDays(option.value)}
+                  onClick={() => {
+                    setTrendPage(1);
+                    setDays(option.value);
+                  }}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                     days === option.value
                       ? 'bg-white text-[#003d82] shadow-sm'
@@ -140,7 +159,7 @@ export function MerchantDashboardView() {
 
             <button
               type="button"
-              onClick={() => void loadDashboard(days)}
+              onClick={() => void loadDashboard(days, trendPage)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors backdrop-blur-sm cursor-pointer"
             >
               <RefreshCw className="size-3.5" />
@@ -282,22 +301,22 @@ export function MerchantDashboardView() {
           <div className="flex items-center gap-4 text-xs font-bold">
             <span className="inline-flex items-center gap-1.5 text-[#0056b3]">
               <span className="size-2.5 rounded-full bg-[#0056b3]" />
-              {copy.split.subsidyLabel}: {summary.subsidySharePercent}%
+              {copy.split.personalLabel}: {summary.personalSharePercent}%
             </span>
             <span className="inline-flex items-center gap-1.5 text-emerald-600">
               <span className="size-2.5 rounded-full bg-emerald-500" />
-              {copy.split.personalLabel}: {summary.personalSharePercent}%
+              {copy.split.subsidyLabel}: {summary.subsidySharePercent}%
             </span>
           </div>
         </div>
 
         <div className="mt-4 h-4 w-full overflow-hidden rounded-full bg-slate-100 flex">
           <div
-            style={{ width: `${summary.subsidySharePercent}%` }}
+            style={{ width: `${summary.personalSharePercent}%` }}
             className="h-full bg-gradient-to-r from-[#003d82] to-[#0073e6] transition-all duration-500"
           />
           <div
-            style={{ width: `${summary.personalSharePercent}%` }}
+            style={{ width: `${summary.subsidySharePercent}%` }}
             className="h-full bg-emerald-500 transition-all duration-500"
           />
         </div>
@@ -333,6 +352,7 @@ export function MerchantDashboardView() {
               return (
                 <div
                   key={point.date}
+                  data-testid="sales-trend-item"
                   className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
                 >
                   <div className="flex items-center justify-between text-xs">
@@ -372,6 +392,42 @@ export function MerchantDashboardView() {
               );
             })}
           </div>
+
+          {salesTrendPagination.totalPages > 1 && (
+            <nav
+              aria-label={copy.trend.paginationLabel}
+              className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4"
+            >
+              <button
+                type="button"
+                onClick={() => setTrendPage((page) => Math.max(1, page - 1))}
+                disabled={salesTrendPagination.page === 1}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-[#0056b3] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="size-3.5" />
+                {copy.trend.previousPage}
+              </button>
+              <span className="text-xs font-bold text-slate-500">
+                {copy.trend.pageLabel} {salesTrendPagination.page} /{' '}
+                {salesTrendPagination.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setTrendPage((page) =>
+                    Math.min(salesTrendPagination.totalPages, page + 1),
+                  )
+                }
+                disabled={
+                  salesTrendPagination.page === salesTrendPagination.totalPages
+                }
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-[#0056b3] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {copy.trend.nextPage}
+                <ChevronRight className="size-3.5" />
+              </button>
+            </nav>
+          )}
         </section>
 
         {/* Top-selling Products */}

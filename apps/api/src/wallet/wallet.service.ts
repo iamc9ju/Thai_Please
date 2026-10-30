@@ -12,6 +12,7 @@ import {
   BANGKOK_TIMEZONE,
   BANGKOK_TZ_OFFSET_HOURS,
   DASHBOARD_TREND_DAYS,
+  DASHBOARD_TREND_PAGE_LIMITS,
   FundType,
   LegacyTransactionType,
   TOPUP_LIMITS,
@@ -1399,6 +1400,8 @@ export class WalletService {
     userId: bigint,
     activeMerchantId: bigint | null,
     days: number = DASHBOARD_TREND_DAYS.DEFAULT,
+    page: number = 1,
+    pageSize: number = DASHBOARD_TREND_PAGE_LIMITS.DEFAULT,
     requestedMerchantId?: bigint,
   ) {
     const merchantId = this.resolveAuthorizedMerchantId(
@@ -1605,14 +1608,31 @@ export class WalletService {
       }
     }
 
-    const salesTrend = [...trendMap.values()].map((bucket) => ({
-      date: bucket.date,
-      totalSales: Number(bucket.totalSalesDec.toDecimalPlaces(2)),
-      subsidyAmount: Number(bucket.subsidyDec.toDecimalPlaces(2)),
-      personalAmount: Number(bucket.personalDec.toDecimalPlaces(2)),
-      discountAmount: Number(bucket.discountDec.toDecimalPlaces(2)),
-      orderCount: bucket.orderCount,
-    }));
+    const normalizedPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const normalizedPageSize =
+      Number.isInteger(pageSize) && pageSize > 0
+        ? Math.min(DASHBOARD_TREND_PAGE_LIMITS.MAX, pageSize)
+        : DASHBOARD_TREND_PAGE_LIMITS.DEFAULT;
+    const allSalesTrend = [...trendMap.values()]
+      .map((bucket) => ({
+        date: bucket.date,
+        totalSales: Number(bucket.totalSalesDec.toDecimalPlaces(2)),
+        subsidyAmount: Number(bucket.subsidyDec.toDecimalPlaces(2)),
+        personalAmount: Number(bucket.personalDec.toDecimalPlaces(2)),
+        discountAmount: Number(bucket.discountDec.toDecimalPlaces(2)),
+        orderCount: bucket.orderCount,
+      }))
+      .sort((left, right) => right.date.localeCompare(left.date));
+    const totalTrendItems = allSalesTrend.length;
+    const totalTrendPages = Math.max(
+      1,
+      Math.ceil(totalTrendItems / normalizedPageSize),
+    );
+    const resolvedPage = Math.min(normalizedPage, totalTrendPages);
+    const salesTrend = allSalesTrend.slice(
+      (resolvedPage - 1) * normalizedPageSize,
+      resolvedPage * normalizedPageSize,
+    );
 
     return {
       merchant: {
@@ -1643,6 +1663,12 @@ export class WalletService {
       },
       topProducts,
       salesTrend,
+      salesTrendPagination: {
+        page: resolvedPage,
+        pageSize: normalizedPageSize,
+        totalItems: totalTrendItems,
+        totalPages: totalTrendPages,
+      },
       dataFreshness: {
         asOf: now.toISOString(),
         timezone: BANGKOK_TIMEZONE,

@@ -70,6 +70,12 @@ describe('MerchantDashboardView (FR-M07)', () => {
           orderCount: 3,
         },
       ],
+      salesTrendPagination: {
+        page: 1,
+        pageSize: 5,
+        totalItems: 1,
+        totalPages: 1,
+      },
       dataFreshness: {
         asOf: '2026-10-17T04:00:00.000Z',
         timezone: 'Asia/Bangkok',
@@ -107,13 +113,67 @@ describe('MerchantDashboardView (FR-M07)', () => {
     render(<MerchantDashboardView />);
 
     await waitFor(() => {
-      expect(mockGetMerchantDashboard).toHaveBeenCalledWith(7);
+      expect(mockGetMerchantDashboard).toHaveBeenCalledWith(7, 1, 5);
     });
 
     fireEvent.click(screen.getByRole('button', { name: '14 วันล่าสุด' }));
 
     await waitFor(() => {
-      expect(mockGetMerchantDashboard).toHaveBeenCalledWith(14);
+      expect(mockGetMerchantDashboard).toHaveBeenCalledWith(14, 1, 5);
     });
+  });
+
+  it('renders the backend page and requests the next sales-trend page', async () => {
+    const dashboard = await mockGetMerchantDashboard();
+    mockGetMerchantDashboard.mockClear();
+    mockGetMerchantDashboard.mockImplementation(
+      (_days: number, page: number) => {
+        const dates =
+          page === 2
+            ? ['2026-10-12']
+            : [
+                '2026-10-17',
+                '2026-10-16',
+                '2026-10-15',
+                '2026-10-14',
+                '2026-10-13',
+              ];
+        return Promise.resolve({
+          ...dashboard,
+          salesTrend: dates.map((date, index) => ({
+            date,
+            totalSales: 100 + index,
+            subsidyAmount: 50,
+            personalAmount: 50 + index,
+            discountAmount: 0,
+            orderCount: 1,
+          })),
+          salesTrendPagination: {
+            page,
+            pageSize: 5,
+            totalItems: 6,
+            totalPages: 2,
+          },
+        });
+      },
+    );
+
+    render(<MerchantDashboardView />);
+
+    const firstPageItems = await screen.findAllByTestId('sales-trend-item');
+    expect(firstPageItems).toHaveLength(5);
+    expect(firstPageItems[0]).toHaveTextContent('2026-10-17');
+    expect(firstPageItems[4]).toHaveTextContent('2026-10-13');
+    expect(screen.queryByText('2026-10-12')).not.toBeInTheDocument();
+    expect(screen.getByText('หน้า 1 / 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+
+    await waitFor(() => {
+      expect(mockGetMerchantDashboard).toHaveBeenCalledWith(7, 2, 5);
+    });
+    expect(await screen.findByText('2026-10-12')).toBeInTheDocument();
+    expect(screen.queryByText('2026-10-17')).not.toBeInTheDocument();
+    expect(screen.getByText('หน้า 2 / 2')).toBeInTheDocument();
   });
 });

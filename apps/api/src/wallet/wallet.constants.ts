@@ -50,6 +50,11 @@ export const DASHBOARD_TREND_DAYS = {
   MAX: 30,
 } as const;
 
+export const DASHBOARD_TREND_PAGE_LIMITS = {
+  DEFAULT: 5,
+  MAX: 30,
+} as const;
+
 export const WALLET_TRANSACTION_PAGE_LIMITS = {
   DEFAULT: 20,
   MAX: 100,

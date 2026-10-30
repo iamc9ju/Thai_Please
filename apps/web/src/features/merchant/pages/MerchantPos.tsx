@@ -24,11 +24,6 @@ import type {
   MerchantOrder,
   Product,
 } from '../merchant.types';
-import {
-  openMerchantQrDisplayTab,
-  renderMerchantQrDisplayError,
-  renderMerchantQrDisplayTab,
-} from '../utils/merchant-qr-display';
 import { MerchantDashboardView } from '../views/MerchantDashboardView';
 import { MerchantOrdersView } from '../views/MerchantOrdersView';
 import { MerchantQrView } from '../views/MerchantQrView';
@@ -78,6 +73,7 @@ export function MerchantPos({
     price: '',
     categoryId: '',
     description: '',
+    isRecommended: false,
   });
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
@@ -88,12 +84,14 @@ export function MerchantPos({
     price: string;
     categoryId: string;
     description: string;
+    isRecommended: boolean;
     status: 'ACTIVE' | 'INACTIVE';
   }>({
     productName: '',
     price: '',
     categoryId: '',
     description: '',
+    isRecommended: false,
     status: 'ACTIVE',
   });
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
@@ -102,7 +100,6 @@ export function MerchantPos({
   );
 
   const [qrCountdown, setQrCountdown] = useState<number>(0);
-  const [copiedToken, setCopiedToken] = useState(false);
   const [paidOrderNotification, setPaidOrderNotification] =
     useState<MerchantOrder | null>(null);
   const [qrReceiptDetail, setQrReceiptDetail] = useState<ReceiptDetail | null>(
@@ -211,21 +208,26 @@ export function MerchantPos({
   }, [categories, products, productStatusFilter]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      if (
-        selectedCategory &&
-        String(p.categoryId) !== String(selectedCategory)
-      ) {
-        return false;
-      }
-      if (productStatusFilter === 'ACTIVE' && p.status !== 'ACTIVE') {
-        return false;
-      }
-      if (productStatusFilter === 'INACTIVE' && p.status !== 'INACTIVE') {
-        return false;
-      }
-      return true;
-    });
+    return products
+      .filter((p) => {
+        if (
+          selectedCategory &&
+          String(p.categoryId) !== String(selectedCategory)
+        ) {
+          return false;
+        }
+        if (productStatusFilter === 'ACTIVE' && p.status !== 'ACTIVE') {
+          return false;
+        }
+        if (productStatusFilter === 'INACTIVE' && p.status !== 'INACTIVE') {
+          return false;
+        }
+        return true;
+      })
+      .sort(
+        (left, right) =>
+          Number(right.isRecommended) - Number(left.isRecommended),
+      );
   }, [products, selectedCategory, productStatusFilter]);
 
   const cartTotal = cart.reduce(
@@ -264,7 +266,6 @@ export function MerchantPos({
 
   const handleCreateOrder = async () => {
     if (cart.length === 0) return;
-    const qrDisplayTab = openMerchantQrDisplayTab();
     setIsCreatingOrder(true);
     setError(null);
     setPaidOrderNotification(null);
@@ -289,18 +290,12 @@ export function MerchantPos({
         margin: 2,
         color: { dark: '#003d82', light: '#ffffff' },
       });
-      if (qrDisplayTab) {
-        renderMerchantQrDisplayTab(qrDisplayTab, order, qrUrl);
-      }
       setQrDataUrl(qrUrl);
       setCart([]);
       setView('qr');
     } catch (e) {
       const message =
         e instanceof Error ? e.message : 'ไม่สามารถสร้าง Order ได้';
-      if (qrDisplayTab) {
-        renderMerchantQrDisplayError(qrDisplayTab, message);
-      }
       setError(message);
     } finally {
       setIsCreatingOrder(false);
@@ -329,6 +324,7 @@ export function MerchantPos({
         productName: newProduct.productName,
         price: parseFloat(newProduct.price),
         categoryId: parseInt(newProduct.categoryId),
+        isRecommended: newProduct.isRecommended,
         ...(newProduct.description
           ? { description: newProduct.description }
           : {}),
@@ -340,6 +336,7 @@ export function MerchantPos({
         price: '',
         categoryId: '',
         description: '',
+        isRecommended: false,
       });
       setShowAddProduct(false);
       setSuccessMessage(posCopy.productSavedMessage(saved.productName));
@@ -357,6 +354,7 @@ export function MerchantPos({
       price: String(product.price),
       categoryId: String(product.categoryId),
       description: product.description ?? '',
+      isRecommended: product.isRecommended,
       status: product.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
     });
   };
@@ -393,6 +391,7 @@ export function MerchantPos({
         price: parseFloat(editForm.price),
         categoryId: parseInt(editForm.categoryId, 10),
         description: editForm.description.trim(),
+        isRecommended: editForm.isRecommended,
         status: editForm.status,
       });
       syncProductInStateAndCart(updated);
@@ -524,75 +523,73 @@ export function MerchantPos({
         )}
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1800px] mx-auto">
-        {/* ── POS VIEW (FR-M02, FR-M03) ── */}
-        {view === 'pos' && (
-          <MerchantSalesView
-            categories={categories}
-            filterCategories={filterCategories}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            isManageMode={isManageMode}
-            setIsManageMode={setIsManageMode}
-            productStatusFilter={productStatusFilter}
-            setProductStatusFilter={setProductStatusFilter}
-            productCounts={productCounts}
-            showAddProduct={showAddProduct}
-            setShowAddProduct={setShowAddProduct}
-            newProduct={newProduct}
-            setNewProduct={setNewProduct}
-            isSavingProduct={isSavingProduct}
-            handleSaveProduct={handleSaveProduct}
-            editingProduct={editingProduct}
-            setEditingProduct={setEditingProduct}
-            editForm={editForm}
-            setEditForm={setEditForm}
-            isUpdatingProduct={isUpdatingProduct}
-            handleUpdateProduct={handleUpdateProduct}
-            isLoading={isLoading}
-            filteredProducts={filteredProducts}
-            togglingProductId={togglingProductId}
-            addToCart={addToCart}
-            handleOpenEditProduct={handleOpenEditProduct}
-            handleToggleProductStatus={handleToggleProductStatus}
-            formatCurrency={formatCurrency}
-            cart={cart}
-            setCart={setCart}
-            updateQty={updateQty}
-            cartTotal={cartTotal}
-            handleCreateOrder={handleCreateOrder}
-            isCreatingOrder={isCreatingOrder}
-          />
-        )}
+          {/* ── POS VIEW (FR-M02, FR-M03) ── */}
+          {view === 'pos' && (
+            <MerchantSalesView
+              categories={categories}
+              filterCategories={filterCategories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              isManageMode={isManageMode}
+              setIsManageMode={setIsManageMode}
+              productStatusFilter={productStatusFilter}
+              setProductStatusFilter={setProductStatusFilter}
+              productCounts={productCounts}
+              showAddProduct={showAddProduct}
+              setShowAddProduct={setShowAddProduct}
+              newProduct={newProduct}
+              setNewProduct={setNewProduct}
+              isSavingProduct={isSavingProduct}
+              handleSaveProduct={handleSaveProduct}
+              editingProduct={editingProduct}
+              setEditingProduct={setEditingProduct}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              isUpdatingProduct={isUpdatingProduct}
+              handleUpdateProduct={handleUpdateProduct}
+              isLoading={isLoading}
+              filteredProducts={filteredProducts}
+              togglingProductId={togglingProductId}
+              addToCart={addToCart}
+              handleOpenEditProduct={handleOpenEditProduct}
+              handleToggleProductStatus={handleToggleProductStatus}
+              formatCurrency={formatCurrency}
+              cart={cart}
+              setCart={setCart}
+              updateQty={updateQty}
+              cartTotal={cartTotal}
+              handleCreateOrder={handleCreateOrder}
+              isCreatingOrder={isCreatingOrder}
+            />
+          )}
 
-        {/* ── QR VIEW (FR-M04, FR-M05) ── */}
-        {view === 'qr' && (
-          <MerchantQrView
-            createdOrder={createdOrder}
-            qrDataUrl={qrDataUrl}
-            paidOrderNotification={paidOrderNotification}
-            formatCurrency={formatCurrency}
-            handleOpenPaidQrReceipt={handleOpenPaidQrReceipt}
-            isLoadingQrReceipt={isLoadingQrReceipt}
-            setCreatedOrder={setCreatedOrder}
-            setQrDataUrl={setQrDataUrl}
-            setPaidOrderNotification={setPaidOrderNotification}
-            setView={setView}
-            qrCountdown={qrCountdown}
-            formatTime={formatTime}
-            copiedToken={copiedToken}
-            setCopiedToken={setCopiedToken}
-          />
-        )}
+          {/* ── QR VIEW (FR-M04, FR-M05) ── */}
+          {view === 'qr' && (
+            <MerchantQrView
+              createdOrder={createdOrder}
+              qrDataUrl={qrDataUrl}
+              paidOrderNotification={paidOrderNotification}
+              formatCurrency={formatCurrency}
+              handleOpenPaidQrReceipt={handleOpenPaidQrReceipt}
+              isLoadingQrReceipt={isLoadingQrReceipt}
+              setCreatedOrder={setCreatedOrder}
+              setQrDataUrl={setQrDataUrl}
+              setPaidOrderNotification={setPaidOrderNotification}
+              setView={setView}
+              qrCountdown={qrCountdown}
+              formatTime={formatTime}
+            />
+          )}
 
-        {/* ── ORDERS VIEW (FR-M08) ── */}
-        {view === 'orders' && <MerchantOrdersView />}
+          {/* ── ORDERS VIEW (FR-M08) ── */}
+          {view === 'orders' && <MerchantOrdersView />}
 
-        {/* ── WALLET VIEW (FR-M06) ── */}
-        {view === 'wallet' && <MerchantWalletView />}
+          {/* ── WALLET VIEW (FR-M06) ── */}
+          {view === 'wallet' && <MerchantWalletView />}
 
-        {/* ── DASHBOARD VIEW (FR-M07) ── */}
-        {view === 'dashboard' && <MerchantDashboardView />}
-      </main>
+          {/* ── DASHBOARD VIEW (FR-M07) ── */}
+          {view === 'dashboard' && <MerchantDashboardView />}
+        </main>
       </div>
 
       {/* Mobile Bottom Navigation Bar */}

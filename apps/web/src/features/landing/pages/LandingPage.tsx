@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LandingHeader } from '../components/LandingHeader';
 import { LandingHeroSection } from '../components/LandingHeroSection';
+import { MerchantDiscoverySection } from '../components/MerchantDiscoverySection';
 
 export interface LandingPageProps {
   onLogin: () => void;
@@ -25,6 +26,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           isFaqOpen={isFaqOpen}
           onCloseFaq={() => setIsFaqOpen(false)}
         />
+        <MerchantDiscoverySection />
       </main>
     </div>
   );

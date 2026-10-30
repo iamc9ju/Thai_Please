@@ -10,6 +10,7 @@ describe('CatalogService (FR-M02)', () => {
   const mockPrisma = {
     merchant: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     productCategory: {
       findMany: vi.fn(),
@@ -22,6 +23,7 @@ describe('CatalogService (FR-M02)', () => {
       create: vi.fn(),
       update: vi.fn(),
     },
+    $queryRaw: vi.fn(),
   };
 
   let service: CatalogService;
@@ -32,6 +34,53 @@ describe('CatalogService (FR-M02)', () => {
     service = new CatalogService(mockPrisma as never);
   });
 
+  it('returns ten random ACTIVE merchants for public recommendations', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([
+      {
+        merchant_id: 9n,
+        merchant_name: 'ร้านชุมชนสุขใจ',
+        merchant_types: ['อาหารและเครื่องดื่ม'],
+        description: 'ร้านอาหารชุมชน',
+        address: 'กรุงเทพมหานคร',
+      },
+    ]);
+
+    const merchants = await service.listPublicMerchants(undefined, 10);
+
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledOnce();
+    expect(merchants).toEqual([
+      {
+        merchantId: '9',
+        merchantName: 'ร้านชุมชนสุขใจ',
+        merchantTypes: ['อาหารและเครื่องดื่ม'],
+        description: 'ร้านอาหารชุมชน',
+        address: 'กรุงเทพมหานคร',
+      },
+    ]);
+  });
+
+  it('searches only ACTIVE merchants by public fields', async () => {
+    mockPrisma.merchant.findMany.mockResolvedValueOnce([
+      {
+        merchantId: 10n,
+        merchantName: 'ร้านน้ำสมุนไพรไทย',
+        merchantTypes: ['เครื่องดื่ม'],
+        description: null,
+        address: 'เชียงใหม่',
+      },
+    ]);
+
+    const merchants = await service.listPublicMerchants('สมุนไพร', 10);
+
+    expect(mockPrisma.merchant.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'ACTIVE' }),
+        take: 10,
+      }),
+    );
+    expect(merchants[0]?.merchantName).toBe('ร้านน้ำสมุนไพรไทย');
+  });
+
   it('lists only ACTIVE products by default and all products when includeInactive=true', async () => {
     mockPrisma.product.findMany.mockResolvedValueOnce([
       {
@@ -40,6 +89,7 @@ describe('CatalogService (FR-M02)', () => {
         description: 'สูตรดั้งเดิม',
         price: 55,
         status: 'ACTIVE',
+        isRecommended: true,
         categoryId: 10n,
         category: { categoryName: 'อาหารตามสั่ง' },
       },
@@ -53,9 +103,15 @@ describe('CatalogService (FR-M02)', () => {
     expect(mockPrisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { merchantId: 100n, status: 'ACTIVE' },
+        orderBy: [
+          { status: 'asc' },
+          { isRecommended: 'desc' },
+          { createdAt: 'desc' },
+        ],
       }),
     );
     expect(activeOnly).toHaveLength(1);
+    expect(activeOnly[0]?.isRecommended).toBe(true);
 
     mockPrisma.product.findMany.mockResolvedValueOnce([
       {
@@ -64,6 +120,7 @@ describe('CatalogService (FR-M02)', () => {
         description: 'สูตรดั้งเดิม',
         price: 55,
         status: 'ACTIVE',
+        isRecommended: true,
         categoryId: 10n,
         category: { categoryName: 'อาหารตามสั่ง' },
       },
@@ -73,6 +130,7 @@ describe('CatalogService (FR-M02)', () => {
         description: null,
         price: 75,
         status: 'INACTIVE',
+        isRecommended: false,
         categoryId: 10n,
         category: { categoryName: 'อาหารตามสั่ง' },
       },
@@ -86,6 +144,38 @@ describe('CatalogService (FR-M02)', () => {
     );
     expect(withInactive).toHaveLength(2);
     expect(withInactive[1]?.status).toBe('INACTIVE');
+  });
+
+  it('creates a recommended product when requested', async () => {
+    mockPrisma.productCategory.findUnique.mockResolvedValueOnce({
+      categoryId: 10n,
+      categoryName: 'อาหารตามสั่ง',
+      status: 'ACTIVE',
+    });
+    mockPrisma.product.create.mockResolvedValueOnce({
+      productId: 3n,
+      productName: 'เมนูแนะนำ',
+      description: null,
+      price: 80,
+      status: 'ACTIVE',
+      isRecommended: true,
+      categoryId: 10n,
+      category: { categoryName: 'อาหารตามสั่ง' },
+    });
+
+    const created = await service.createProduct(100n, {
+      productName: 'เมนูแนะนำ',
+      price: 80,
+      categoryId: 10,
+      isRecommended: true,
+    });
+
+    expect(mockPrisma.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isRecommended: true }),
+      }),
+    );
+    expect(created.isRecommended).toBe(true);
   });
 
   it('blocks catalog reads and writes when the merchant is not ACTIVE', async () => {
@@ -142,6 +232,7 @@ describe('CatalogService (FR-M02)', () => {
       description: 'หวานปกติ',
       price: 35,
       status: 'INACTIVE',
+      isRecommended: false,
     });
     mockPrisma.productCategory.findUnique.mockResolvedValueOnce({
       categoryId: 11n,
@@ -156,6 +247,7 @@ describe('CatalogService (FR-M02)', () => {
       description: 'หวานน้อย หอมใบชา',
       price: 40,
       status: 'ACTIVE',
+      isRecommended: true,
       category: { categoryName: 'เครื่องดื่มสมุนไพร' },
     });
 
@@ -165,6 +257,7 @@ describe('CatalogService (FR-M02)', () => {
       price: 40,
       categoryId: 11,
       status: 'ACTIVE',
+      isRecommended: true,
     });
 
     expect(updated).toEqual({
@@ -173,6 +266,7 @@ describe('CatalogService (FR-M02)', () => {
       description: 'หวานน้อย หอมใบชา',
       price: 40,
       status: 'ACTIVE',
+      isRecommended: true,
       categoryId: '11',
       categoryName: 'เครื่องดื่มสมุนไพร',
     });
@@ -187,6 +281,7 @@ describe('CatalogService (FR-M02)', () => {
       description: null,
       price: 50,
       status: 'ACTIVE',
+      isRecommended: false,
     });
 
     await expect(
@@ -211,6 +306,7 @@ describe('CatalogService (FR-M02)', () => {
       description: 'ชุด 6 คู่',
       price: 30,
       status: 'ACTIVE',
+      isRecommended: false,
     });
     mockPrisma.product.update.mockResolvedValueOnce({
       productId: 8n,
@@ -220,6 +316,7 @@ describe('CatalogService (FR-M02)', () => {
       description: 'ชุด 6 คู่',
       price: 30,
       status: 'INACTIVE',
+      isRecommended: false,
       category: { categoryName: 'ของหวาน' },
     });
 

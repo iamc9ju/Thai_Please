@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   CreateCategoryDto,
@@ -16,6 +17,80 @@ import type {
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listPublicMerchants(search?: string, limit = 10) {
+    const normalizedSearch = search?.trim() ?? '';
+    const normalizedLimit = Math.min(20, Math.max(1, limit));
+
+    if (normalizedSearch) {
+      const merchants = await this.prisma.merchant.findMany({
+        where: {
+          status: 'ACTIVE',
+          OR: [
+            {
+              merchantName: {
+                contains: normalizedSearch,
+                mode: 'insensitive',
+              },
+            },
+            {
+              address: {
+                contains: normalizedSearch,
+                mode: 'insensitive',
+              },
+            },
+            { merchantTypes: { has: normalizedSearch } },
+          ],
+        },
+        select: {
+          merchantId: true,
+          merchantName: true,
+          merchantTypes: true,
+          description: true,
+          address: true,
+        },
+        orderBy: [{ merchantName: 'asc' }, { merchantId: 'asc' }],
+        take: normalizedLimit,
+      });
+
+      return merchants.map((merchant) => ({
+        merchantId: merchant.merchantId.toString(),
+        merchantName: merchant.merchantName,
+        merchantTypes: merchant.merchantTypes,
+        description: merchant.description,
+        address: merchant.address,
+      }));
+    }
+
+    const merchants = await this.prisma.$queryRaw<
+      Array<{
+        merchant_id: bigint;
+        merchant_name: string;
+        merchant_types: string[];
+        description: string | null;
+        address: string | null;
+      }>
+    >(Prisma.sql`
+      SELECT
+        merchant_id,
+        merchant_name,
+        merchant_types,
+        description,
+        address
+      FROM merchants
+      WHERE status = 'ACTIVE'
+      ORDER BY RANDOM()
+      LIMIT ${normalizedLimit}
+    `);
+
+    return merchants.map((merchant) => ({
+      merchantId: merchant.merchant_id.toString(),
+      merchantName: merchant.merchant_name,
+      merchantTypes: merchant.merchant_types,
+      description: merchant.description,
+      address: merchant.address,
+    }));
+  }
 
   private async assertActiveMerchant(merchantId: bigint): Promise<void> {
     const merchant = await this.prisma.merchant.findUnique({
@@ -79,7 +154,11 @@ export class CatalogService {
         ? { merchantId }
         : { merchantId, status: 'ACTIVE' },
       include: { category: true },
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { status: 'asc' },
+        { isRecommended: 'desc' },
+        { createdAt: 'desc' },
+      ],
     });
 
     return products.map((p) => ({
@@ -88,6 +167,7 @@ export class CatalogService {
       description: p.description,
       price: Number(p.price),
       status: p.status,
+      isRecommended: p.isRecommended,
       categoryId: p.categoryId.toString(),
       categoryName: p.category.categoryName,
     }));
@@ -114,6 +194,7 @@ export class CatalogService {
         description: dto.description?.trim() || null,
         price: dto.price,
         status: 'ACTIVE',
+        isRecommended: dto.isRecommended ?? false,
       },
       include: { category: true },
     });
@@ -124,6 +205,7 @@ export class CatalogService {
       description: product.description,
       price: Number(product.price),
       status: product.status,
+      isRecommended: product.isRecommended,
       categoryId: product.categoryId.toString(),
       categoryName: product.category.categoryName,
     };
@@ -174,6 +256,7 @@ export class CatalogService {
         price: dto.price !== undefined ? dto.price : product.price,
         categoryId,
         status: dto.status ?? product.status,
+        isRecommended: dto.isRecommended ?? product.isRecommended,
         updatedAt: new Date(),
       },
       include: { category: true },
@@ -185,6 +268,7 @@ export class CatalogService {
       description: updated.description,
       price: Number(updated.price),
       status: updated.status,
+      isRecommended: updated.isRecommended,
       categoryId: updated.categoryId.toString(),
       categoryName: updated.category.categoryName,
     };
@@ -222,6 +306,7 @@ export class CatalogService {
       description: updated.description,
       price: Number(updated.price),
       status: updated.status,
+      isRecommended: updated.isRecommended,
       categoryId: updated.categoryId.toString(),
       categoryName: updated.category.categoryName,
     };

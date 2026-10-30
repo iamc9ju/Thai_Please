@@ -15,6 +15,7 @@ import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/authorization/roles.decorator.js';
 import { RolesGuard } from '../auth/authorization/roles.guard.js';
+import { MerchantDashboardQueryDto } from './dto/merchant-dashboard-query.dto.js';
 import { WalletTransactionsQueryDto } from './dto/wallet-transactions-query.dto.js';
 import { WithdrawMerchantWalletDto } from './dto/withdraw-merchant-wallet.dto.js';
 import { WalletService } from './wallet.service.js';
@@ -100,15 +101,15 @@ export class MerchantWalletController {
   @Roles('MERCHANT')
   async getMerchantDashboard(
     @Req() req: Request,
-    @Query('days') days?: string,
+    @Query() query: MerchantDashboardQueryDto,
     @Param('id') id?: string,
   ) {
-    const parsedDays =
-      days !== undefined && /^\d+$/.test(days) ? Number(days) : undefined;
     return this.walletService.getMerchantDashboard(
       req.user!.userId,
       req.user!.activeMerchantId,
-      parsedDays,
+      query.days,
+      query.page,
+      query.pageSize,
       parseOptionalMerchantId(id),
     );
   }

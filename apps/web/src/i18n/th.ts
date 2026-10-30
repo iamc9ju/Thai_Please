@@ -874,6 +874,26 @@ export const th = {
       imageAlt:
         'ขั้นตอนการใช้งานไทยช่วยไทยพรีส: 1. เลือกร้านค้า 2. สแกนและชำระ 3. ทำภารกิจ รับแต้ม 4. แลกคูปอง',
     },
+    merchantDiscovery: {
+      eyebrow: 'ร้านค้าที่เข้าร่วมโครงการ',
+      title: 'ค้นหาร้านค้าไทยช่วยไทยใกล้คุณ',
+      subtitle:
+        'ค้นหาจากชื่อร้าน ที่อยู่ หรือประเภทร้านค้า และเลือกร้านชุมชนที่คุณสนใจ',
+      searchLabel: 'ค้นหาร้านค้า',
+      searchPlaceholder: 'ชื่อร้าน ที่อยู่ หรือประเภทร้านค้า',
+      searchButton: 'ค้นหา',
+      clearSearch: 'ล้างคำค้นหา',
+      recommendedTitle: 'ร้านค้าแนะนำ 10 ร้าน',
+      searchResults: 'ผลการค้นหาร้านค้า',
+      randomHint: 'สุ่มจากร้านค้าที่เปิดใช้งานในโครงการ',
+      randomAgain: 'สุ่มร้านใหม่',
+      loading: 'กำลังค้นหาร้านค้า...',
+      loadError: 'ไม่สามารถโหลดข้อมูลร้านค้าได้',
+      retry: 'ลองใหม่',
+      empty: 'ไม่พบร้านค้าที่ตรงกับคำค้นหา',
+      resultCount: (count: number, search: string) =>
+        `พบ ${count} ร้าน สำหรับ “${search}”`,
+    },
     actions: {
       title: 'ลงทะเบียนเข้าร่วมโครงการ / ยืนยันสิทธิ',
       description:
@@ -1053,7 +1073,7 @@ export const th = {
         usageRate: 'อัตราใช้คูปอง',
       },
       split: {
-        title: 'สัดส่วนรายรับ: เงินสนับสนุนภาครัฐ vs เงินส่วนตัวลูกค้า',
+        title: 'สัดส่วนรายรับ: เงินส่วนตัวลูกค้า vs เงินสนับสนุนภาครัฐ',
         subtitle:
           'เปรียบเทียบแหล่งที่มาของรายรับร้านค้าจากโครงการร่วมจ่าย (Co-payment)',
         subsidyLabel: 'สิทธิ์ร่วมจ่ายภาครัฐ (Subsidy)',
@@ -1064,6 +1084,10 @@ export const th = {
         subtitle: 'แสดงยอดขายสุทธิแยกตามวันในเขตเวลา Asia/Bangkok',
         ordersUnit: 'บิล',
         noSalesDay: 'ไม่มียอดขาย',
+        paginationLabel: 'เปลี่ยนหน้ารายการแนวโน้มยอดขาย',
+        previousPage: 'ก่อนหน้า',
+        nextPage: 'ถัดไป',
+        pageLabel: 'หน้า',
       },
       topProducts: {
         title: 'สินค้าขายดีประจำร้าน (Top-selling Products)',

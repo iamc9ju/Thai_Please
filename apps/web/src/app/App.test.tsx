@@ -19,6 +19,10 @@ vi.mock('../features/auth/api/auth.api', () => ({
   }),
 }));
 
+vi.mock('../features/landing/landing.api', () => ({
+  getPublicMerchants: vi.fn().mockResolvedValue([]),
+}));
+
 afterEach(() => {
   cleanup();
 });

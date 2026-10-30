@@ -41,8 +41,12 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
         findUnique: vi.fn(),
       },
       merchantMember: {
-        findFirst: vi.fn().mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
-        findUnique: vi.fn().mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' }),
       },
       user: {
         findUnique: vi.fn(),
@@ -245,7 +249,10 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
 
       prismaMock.walletTransaction.findMany.mockResolvedValue([]);
 
-      const result = await service.getMerchantWalletOverview(staffUserId, merchantId);
+      const result = await service.getMerchantWalletOverview(
+        staffUserId,
+        merchantId,
+      );
 
       expect(result.withdrawalEligibility.isOwner).toBe(false);
       expect(result.withdrawalEligibility.canWithdraw).toBe(false);
@@ -550,7 +557,14 @@ describe('WalletService FR-M06 & FR-M07 (Merchant Wallet & Dashboard)', () => {
           orderCount: 1,
         },
       ]);
-      expect(dashboard.salesTrend).toHaveLength(7);
+      expect(dashboard.salesTrend).toHaveLength(5);
+      expect(dashboard.salesTrendPagination).toEqual({
+        page: 1,
+        pageSize: 5,
+        totalItems: 7,
+        totalPages: 2,
+      });
+      expect(dashboard.salesTrend[0]?.totalSales).toBe(100);
       expect(dashboard.dataFreshness.timezone).toBe('Asia/Bangkok');
     });
   });

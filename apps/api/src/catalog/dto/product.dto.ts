@@ -6,6 +6,7 @@ import {
   MaxLength,
   IsPositive,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -41,6 +42,10 @@ export class CreateProductDto {
   @IsPositive()
   @Type(() => Number)
   categoryId!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isRecommended?: boolean;
 }
 
 export class UpdateProductDto {
@@ -70,6 +75,10 @@ export class UpdateProductDto {
   @IsString()
   @IsIn(PRODUCT_STATUSES)
   status?: ProductStatusValue;
+
+  @IsOptional()
+  @IsBoolean()
+  isRecommended?: boolean;
 }
 
 export class UpdateProductStatusDto {

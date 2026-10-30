@@ -130,7 +130,7 @@ export function LandingHeader({
 
           {/* Find Shops */}
           <a
-            href="#actions-section"
+            href="#merchant-search-section"
             className="font-semibold text-slate-800 transition-colors hover:text-[#0056b3] py-2"
           >
             {th.landing.nav.findShops}
@@ -216,7 +216,7 @@ export function LandingHeader({
               <ChevronDown className="size-4 text-slate-400" />
             </button>
             <a
-              href="#actions-section"
+              href="#merchant-search-section"
               onClick={() => setIsMobileMenuOpen(false)}
               className="rounded-lg px-3 py-2 hover:bg-slate-50"
             >

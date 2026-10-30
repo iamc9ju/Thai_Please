@@ -33,6 +33,7 @@ export function createProduct(data: {
   price: number;
   categoryId: number;
   description?: string;
+  isRecommended?: boolean;
 }): Promise<Product> {
   return apiClient.post<Product>(`${MERCHANT_API}/products`, data);
 }
@@ -45,6 +46,7 @@ export function updateProduct(
     categoryId?: number;
     description?: string;
     status?: 'ACTIVE' | 'INACTIVE';
+    isRecommended?: boolean;
   },
 ): Promise<Product> {
   return apiClient.put<Product>(
@@ -137,9 +139,18 @@ export function withdrawMerchantWallet(data: {
 
 // ── FR-M07: Merchant Analytics Dashboard ─────────────────────────────────────
 
-export function getMerchantDashboard(days = 7): Promise<MerchantDashboardData> {
+export function getMerchantDashboard(
+  days = 7,
+  page = 1,
+  pageSize = 5,
+): Promise<MerchantDashboardData> {
+  const params = new URLSearchParams({
+    days: String(days),
+    page: String(page),
+    pageSize: String(pageSize),
+  });
   return apiClient.get<MerchantDashboardData>(
-    `${MERCHANT_API}/dashboard?days=${encodeURIComponent(String(days))}`,
+    `${MERCHANT_API}/dashboard?${params.toString()}`,
   );
 }
 

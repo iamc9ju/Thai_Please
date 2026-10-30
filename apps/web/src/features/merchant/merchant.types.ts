@@ -4,6 +4,7 @@ export type Product = {
   description: string | null;
   price: number;
   status: string;
+  isRecommended: boolean;
   categoryId: string;
   categoryName: string;
 };
@@ -215,6 +216,12 @@ export type MerchantDashboardData = {
   };
   topProducts: MerchantTopProduct[];
   salesTrend: MerchantSalesTrendItem[];
+  salesTrendPagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
   dataFreshness: {
     asOf: string;
     timezone: string;

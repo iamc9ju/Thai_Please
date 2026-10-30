@@ -60,7 +60,7 @@ model Merchant {
 
   authSessions AuthSession[]
   coupons      Coupon[]
-  owner        User          @relation(fields: [ownerUserId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  owner        User             @relation(fields: [ownerUserId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   orders       Order[]
   products     Product[]
   quests       Quest[]
@@ -135,8 +135,8 @@ model PointTransaction {
   user       User        @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
   userQuest  UserQuest?  @relation(fields: [userQuestId], references: [userQuestId], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([userId], map: "idx_point_transactions_user")
   @@unique([userQuestId], map: "point_transactions_quest_reward_once", where: raw("((transaction_type = 'QUEST_REWARD') AND (user_quest_id IS NOT NULL))"))
+  @@index([userId], map: "idx_point_transactions_user")
   @@map("point_transactions")
 }
 
@@ -154,21 +154,23 @@ model ProductCategory {
 }
 
 model Product {
-  productId   BigInt   @id @default(autoincrement()) @map("product_id")
-  merchantId  BigInt   @map("merchant_id")
-  categoryId  BigInt   @map("category_id")
-  productName String   @map("product_name") @db.VarChar(150)
-  description String?
-  price       Decimal  @db.Decimal(12, 2)
-  status      String   @default("ACTIVE") @db.VarChar(20)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  productId     BigInt   @id @default(autoincrement()) @map("product_id")
+  merchantId    BigInt   @map("merchant_id")
+  categoryId    BigInt   @map("category_id")
+  productName   String   @map("product_name") @db.VarChar(150)
+  description   String?
+  price         Decimal  @db.Decimal(12, 2)
+  status        String   @default("ACTIVE") @db.VarChar(20)
+  isRecommended Boolean  @default(false) @map("is_recommended")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   orderItems OrderItem[]
   category   ProductCategory @relation(fields: [categoryId], references: [categoryId], onDelete: NoAction, onUpdate: NoAction)
   merchant   Merchant        @relation(fields: [merchantId], references: [merchantId], onDelete: NoAction, onUpdate: NoAction)
   quests     Quest[]
 
+  @@index([merchantId, isRecommended, createdAt], map: "idx_products_merchant_recommended")
   @@map("products")
 }
 
@@ -277,17 +279,17 @@ model UserCoupon {
 }
 
 model UserQuest {
-  userQuestId      BigInt    @id @default(autoincrement()) @map("user_quest_id")
-  userId           BigInt    @map("user_id")
-  questId          BigInt    @map("quest_id")
-  status           String    @default("ACTIVE") @db.VarChar(20)
-  assignedAt       DateTime  @default(now()) @map("assigned_at") @db.Timestamp(6)
-  expiresAt        DateTime  @map("expires_at") @db.Timestamp(6)
-  completedAt      DateTime? @map("completed_at") @db.Timestamp(6)
-  completedOrderId BigInt?   @map("completed_order_id")
-  nextEligibleAt   DateTime? @map("next_eligible_at") @db.Timestamptz(6)
-  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancellationReason String? @map("cancellation_reason") @db.VarChar(80)
+  userQuestId        BigInt    @id @default(autoincrement()) @map("user_quest_id")
+  userId             BigInt    @map("user_id")
+  questId            BigInt    @map("quest_id")
+  status             String    @default("ACTIVE") @db.VarChar(20)
+  assignedAt         DateTime  @default(now()) @map("assigned_at") @db.Timestamp(6)
+  expiresAt          DateTime  @map("expires_at") @db.Timestamp(6)
+  completedAt        DateTime? @map("completed_at") @db.Timestamp(6)
+  completedOrderId   BigInt?   @map("completed_order_id")
+  nextEligibleAt     DateTime? @map("next_eligible_at") @db.Timestamptz(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancellationReason String?   @map("cancellation_reason") @db.VarChar(80)
 
   pointTransactions PointTransaction[]
   generationLog     QuestGenerationLog?
@@ -295,9 +297,9 @@ model UserQuest {
   quest             Quest               @relation(fields: [questId], references: [questId], onDelete: NoAction, onUpdate: NoAction)
   user              User                @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
 
+  @@unique([completedOrderId], map: "user_quests_receipt_once", where: raw("(completed_order_id IS NOT NULL)"))
   @@index([userId, status], map: "idx_user_quests_user_status")
   @@index([userId, nextEligibleAt(sort: Desc)], map: "idx_user_quests_next_eligible")
-  @@unique([completedOrderId], map: "user_quests_receipt_once", where: raw("(completed_order_id IS NOT NULL)"))
   @@map("user_quests")
 }
 
@@ -455,5 +457,3 @@ model AuditEvent {
   @@index([targetType, targetId], map: "idx_audit_events_target")
   @@map("audit_events")
 }
-
-

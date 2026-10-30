@@ -1,7 +1,18 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LandingPage } from './LandingPage';
 import { th } from '../../../i18n/th';
+
+const mockGetPublicMerchants = vi.hoisted(() => vi.fn());
+
+vi.mock('../landing.api', () => ({
+  getPublicMerchants: mockGetPublicMerchants,
+}));
+
+beforeEach(() => {
+  mockGetPublicMerchants.mockReset();
+  mockGetPublicMerchants.mockImplementation(() => new Promise(() => undefined));
+});
 
 afterEach(() => {
   cleanup();
@@ -21,7 +32,9 @@ describe('LandingPage', () => {
     expect(screen.getByText(th.landing.nav.home)).toBeInTheDocument();
     expect(screen.getByText(th.landing.nav.projectInfo)).toBeInTheDocument();
     expect(screen.getByText(th.landing.nav.eligibility)).toBeInTheDocument();
-    expect(screen.getByText(th.landing.nav.findShops)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: th.landing.nav.findShops }),
+    ).toHaveAttribute('href', '#merchant-search-section');
     expect(screen.getByText(th.landing.nav.mofNews)).toBeInTheDocument();
     expect(screen.getByText(th.landing.nav.faq)).toBeInTheDocument();
 
@@ -89,5 +102,41 @@ describe('LandingPage', () => {
     expect(
       screen.queryByText(th.landing.support.modalTitle),
     ).not.toBeInTheDocument();
+  });
+
+  it('loads random recommendations and searches public merchants', async () => {
+    mockGetPublicMerchants
+      .mockResolvedValueOnce([
+        {
+          merchantId: '1',
+          merchantName: 'ร้านแนะนำหนึ่ง',
+          merchantTypes: ['อาหารและเครื่องดื่ม'],
+          description: 'ร้านชุมชน',
+          address: 'กรุงเทพมหานคร',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          merchantId: '2',
+          merchantName: 'ร้านน้ำสมุนไพร',
+          merchantTypes: ['เครื่องดื่ม'],
+          description: null,
+          address: 'เชียงใหม่',
+        },
+      ]);
+
+    render(<LandingPage onLogin={vi.fn()} />);
+
+    expect(await screen.findByText('ร้านแนะนำหนึ่ง')).toBeInTheDocument();
+    expect(mockGetPublicMerchants).toHaveBeenNthCalledWith(1, '');
+
+    fireEvent.change(screen.getByLabelText('ค้นหาร้านค้า'), {
+      target: { value: 'สมุนไพร' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ค้นหา' }));
+
+    expect(await screen.findByText('ร้านน้ำสมุนไพร')).toBeInTheDocument();
+    expect(mockGetPublicMerchants).toHaveBeenNthCalledWith(2, 'สมุนไพร');
+    expect(screen.queryByText('ร้านแนะนำหนึ่ง')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { CheckCircle2, Copy, Download, QrCode } from 'lucide-react';
+import { CheckCircle2, Download, QrCode } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { CreateOrderResponse, MerchantOrder } from '../merchant.types';
 
@@ -16,8 +16,6 @@ interface MerchantQrViewProps {
   setView: (view: 'pos') => void;
   qrCountdown: number;
   formatTime: (seconds: number) => string;
-  copiedToken: boolean;
-  setCopiedToken: Dispatch<SetStateAction<boolean>>;
 }
 
 export function MerchantQrView({
@@ -33,8 +31,6 @@ export function MerchantQrView({
   setView,
   qrCountdown,
   formatTime,
-  copiedToken,
-  setCopiedToken,
 }: MerchantQrViewProps) {
   const posCopy = th.merchantPortal.pos;
 
@@ -129,47 +125,6 @@ export function MerchantQrView({
                   <span>{posCopy.downloadQrImage}</span>
                 </a>
               </div>
-
-              {/* QR Token copy box for desktop testing & manual input */}
-              {createdOrder.qrToken && (
-                <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-3.5">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#003d82]">
-                      <span>🔑</span> รหัส QR Token
-                    </span>
-                    <button
-                      type="button"
-                      id="copy-token-btn"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(
-                          createdOrder.qrToken,
-                        );
-                        setCopiedToken(true);
-                        setTimeout(() => setCopiedToken(false), 2000);
-                      }}
-                      className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
-                        copiedToken
-                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                          : 'bg-[#0056b3] text-white hover:bg-[#004494]'
-                      }`}
-                    >
-                      <Copy className="size-3" />
-                      <span>
-                        {copiedToken ? 'คัดลอกแล้ว!' : 'คัดลอก Token'}
-                      </span>
-                    </button>
-                  </div>
-                  <p className="select-all break-all rounded-xl border border-blue-200/70 bg-white p-2.5 font-mono text-[11px] leading-relaxed text-slate-700">
-                    {createdOrder.qrToken}
-                  </p>
-                  <p className="mt-2 text-[11px] text-slate-600">
-                    💡 สแกนด้วยกล้อง อัปโหลดไฟล์รูป QR
-                    หรือคัดลอกรหัสนี้ไปวางในเมนู{' '}
-                    <strong>&quot;สแกนจ่าย&quot;</strong>{' '}
-                    ฝั่งประชาชนเพื่อทดสอบชำระเงิน
-                  </p>
-                </div>
-              )}
 
               <div className="mt-4 space-y-1.5 rounded-2xl bg-slate-50 p-3.5 border border-slate-100">
                 <p className="mb-2 text-xs font-bold text-slate-700">

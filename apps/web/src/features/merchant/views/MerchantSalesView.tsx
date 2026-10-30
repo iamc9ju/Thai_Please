@@ -1,5 +1,12 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Edit3, Plus, Power, Settings2, ShoppingCart } from 'lucide-react';
+import {
+  Edit3,
+  Plus,
+  Power,
+  Settings2,
+  ShoppingCart,
+  Star,
+} from 'lucide-react';
 import { LoadingState } from '../../../components/LoadingState';
 import { th } from '../../../i18n/th';
 import type { CartItem, Category, Product } from '../merchant.types';
@@ -11,6 +18,7 @@ interface NewProductForm {
   price: string;
   categoryId: string;
   description: string;
+  isRecommended: boolean;
 }
 
 interface EditProductForm extends NewProductForm {
@@ -290,6 +298,21 @@ export function MerchantSalesView({
                     }))
                   }
                 />
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm font-bold text-amber-900">
+                  <input
+                    type="checkbox"
+                    checked={newProduct.isRecommended}
+                    onChange={(e) =>
+                      setNewProduct((previous) => ({
+                        ...previous,
+                        isRecommended: e.target.checked,
+                      }))
+                    }
+                    className="size-4 accent-amber-500"
+                  />
+                  <Star className="size-4 fill-amber-400 text-amber-500" />
+                  สินค้าแนะนำ (แสดงก่อนสินค้าอื่น)
+                </label>
               </div>
               <div className="mt-5 flex gap-2">
                 <button
@@ -446,6 +469,22 @@ export function MerchantSalesView({
                     </option>
                   </select>
                 </div>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm font-bold text-amber-900">
+                  <input
+                    type="checkbox"
+                    checked={editForm.isRecommended}
+                    onChange={(e) =>
+                      setEditForm((previous) => ({
+                        ...previous,
+                        isRecommended: e.target.checked,
+                      }))
+                    }
+                    className="size-4 accent-amber-500"
+                  />
+                  <Star className="size-4 fill-amber-400 text-amber-500" />
+                  สินค้าแนะนำ (แสดงก่อนสินค้าอื่น)
+                </label>
               </div>
 
               <div className="mt-5 flex gap-2">
@@ -495,6 +534,7 @@ export function MerchantSalesView({
               return (
                 <div
                   key={product.productId}
+                  data-testid="product-card"
                   className={`group relative flex flex-col justify-between rounded-2xl border p-4 text-left shadow-sm transition-all ${
                     isInactive
                       ? 'border-slate-200 bg-slate-100/80 opacity-85'
@@ -517,6 +557,12 @@ export function MerchantSalesView({
                         🍽️
                       </div>
                       <div className="flex items-center gap-1.5">
+                        {product.isRecommended && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
+                            <Star className="size-3 fill-amber-400 text-amber-500" />
+                            แนะนำ
+                          </span>
+                        )}
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                             isInactive
