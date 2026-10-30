@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
-  it('renders login-success centered modal with role badge, brand logo, and action button', () => {
+  it('renders login-success centered modal with brand logo and action button, omitting center icon podium and role badge as requested', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -32,7 +32,8 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
     expect(
       screen.getByText('ยินดีต้อนรับคุณ สมชาย ใจดี เข้าสู่ระบบเรียบร้อยแล้ว'),
     ).toBeInTheDocument();
-    expect(screen.getByText('ประชาชน')).toBeInTheDocument();
+    // Center icon podium and role badge removed for auth modals
+    expect(screen.queryByText('ประชาชน')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: th.authToast.goToDashboard }),
     ).toBeInTheDocument();
@@ -122,6 +123,31 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
     });
 
     expect(onDismiss).toHaveBeenCalledWith('test-timer');
+  });
+
+  it('runs countdown continuously without pausing on mouse hover', () => {
+    vi.useFakeTimers();
+    const onDismiss = vi.fn();
+
+    render(
+      <ToastItem
+        toast={{
+          id: 'test-continuous-timer',
+          title: 'กำลังปิดอัตโนมัติ',
+          duration: 3000,
+        }}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.mouseEnter(dialog);
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(onDismiss).toHaveBeenCalledWith('test-continuous-timer');
   });
 });
 

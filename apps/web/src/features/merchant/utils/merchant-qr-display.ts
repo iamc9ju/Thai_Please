@@ -128,7 +128,7 @@ function prepareDocument(document: Document): void {
       padding: 24px;
       color: #0f172a;
       background: linear-gradient(145deg, #eff6ff, #f8fafc 55%, #dbeafe);
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: 'Anuphan', system-ui, -apple-system, 'Noto Sans Thai', 'Segoe UI', sans-serif;
     }
     .qr-card, .status-card {
       width: min(100%, 440px);

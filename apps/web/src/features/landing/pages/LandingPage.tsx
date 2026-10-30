@@ -1,14 +1,60 @@
 import { useState } from 'react';
-import { LandingHeader } from '../components/LandingHeader';
+import { LandingHeader, type LandingNavSection } from '../components/LandingHeader';
 import { LandingHeroSection } from '../components/LandingHeroSection';
+import { ProjectInfoAndEligibilityPage } from './ProjectInfoAndEligibilityPage';
+import type { EligibilityRoleTab } from '../components/HowToJoinSection';
 
 export interface LandingPageProps {
   onLogin: () => void;
+  onRegisterConsumer?: (() => void) | undefined;
+  onRegisterMerchant?: (() => void) | undefined;
+  onLoginConsumer?: (() => void) | undefined;
+  onLoginMerchant?: (() => void) | undefined;
+  initialNav?: LandingNavSection | undefined;
+  initialRole?: EligibilityRoleTab | undefined;
 }
 
-export function LandingPage({ onLogin }: LandingPageProps) {
+export function LandingPage({
+  onLogin,
+  onRegisterConsumer,
+  onRegisterMerchant,
+  onLoginConsumer,
+  onLoginMerchant,
+  initialNav = 'home',
+  initialRole = 'consumer',
+}: LandingPageProps) {
+  const [currentNav, setCurrentNav] = useState<LandingNavSection>(initialNav);
+  const [currentRole, setCurrentRole] = useState<EligibilityRoleTab>(initialRole);
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
+
+  if (currentNav === 'project-info' || currentNav === 'how-to-join') {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
+        <LandingHeader
+          onLogin={onLogin}
+          onOpenNews={() => setIsNewsOpen(true)}
+          onOpenFaq={() => setIsFaqOpen(true)}
+          activeNav={currentNav}
+          onNavigateHome={() => setCurrentNav('home')}
+          onNavigateProjectInfo={() => setCurrentNav('project-info')}
+          onNavigateHowToJoin={(role) => {
+            setCurrentNav('how-to-join');
+            if (role) setCurrentRole(role);
+          }}
+        />
+        <ProjectInfoAndEligibilityPage
+          initialTab={currentNav}
+          initialRole={currentRole}
+          onBackToHome={() => setCurrentNav('home')}
+          onRegisterConsumer={onRegisterConsumer}
+          onRegisterMerchant={onRegisterMerchant}
+          onLoginConsumer={onLoginConsumer ?? onLogin}
+          onLoginMerchant={onLoginMerchant ?? onLogin}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
@@ -16,6 +62,13 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         onLogin={onLogin}
         onOpenNews={() => setIsNewsOpen(true)}
         onOpenFaq={() => setIsFaqOpen(true)}
+        activeNav="home"
+        onNavigateHome={() => setCurrentNav('home')}
+        onNavigateProjectInfo={() => setCurrentNav('project-info')}
+        onNavigateHowToJoin={(role) => {
+          setCurrentNav('how-to-join');
+          if (role) setCurrentRole(role);
+        }}
       />
       <main className="flex-1 flex flex-col">
         <LandingHeroSection
@@ -24,6 +77,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           onCloseNews={() => setIsNewsOpen(false)}
           isFaqOpen={isFaqOpen}
           onCloseFaq={() => setIsFaqOpen(false)}
+          onOpenProjectInfo={() => setCurrentNav('project-info')}
+          onOpenHowToJoin={(role) => {
+            setCurrentNav('how-to-join');
+            if (role) setCurrentRole(role);
+          }}
         />
       </main>
     </div>

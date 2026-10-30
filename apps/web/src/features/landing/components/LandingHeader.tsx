@@ -2,16 +2,26 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { th } from '../../../i18n/th';
 
+export type LandingNavSection = 'home' | 'project-info' | 'how-to-join';
+
 export interface LandingHeaderProps {
   onLogin: () => void;
-  onOpenNews?: () => void;
-  onOpenFaq?: () => void;
+  onOpenNews?: (() => void) | undefined;
+  onOpenFaq?: (() => void) | undefined;
+  activeNav?: LandingNavSection | undefined;
+  onNavigateHome?: (() => void) | undefined;
+  onNavigateProjectInfo?: (() => void) | undefined;
+  onNavigateHowToJoin?: ((role?: 'consumer' | 'merchant') => void) | undefined;
 }
 
 export function LandingHeader({
   onLogin,
   onOpenNews,
   onOpenFaq,
+  activeNav = 'home',
+  onNavigateHome,
+  onNavigateProjectInfo,
+  onNavigateHowToJoin,
 }: LandingHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -39,6 +49,12 @@ export function LandingHeader({
         {/* Brand Logo */}
         <a
           href="/"
+          onClick={(e) => {
+            if (onNavigateHome) {
+              e.preventDefault();
+              onNavigateHome();
+            }
+          }}
           className="flex items-center gap-2 shrink-0 transition-transform duration-200 hover:scale-[1.02]"
           aria-label={th.landing.brand}
         >
@@ -57,21 +73,49 @@ export function LandingHeader({
           {/* Active Home Tab */}
           <a
             href="/"
-            className="relative font-bold text-[#0056b3] transition-colors py-2"
+            onClick={(e) => {
+              if (onNavigateHome) {
+                e.preventDefault();
+                onNavigateHome();
+              }
+            }}
+            className={`relative font-bold transition-colors py-2 ${
+              activeNav === 'home'
+                ? 'text-[#0056b3]'
+                : 'text-slate-800 hover:text-[#0056b3]'
+            }`}
           >
             {th.landing.nav.home}
-            <span
-              aria-hidden="true"
-              className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
-            />
+            {activeNav === 'home' && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+              />
+            )}
           </a>
 
           {/* Project Info */}
           <a
             href="#schedule-section"
-            className="font-semibold text-slate-800 transition-colors hover:text-[#0056b3] py-2"
+            onClick={(e) => {
+              if (onNavigateProjectInfo) {
+                e.preventDefault();
+                onNavigateProjectInfo();
+              }
+            }}
+            className={`relative font-bold transition-colors py-2 cursor-pointer ${
+              activeNav === 'project-info'
+                ? 'text-[#0056b3]'
+                : 'text-slate-800 hover:text-[#0056b3]'
+            }`}
           >
             {th.landing.nav.projectInfo}
+            {activeNav === 'project-info' && (
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+              />
+            )}
           </a>
 
           {/* Eligibility with Dropdown */}
@@ -80,7 +124,11 @@ export function LandingHeader({
               type="button"
               onClick={() => setIsDropdownOpen((prev) => !prev)}
               aria-expanded={isDropdownOpen}
-              className="flex items-center gap-1 font-semibold text-slate-800 transition-colors hover:text-[#0056b3] cursor-pointer py-2"
+              className={`relative flex items-center gap-1 font-bold transition-colors cursor-pointer py-2 ${
+                activeNav === 'how-to-join'
+                  ? 'text-[#0056b3]'
+                  : 'text-slate-800 hover:text-[#0056b3]'
+              }`}
             >
               <span>{th.landing.nav.eligibility}</span>
               <ChevronDown
@@ -89,6 +137,12 @@ export function LandingHeader({
                   isDropdownOpen ? 'rotate-180' : ''
                 }`}
               />
+              {activeNav === 'how-to-join' && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-full max-w-[48px] h-[3.5px] bg-[#0056b3] rounded-full"
+                />
+              )}
             </button>
 
             {isDropdownOpen && (
@@ -97,7 +151,11 @@ export function LandingHeader({
                   type="button"
                   onClick={() => {
                     setIsDropdownOpen(false);
-                    onLogin();
+                    if (onNavigateHowToJoin) {
+                      onNavigateHowToJoin('consumer');
+                    } else {
+                      onLogin();
+                    }
                   }}
                   className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-[#0056b3] cursor-pointer"
                 >
@@ -107,7 +165,11 @@ export function LandingHeader({
                   type="button"
                   onClick={() => {
                     setIsDropdownOpen(false);
-                    onLogin();
+                    if (onNavigateHowToJoin) {
+                      onNavigateHowToJoin('merchant');
+                    } else {
+                      onLogin();
+                    }
                   }}
                   className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-[#0056b3] cursor-pointer"
                 >
@@ -192,15 +254,35 @@ export function LandingHeader({
           <nav className="flex flex-col gap-3 text-base font-semibold text-slate-800">
             <a
               href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="rounded-lg px-3 py-2 text-[#0056b3] bg-blue-50/50"
+              onClick={(e) => {
+                setIsMobileMenuOpen(false);
+                if (onNavigateHome) {
+                  e.preventDefault();
+                  onNavigateHome();
+                }
+              }}
+              className={`rounded-lg px-3 py-2 ${
+                activeNav === 'home'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               {th.landing.nav.home}
             </a>
             <a
               href="#schedule-section"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="rounded-lg px-3 py-2 hover:bg-slate-50"
+              onClick={(e) => {
+                setIsMobileMenuOpen(false);
+                if (onNavigateProjectInfo) {
+                  e.preventDefault();
+                  onNavigateProjectInfo();
+                }
+              }}
+              className={`rounded-lg px-3 py-2 cursor-pointer ${
+                activeNav === 'project-info'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               {th.landing.nav.projectInfo}
             </a>
@@ -208,9 +290,17 @@ export function LandingHeader({
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(false);
-                onLogin();
+                if (onNavigateHowToJoin) {
+                  onNavigateHowToJoin('consumer');
+                } else {
+                  onLogin();
+                }
               }}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-slate-50 cursor-pointer"
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left cursor-pointer ${
+                activeNav === 'how-to-join'
+                  ? 'text-[#0056b3] bg-blue-50/70 font-bold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
               <span>{th.landing.nav.eligibility}</span>
               <ChevronDown className="size-4 text-slate-400" />

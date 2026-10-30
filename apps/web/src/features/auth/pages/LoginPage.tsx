@@ -17,7 +17,9 @@ import { useAuth } from '../use-auth';
 import type { LoginRole } from '../auth.types';
 
 export interface LoginPageProps {
-  onBack?: () => void;
+  onBack?: (() => void) | undefined;
+  initialRole?: LoginRole | undefined;
+  initialRegistrationRole?: RegistrationRole | null | undefined;
 }
 
 const REMEMBERED_CREDENTIALS_KEY = 'thai_please_remembered_credentials';
@@ -59,22 +61,29 @@ function removeStoredCredentials(role: LoginRole) {
   }
 }
 
-export function LoginPage({ onBack }: LoginPageProps = {}) {
+export function LoginPage({
+  onBack,
+  initialRole,
+  initialRegistrationRole,
+}: LoginPageProps = {}) {
   const { login } = useAuth();
-  const [role, setRole] = useState<LoginRole>('consumer');
+  const [role, setRole] = useState<LoginRole>(initialRole ?? 'consumer');
 
   const [citizenId, setCitizenId] = useState<string>(() => {
+    const targetRole = initialRole ?? 'consumer';
     const stored = getStoredCredentials();
-    return stored.consumer?.citizenId || '';
+    return stored[targetRole]?.citizenId || '';
   });
   const [password, setPassword] = useState<string>(() => {
+    const targetRole = initialRole ?? 'consumer';
     const stored = getStoredCredentials();
-    return stored.consumer?.password || '';
+    return stored[targetRole]?.password || '';
   });
   const [rememberCredentials, setRememberCredentials] = useState<boolean>(
     () => {
+      const targetRole = initialRole ?? 'consumer';
       const stored = getStoredCredentials();
-      return Boolean(stored.consumer?.citizenId);
+      return Boolean(stored[targetRole]?.citizenId);
     },
   );
 
@@ -82,7 +91,7 @@ export function LoginPage({ onBack }: LoginPageProps = {}) {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationRole, setRegistrationRole] =
-    useState<RegistrationRole | null>(null);
+    useState<RegistrationRole | null>(initialRegistrationRole ?? null);
 
   const hasSavedForCurrentRole = useMemo(() => {
     const stored = getStoredCredentials();

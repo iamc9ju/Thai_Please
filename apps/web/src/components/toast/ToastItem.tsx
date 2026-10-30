@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -32,7 +32,7 @@ interface ToastItemProps {
 
 export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
   const { id, type = 'info', title, description, badge, duration = 3500 } = toast;
-  const [isPaused, setIsPaused] = useState(false);
+  const isAuthModal = type === 'login-success' || type === 'logout-success';
 
   // Close on Escape key
   useEffect(() => {
@@ -45,16 +45,16 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [id, onDismiss]);
 
-  // Auto-dismiss countdown
+  // Auto-dismiss countdown (runs continuously without pausing on hover)
   useEffect(() => {
-    if (duration <= 0 || isPaused) return;
+    if (duration <= 0) return;
 
     const timer = setTimeout(() => {
       onDismiss(id);
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [id, duration, isPaused, onDismiss]);
+  }, [id, duration, onDismiss]);
 
   const configByType = {
     'login-success': {
@@ -144,8 +144,6 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
 
       {/* Modal Dialog Card (Centered, Thai Please Theme) */}
       <div
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
         className="relative z-10 w-full max-w-sm sm:max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center select-none animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Top Close Button */}
@@ -167,21 +165,23 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
           />
         </div>
 
-        {/* Center Icon Podium with Pulsing Ripple Ring */}
-        <div className="relative mb-4 flex items-center justify-center" aria-hidden="true">
-          <div
-            className={`absolute size-20 rounded-full ${configByType.ringAura} animate-ping`}
-            style={{ animationDuration: '2.5s' }}
-          />
-          <div
-            className={`relative size-16 rounded-2xl flex items-center justify-center shadow-xs transition-transform motion-safe:animate-bounce-subtle ${configByType.iconWrap}`}
-          >
-            <Icon className="size-8" />
+        {/* Center Icon Podium with Pulsing Ripple Ring - Hidden for auth modals (login/logout) as requested */}
+        {!isAuthModal && (
+          <div className="relative mb-4 flex items-center justify-center" aria-hidden="true">
+            <div
+              className={`absolute size-20 rounded-full ${configByType.ringAura} animate-ping`}
+              style={{ animationDuration: '2.5s' }}
+            />
+            <div
+              className={`relative size-16 rounded-2xl flex items-center justify-center shadow-xs transition-transform motion-safe:animate-bounce-subtle ${configByType.iconWrap}`}
+            >
+              <Icon className="size-8" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Role / Status Badge */}
-        {currentBadge && (
+        {/* Role / Status Badge - Hidden for auth modals (login/logout) as requested */}
+        {!isAuthModal && currentBadge && (
           <span
             className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold mb-2.5 ${configByType.badgeClass}`}
           >
@@ -209,7 +209,7 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
           {configByType.actionLabel}
         </button>
 
-        {/* Auto-dismissing Progress Indicator */}
+        {/* Auto-dismissing Progress Indicator (runs continuously) */}
         {duration > 0 && (
           <div
             className="mt-4 w-32 h-1 bg-slate-100 rounded-full overflow-hidden"
@@ -219,7 +219,6 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
               className={`h-full bg-gradient-to-r ${configByType.progressGradient}`}
               style={{
                 animation: `toast-shrink ${duration}ms linear forwards`,
-                animationPlayState: isPaused ? 'paused' : 'running',
               }}
             />
           </div>
