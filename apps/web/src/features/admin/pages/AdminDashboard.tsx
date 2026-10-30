@@ -1,3 +1,4 @@
+import { ProgramList } from '../components/ProgramList';
 import { AdminDirectoryList } from '../components/AdminDirectoryList';
 import { QuestLogList } from '../components/QuestLogList';
 import { RewardHistoryPages } from '../components/RewardHistoryPages';
@@ -1463,110 +1464,107 @@ export function AdminDashboard({
                 <h3 className="text-base font-bold text-slate-900">
                   {copy.programs.listTitle}
                 </h3>
-                {programs.length === 0 && (
-                  <p className="rounded-xl border border-dashed border-line bg-panel p-6 text-sm text-muted">
-                    {adminManagementCopy.noPrograms}
-                  </p>
-                )}
-                {programs.map((program) => (
-                  <div
-                    key={program.programId}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-slate-900">
-                            {program.programName}
-                          </h4>
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              program.status === 'ACTIVE'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {program.status}
-                          </span>
+                <ProgramList programs={programs}>
+                  {(program) => (
+                    <div
+                      key={program.programId}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900">
+                              {program.programName}
+                            </h4>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                program.status === 'ACTIVE'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {program.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            ช่วงเวลา: {formatShortDate(program.startDate)} –{' '}
+                            {formatShortDate(program.endDate)} · สกุลเงิน{' '}
+                            {program.currency} ({program.timezone})
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          ช่วงเวลา: {formatShortDate(program.startDate)} –{' '}
-                          {formatShortDate(program.endDate)} · สกุลเงิน{' '}
-                          {program.currency} ({program.timezone})
-                        </p>
+
+                        <div className="flex gap-2">
+                          {program.status !== 'ACTIVE' && (
+                            <button
+                              type="button"
+                              disabled={processingProgramId !== null}
+                              onClick={() =>
+                                void handleProgramStatusChange(
+                                  program.programId,
+                                  'ACTIVE',
+                                )
+                              }
+                              className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                            >
+                              {copy.programs.activateBtn}
+                            </button>
+                          )}
+                          {program.status === 'ACTIVE' && (
+                            <button
+                              type="button"
+                              disabled={processingProgramId !== null}
+                              onClick={() =>
+                                void handleProgramStatusChange(
+                                  program.programId,
+                                  'INACTIVE',
+                                )
+                              }
+                              className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                            >
+                              {copy.programs.pauseBtn}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        {program.status !== 'ACTIVE' && (
-                          <button
-                            type="button"
-                            disabled={processingProgramId !== null}
-                            onClick={() =>
-                              void handleProgramStatusChange(
-                                program.programId,
-                                'ACTIVE',
-                              )
-                            }
-                            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                          >
-                            {copy.programs.activateBtn}
-                          </button>
-                        )}
-                        {program.status === 'ACTIVE' && (
-                          <button
-                            type="button"
-                            disabled={processingProgramId !== null}
-                            onClick={() =>
-                              void handleProgramStatusChange(
-                                program.programId,
-                                'INACTIVE',
-                              )
-                            }
-                            className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                          >
-                            {copy.programs.pauseBtn}
-                          </button>
-                        )}
+                      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3 text-xs">
+                        <div>
+                          <span className="text-slate-500">วงเงินตั้งต้น</span>
+                          <p className="font-bold text-brand">
+                            {formatBaht(program.initialGrant)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">
+                            สัดส่วนรัฐ / ประชาชน
+                          </span>
+                          <p className="font-bold text-emerald-700">
+                            {program.subsidyPercentage}% /{' '}
+                            {program.userPercentage}%
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">เพดานต่อวัน</span>
+                          <p className="font-bold text-slate-900">
+                            {formatBaht(program.dailySubsidyLimit)}
+                          </p>
+                        </div>
                       </div>
+                      <SubsidyProgramEditor
+                        program={program}
+                        onSaved={(updated) =>
+                          setPrograms((previous) =>
+                            previous.map((item) =>
+                              item.programId === updated.programId
+                                ? updated
+                                : item,
+                            ),
+                          )
+                        }
+                      />
                     </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3 text-xs">
-                      <div>
-                        <span className="text-slate-500">วงเงินตั้งต้น</span>
-                        <p className="font-bold text-brand">
-                          {formatBaht(program.initialGrant)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">
-                          สัดส่วนรัฐ / ประชาชน
-                        </span>
-                        <p className="font-bold text-emerald-700">
-                          {program.subsidyPercentage}% /{' '}
-                          {program.userPercentage}%
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">เพดานต่อวัน</span>
-                        <p className="font-bold text-slate-900">
-                          {formatBaht(program.dailySubsidyLimit)}
-                        </p>
-                      </div>
-                    </div>
-                    <SubsidyProgramEditor
-                      program={program}
-                      onSaved={(updated) =>
-                        setPrograms((previous) =>
-                          previous.map((item) =>
-                            item.programId === updated.programId
-                              ? updated
-                              : item,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                ))}
+                  )}
+                </ProgramList>
               </div>
             </div>
           </section>
