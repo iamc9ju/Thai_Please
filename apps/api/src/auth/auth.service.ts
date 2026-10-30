@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,6 +21,18 @@ import { LoginRateLimiterService } from './login-rate-limiter.service.js';
 const IDENTITY_DATA_MISMATCH_CODE = 'IDENTITY_DATA_MISMATCH';
 const IDENTITY_DATA_MISMATCH_MESSAGE =
   'ข้อมูลส่วนบุคคลไม่ตรงกับบัญชีที่ลงทะเบียนไว้ กรุณาตรวจสอบข้อมูลหรือติดต่อผู้ดูแลระบบ';
+
+const ROLE_NOT_REGISTERED_MESSAGES: Record<ActiveRole, string> = {
+  CONSUMER: 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทประชาชน',
+  MERCHANT: 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทร้านค้า',
+  ADMIN: 'บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานระบบผู้ดูแล',
+};
+
+const ROLE_SUSPENDED_MESSAGES: Record<ActiveRole, string> = {
+  CONSUMER: 'สิทธิ์การใช้งานบทบาทประชาชนถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+  MERCHANT: 'สิทธิ์การใช้งานบทบาทร้านค้าถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+  ADMIN: 'สิทธิ์การใช้งานระบบผู้ดูแลถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+};
 
 @Injectable()
 export class AuthService {
@@ -103,11 +116,23 @@ export class AuthService {
       throw new UnauthorizedException('บัญชีนี้ถูกระงับการใช้งาน');
     }
 
-    // 4. ตรวจว่ามี role ตรงกับ portal และ ACTIVE อยู่
-    const hasRole = user.roles.some(
-      (r) => r.role === role && r.status === 'ACTIVE',
-    );
-    if (!hasRole) return failLogin();
+    // ยืนยันตัวตนสำเร็จแล้ว: ล้างสถิติรหัสผ่านผิดก่อนตรวจสิทธิ์รายบทบาท
+    this.rateLimiter.clearFailures(role, dto.citizenId, clientIp);
+
+    // 4. แยกระหว่างยังไม่เคยลงทะเบียนบทบาท กับบทบาทถูกระงับ
+    const assignedRole = user.roles.find((userRole) => userRole.role === role);
+    if (!assignedRole) {
+      throw new ForbiddenException({
+        code: 'ROLE_NOT_REGISTERED',
+        message: ROLE_NOT_REGISTERED_MESSAGES[role],
+      });
+    }
+    if (assignedRole.status !== 'ACTIVE') {
+      throw new ForbiddenException({
+        code: 'ROLE_SUSPENDED',
+        message: ROLE_SUSPENDED_MESSAGES[role],
+      });
+    }
 
     // 5. กรณี MERCHANT: ดึง merchant ของ user (จาก merchant_members หรือ owner)
     let merchantId: bigint | null = null;
@@ -140,9 +165,6 @@ export class AuthService {
       merchantStatus = merchant.status;
       merchantName = merchant.merchantName;
     }
-
-    // ล้างสถิติการเข้าสู่ระบบผิดพลาดเมื่อยืนยันตัวตนสำเร็จ
-    this.rateLimiter.clearFailures(role, dto.citizenId, clientIp);
 
     // 6. Sign JWT
     const jti = randomUUID();

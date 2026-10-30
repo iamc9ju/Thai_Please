@@ -14,7 +14,9 @@ export type PaymentStep = 'scan' | 'review' | 'success';
 
 export const TOP_UP_MIN_BAHT = 1;
 export const TOP_UP_MAX_BAHT = 50_000;
+export const TOP_UP_QUICK_AMOUNTS = [100, 200, 500, 1_000] as const;
 export const WALLET_HISTORY_PAGE_SIZE = 20;
+export const WALLET_HISTORY_ITEMS_PER_PAGE = 5;
 
 export type WalletTransactionItem = {
   transactionId: string;

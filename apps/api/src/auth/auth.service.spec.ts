@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   UnauthorizedException,
@@ -135,6 +136,73 @@ describe('AuthService & LoginRateLimiterService (FR-AUTH-03, FR-AUTH-04)', () =>
         }),
       }),
     );
+  });
+
+  it.each([
+    ['CONSUMER', 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทประชาชน'],
+    ['MERCHANT', 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทร้านค้า'],
+    ['ADMIN', 'บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานระบบผู้ดูแล'],
+  ] as const)(
+    'reports ROLE_NOT_REGISTERED after valid credentials for %s without counting a failed login',
+    async (role, expectedMessage) => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        userId: 101n,
+        citizenId: '1100000000001',
+        fullName: 'สมชาย ใจดี',
+        passwordHash: 'argon2id$hash',
+        status: 'ACTIVE',
+        roles: [{ role: 'OTHER_ROLE', status: 'ACTIVE' }],
+      });
+      passwordsMock.verify.mockResolvedValue(true);
+      const recordFailure = vi.spyOn(rateLimiter, 'recordFailure');
+      const clearFailures = vi.spyOn(rateLimiter, 'clearFailures');
+
+      let caughtError: unknown;
+      try {
+        await authService.login(
+          { citizenId: '1100000000001', password: 'CorrectPassword1!' },
+          role,
+          '127.0.0.1',
+        );
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(ForbiddenException);
+      expect((caughtError as ForbiddenException).getResponse()).toEqual({
+        code: 'ROLE_NOT_REGISTERED',
+        message: expectedMessage,
+      });
+      expect(recordFailure).not.toHaveBeenCalled();
+      expect(clearFailures).toHaveBeenCalledOnce();
+      expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reports ROLE_SUSPENDED when the requested role exists but is inactive', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ใจดี',
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'MERCHANT', status: 'SUSPENDED' }],
+    });
+    passwordsMock.verify.mockResolvedValue(true);
+
+    await expect(
+      authService.login(
+        { citizenId: '1100000000001', password: 'CorrectPassword1!' },
+        'MERCHANT',
+        '127.0.0.1',
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'ROLE_SUSPENDED',
+        message: 'สิทธิ์การใช้งานบทบาทร้านค้าถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+      },
+    });
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
   });
 
   it('rejects adding the consumer role when existing identity data does not match', async () => {

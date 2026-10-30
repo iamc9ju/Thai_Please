@@ -110,7 +110,7 @@ export function ConsumerDashboard({
         />
 
         <main
-          className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1800px] mx-auto"
+          className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full"
           id="dashboard-top"
         >
           {activeView === 'overview' && (

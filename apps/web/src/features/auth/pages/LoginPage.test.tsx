@@ -101,4 +101,23 @@ describe('LoginPage remember credentials', () => {
     expect(citizenInput).toHaveValue('');
     expect(passwordInput).toHaveValue('');
   });
+
+  it('shows the backend message when valid credentials do not have the selected role', async () => {
+    mockLogin.mockRejectedValueOnce(
+      new Error('บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทประชาชน'),
+    );
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText(th.login.fields.citizenId.label), {
+      target: { value: '1100000000001' },
+    });
+    fireEvent.change(screen.getByLabelText(th.login.fields.password.label), {
+      target: { value: 'Secret@123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: th.login.submit }));
+
+    expect(
+      await screen.findByText('บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทประชาชน'),
+    ).toBeInTheDocument();
+  });
 });
