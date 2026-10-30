@@ -7,14 +7,14 @@ import {
   BadgeCheck,
   Building2,
   CheckCircle2,
-  HandHeart,
+  ChevronDown,
   IdCard,
   KeyRound,
   Loader2,
   MapPinHouse,
   ShieldCheck,
   Store,
-  UserRound,
+  User,
 } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { th } from '../../../i18n/th';
@@ -218,38 +218,77 @@ export function RegistrationPage({
 
   if (isReadyForApi) {
     return (
-      <main className="registration-page registration-success-page">
-        <header className="registration-header">
-          <button onClick={onBack} type="button">
-            <ArrowLeft aria-hidden="true" />
-            {th.registration.backToLogin}
-          </button>
+      <main className="registration-page registration-success-page min-h-screen bg-slate-50/60 text-slate-900 font-sans flex flex-col">
+        <header className="sticky top-0 z-30 w-full border-b border-slate-100 bg-white">
+          <div className="mx-auto flex min-h-[4.75rem] sm:min-h-[5.5rem] max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8 py-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <img
+                src="/images/brand-logo.png"
+                alt={th.brand}
+                className="h-12 sm:h-16 w-auto object-contain"
+              />
+            </div>
+            <button
+              onClick={onBack}
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              <span>{th.registration.backToLogin}</span>
+            </button>
+          </div>
         </header>
-        <section className="registration-success" aria-live="polite">
-          <span aria-hidden="true">
-            <CheckCircle2 />
+        <section
+          className="registration-success my-auto mx-auto w-full max-w-lg rounded-3xl border border-slate-200/80 bg-white p-8 sm:p-10 shadow-sm text-center"
+          aria-live="polite"
+        >
+          <span
+            aria-hidden="true"
+            className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-blue-50 text-[#0056b3] border border-blue-100"
+          >
+            <CheckCircle2 className="size-8" />
           </span>
-          <p>{th.registration.eyebrow}</p>
-          <h1>{th.registration.success.title}</h1>
-          <strong>{th.registration.success[role]}</strong>
+          <p className="text-xs font-extrabold uppercase tracking-wider text-[#0056b3]">
+            {th.registration.eyebrow}
+          </p>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight">
+            {th.registration.success.title}
+          </h1>
+          <strong className="mt-2 block text-sm text-slate-600 font-medium leading-relaxed">
+            {th.registration.success[role]}
+          </strong>
           {registeredInfo?.fullName ? (
-            <p className="registration-success-detail">
+            <p className="registration-success-detail mt-4 text-sm text-slate-600">
               {th.registration.success.registeredPerson}:{' '}
-              <strong>{registeredInfo.fullName}</strong>
+              <strong className="font-bold text-[#0f172a]">
+                {registeredInfo.fullName}
+              </strong>
             </p>
           ) : null}
           {registeredInfo?.merchantName ? (
-            <p className="registration-success-detail">
+            <p className="registration-success-detail mt-4 text-sm text-slate-600">
               {th.registration.success.registeredMerchant}:{' '}
-              <strong>{registeredInfo.merchantName}</strong>
+              <strong className="font-bold text-[#0f172a]">
+                {registeredInfo.merchantName}
+              </strong>
             </p>
           ) : null}
-          <small>{th.registration.success.note}</small>
-          <div>
-            <button onClick={() => setIsReadyForApi(false)} type="button">
+          <small className="mt-4 block rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs font-medium text-[#0056b3]">
+            {th.registration.success.note}
+          </small>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setIsReadyForApi(false)}
+              type="button"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
               {th.registration.success.edit}
             </button>
-            <button className="is-primary" onClick={onBack} type="button">
+            <button
+              className="is-primary rounded-xl bg-[#0056b3] px-4 py-3 text-sm font-bold text-white shadow-xs hover:bg-[#004494] transition-colors cursor-pointer"
+              onClick={onBack}
+              type="button"
+            >
               {th.registration.success.login}
             </button>
           </div>
@@ -259,60 +298,88 @@ export function RegistrationPage({
   }
 
   return (
-    <main className="registration-page">
-      <header className="registration-header">
-        <a className="registration-brand" href="#registration-top">
-          <span aria-hidden="true">
-            <HandHeart />
-          </span>
-          <span>
-            <strong>{th.brand}</strong>
-            <small>{th.registration.brandEnglish}</small>
-          </span>
-        </a>
-        <button onClick={onBack} type="button">
-          <ArrowLeft aria-hidden="true" />
-          {th.registration.backToLogin}
-        </button>
+    <main className="registration-page min-h-screen bg-slate-50/60 text-slate-900 font-sans">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-100 bg-white/98 shadow-xs backdrop-blur-xs">
+        <div className="mx-auto flex min-h-[4.75rem] sm:min-h-[5.5rem] max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8 py-2">
+          <a
+            className="flex items-center gap-2 shrink-0 transition-transform duration-200 hover:scale-[1.02]"
+            href="#registration-top"
+            aria-label={th.brand}
+          >
+            <img
+              src="/images/brand-logo.png"
+              alt={th.brand}
+              className="h-12 sm:h-16 w-auto object-contain"
+            />
+          </a>
+          <button
+            onClick={onBack}
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            <span>{th.registration.backToLogin}</span>
+          </button>
+        </div>
       </header>
 
-      <div className="registration-content" id="registration-top">
-        <section className="registration-intro">
-          <div>
-            <p>{th.registration.eyebrow}</p>
-            <h1>{th.registration.title[role]}</h1>
-            <span>{th.registration.description[role]}</span>
+      <div
+        className="registration-content mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+        id="registration-top"
+      >
+        <section className="registration-intro flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#0056b3]">
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              <span>{th.registration.eyebrow}</span>
+            </span>
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#0f172a] tracking-tight">
+              {th.registration.title[role]}
+            </h1>
+            <span className="block max-w-2xl text-sm sm:text-base text-slate-600 leading-relaxed">
+              {th.registration.description[role]}
+            </span>
           </div>
+
           <div
-            className="registration-role-switch"
+            className="registration-role-switch grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-2xs w-full sm:w-80 shrink-0"
             aria-label={th.registration.roleLabel}
           >
             {(['consumer', 'merchant'] as const).map((registrationRole) => {
-              const Icon = registrationRole === 'consumer' ? UserRound : Store;
+              const Icon = registrationRole === 'consumer' ? User : Store;
+              const isActive = role === registrationRole;
 
               return (
                 <button
-                  aria-pressed={role === registrationRole}
-                  className={role === registrationRole ? 'is-active' : ''}
+                  aria-pressed={isActive}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'is-active bg-[#0056b3] text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
                   key={registrationRole}
                   onClick={() => handleRoleChange(registrationRole)}
                   type="button"
                 >
-                  <Icon aria-hidden="true" />
-                  {th.registration.roles[registrationRole]}
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  <span>{th.registration.roles[registrationRole]}</span>
                 </button>
               );
             })}
           </div>
         </section>
 
-        <aside className="existing-identity-note">
-          <ShieldCheck aria-hidden="true" />
-          <p>{th.registration.existingIdentity}</p>
+        <aside className="existing-identity-note my-6 flex items-center gap-3 rounded-2xl border border-blue-200/80 bg-blue-50/60 px-4 py-3.5 text-xs sm:text-sm text-slate-700">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#0056b3] border border-blue-100 shadow-2xs">
+            <ShieldCheck className="size-4.5" aria-hidden="true" />
+          </div>
+          <p className="font-medium leading-relaxed">
+            {th.registration.existingIdentity}
+          </p>
         </aside>
 
         <form
-          className="registration-form"
+          className="registration-form space-y-6"
           key={role}
           noValidate
           onChange={handleFormChange}
@@ -321,7 +388,7 @@ export function RegistrationPage({
         >
           <RegistrationSection
             description={th.registration.sections.identity.description}
-            icon={<IdCard />}
+            icon={<IdCard className="size-6" />}
             step={th.registration.sections.identity.step}
             title={th.registration.sections.identity.title}
           >
@@ -352,20 +419,27 @@ export function RegistrationPage({
                 label={th.registration.fields.title}
                 name="title"
               >
-                <select
-                  {...getAccessibilityProps('title', errors)}
-                  id="title"
-                  name="title"
-                >
-                  <option value="">
-                    {th.registration.placeholders.selectTitle}
-                  </option>
-                  {th.registration.titles.map((title) => (
-                    <option key={title} value={title}>
-                      {title}
+                <div className="relative">
+                  <select
+                    {...getAccessibilityProps('title', errors)}
+                    id="title"
+                    name="title"
+                    className="w-full appearance-none pr-10"
+                  >
+                    <option value="">
+                      {th.registration.placeholders.selectTitle}
                     </option>
-                  ))}
-                </select>
+                    {th.registration.titles.map((title) => (
+                      <option key={title} value={title}>
+                        {title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"
+                  />
+                </div>
               </Field>
               <Field
                 error={errors.birthDate}
@@ -442,7 +516,7 @@ export function RegistrationPage({
 
           <RegistrationSection
             description={th.registration.sections.address.description}
-            icon={<MapPinHouse />}
+            icon={<MapPinHouse className="size-6" />}
             step={th.registration.sections.address.step}
             title={th.registration.sections.address.title}
           >
@@ -542,7 +616,7 @@ export function RegistrationPage({
 
           <RegistrationSection
             description={th.registration.sections.account.description}
-            icon={<KeyRound />}
+            icon={<KeyRound className="size-6" />}
             step={th.registration.sections.account.step}
             title={th.registration.sections.account.title}
           >
@@ -575,11 +649,17 @@ export function RegistrationPage({
                 />
               </Field>
             </div>
-            <div className="password-rule-card">
-              <BadgeCheck aria-hidden="true" />
-              <p>
-                <strong>{th.registration.passwordRules.title}</strong>
-                <span>{th.registration.passwordRules.detail}</span>
+            <div className="password-rule-card mt-4 flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] border border-blue-100">
+                <BadgeCheck className="size-4.5" aria-hidden="true" />
+              </div>
+              <p className="space-y-0.5">
+                <strong className="block text-xs sm:text-sm font-bold text-[#0f172a]">
+                  {th.registration.passwordRules.title}
+                </strong>
+                <span className="block text-xs text-slate-600 leading-relaxed">
+                  {th.registration.passwordRules.detail}
+                </span>
               </p>
             </div>
           </RegistrationSection>
@@ -587,7 +667,7 @@ export function RegistrationPage({
           {role === 'merchant' ? (
             <RegistrationSection
               description={th.registration.sections.merchant.description}
-              icon={<Building2 />}
+              icon={<Building2 className="size-6" />}
               step={th.registration.sections.merchant.step}
               title={th.registration.sections.merchant.title}
             >
@@ -748,33 +828,45 @@ export function RegistrationPage({
             </RegistrationSection>
           ) : null}
 
-          <section className="registration-consent">
-            <label>
-              <input name="acceptTerms" type="checkbox" />
+          <section className="registration-consent rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-xs space-y-3">
+            <label className="flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-800 cursor-pointer">
+              <input
+                name="acceptTerms"
+                type="checkbox"
+                className="size-4.5 rounded border-slate-300 accent-[#0056b3] cursor-pointer"
+              />
               <span>{th.registration.consent.terms}</span>
             </label>
             {errors.acceptTerms ? (
-              <p className="registration-error">
+              <p className="registration-error text-xs font-semibold text-rose-600 pl-7">
                 {th.registration.validation.acceptTerms}
               </p>
             ) : null}
-            <label>
-              <input name="acceptPrivacy" type="checkbox" />
+            <label className="flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-800 cursor-pointer">
+              <input
+                name="acceptPrivacy"
+                type="checkbox"
+                className="size-4.5 rounded border-slate-300 accent-[#0056b3] cursor-pointer"
+              />
               <span>{th.registration.consent.privacy}</span>
             </label>
             {errors.acceptPrivacy ? (
-              <p className="registration-error">
+              <p className="registration-error text-xs font-semibold text-rose-600 pl-7">
                 {th.registration.validation.acceptPrivacy}
               </p>
             ) : null}
             {role === 'merchant' ? (
               <>
-                <label>
-                  <input name="acceptMerchantTerms" type="checkbox" />
+                <label className="flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-800 cursor-pointer">
+                  <input
+                    name="acceptMerchantTerms"
+                    type="checkbox"
+                    className="size-4.5 rounded border-slate-300 accent-[#0056b3] cursor-pointer"
+                  />
                   <span>{th.registration.consent.merchantTerms}</span>
                 </label>
                 {errors.acceptMerchantTerms ? (
-                  <p className="registration-error">
+                  <p className="registration-error text-xs font-semibold text-rose-600 pl-7">
                     {th.registration.validation.acceptMerchantTerms}
                   </p>
                 ) : null}
@@ -782,34 +874,42 @@ export function RegistrationPage({
             ) : null}
           </section>
 
-          <footer className="registration-submit-bar">
+          <footer className="registration-submit-bar rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <small>{th.registration.requiredHint}</small>
+              <small className="block text-xs sm:text-sm font-medium text-slate-500">
+                {th.registration.requiredHint}
+              </small>
               {submitError ? (
                 <p
                   aria-live="assertive"
-                  className="registration-error"
-                  style={{ color: '#dc2626', fontWeight: 600 }}
+                  className="registration-error mt-1 text-xs sm:text-sm font-bold text-rose-600"
                 >
                   {submitError}
                 </p>
               ) : null}
               {Object.keys(errors).length > 0 ? (
-                <p aria-live="assertive">
+                <p
+                  aria-live="assertive"
+                  className="mt-1 text-xs sm:text-sm font-bold text-rose-600"
+                >
                   {th.registration.validation.summary}
                 </p>
               ) : null}
             </div>
-            <button type="submit" disabled={isSubmitting}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#0056b3] px-6 py-3.5 text-sm sm:text-base font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+            >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                  กำลังดำเนินการ...
+                  <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                  <span>กำลังดำเนินการ...</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 aria-hidden="true" />
-                  {th.registration.submit[role]}
+                  <CheckCircle2 className="size-5" aria-hidden="true" />
+                  <span>{th.registration.submit[role]}</span>
                 </>
               )}
             </button>

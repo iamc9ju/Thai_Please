@@ -51,7 +51,7 @@ export function BrandLogoAnimation({
         style={{ animationDuration: '2.4s' }}
       />
       <div
-        className={`absolute ${sizeConfig.ringInner} rounded-full border-2 border-emerald-300/40 bg-emerald-50/30 animate-pulse`}
+        className={`absolute ${sizeConfig.ringInner} rounded-full border-2 border-blue-300/40 bg-blue-50/30 animate-pulse`}
         aria-hidden="true"
         style={{ animationDuration: '1.8s' }}
       />
@@ -66,18 +66,18 @@ export function BrandLogoAnimation({
           className={`${sizeConfig.logo} w-auto object-contain object-center drop-shadow-xs`}
         />
 
-        {/* Subtle decorative dot indicator matching Thai Please tricolor */}
+        {/* Subtle decorative dot indicator */}
         <div className="mt-3 flex items-center gap-1.5" aria-hidden="true">
           <span
             className="size-1.5 rounded-full bg-[#0056b3] animate-bounce"
             style={{ animationDelay: '0ms' }}
           />
           <span
-            className="size-1.5 rounded-full bg-[#00a651] animate-bounce"
+            className="size-1.5 rounded-full bg-[#0056b3]/70 animate-bounce"
             style={{ animationDelay: '150ms' }}
           />
           <span
-            className="size-1.5 rounded-full bg-[#e31e24] animate-bounce"
+            className="size-1.5 rounded-full bg-[#0056b3]/40 animate-bounce"
             style={{ animationDelay: '300ms' }}
           />
         </div>
@@ -122,7 +122,7 @@ export function BrandLoadingScreen({
         className="mt-5 w-48 h-1.5 bg-slate-200/80 rounded-full overflow-hidden"
         aria-hidden="true"
       >
-        <div className="h-full w-24 bg-gradient-to-r from-[#0056b3] via-[#00a651] to-[#0056b3] rounded-full animate-progress-indeterminate" />
+        <div className="h-full w-24 bg-[#0056b3] rounded-full animate-progress-indeterminate" />
       </div>
     </div>
   );

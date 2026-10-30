@@ -101,7 +101,7 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
       {/* Breadcrumb Bar */}
-      <div className="border-b border-slate-200/80 bg-white shadow-2xs">
+      <div className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
           <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
             <button
@@ -128,16 +128,16 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
       </div>
 
       {/* Hero Search Header */}
-      <section className="bg-slate-50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-200/80">
+      <section className="bg-white px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-100">
         <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-100/80 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3] shadow-2xs">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3]">
             <Store className="size-4" aria-hidden="true" />
             <span>{discoveryCopy.eyebrow}</span>
           </div>
-          <h1 className="mt-4 text-2xl sm:text-4xl lg:text-4xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="mt-4 text-2xl sm:text-4xl lg:text-4xl font-extrabold tracking-tight text-[#0f172a]">
             {pageCopy.meta.title}
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-slate-600 leading-relaxed">
+          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-slate-500 leading-relaxed">
             {pageCopy.meta.subtitle}
           </p>
 
@@ -145,7 +145,7 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
           <form
             onSubmit={handleSearchSubmit}
             role="search"
-            className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-2xl border-2 border-blue-200/80 bg-white p-2.5 shadow-xl shadow-blue-900/5 focus-within:border-[#0056b3] transition-colors"
+            className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-xs focus-within:border-[#0056b3] transition-colors"
           >
             <label htmlFor="merchant-search-input" className="sr-only">
               {pageCopy.search.label}

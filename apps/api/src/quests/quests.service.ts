@@ -54,6 +54,7 @@ export class QuestsService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | undefined;
   private running: Promise<void> | undefined;
   private stopping = false;
+  private storageUnavailableLogged = false;
 
   constructor(
     private readonly repository: QuestsRepository,
@@ -80,12 +81,18 @@ export class QuestsService implements OnModuleInit, OnModuleDestroy {
   private wake() {
     if (this.stopping || this.running) return;
     this.running = this.processNextGeneration()
-      .catch(() =>
-        this.logger.error({
-          event: 'quest_worker_failed',
-          code: 'QUEST_WORKER_STORAGE_UNAVAILABLE',
-        }),
-      )
+      .then(() => {
+        this.storageUnavailableLogged = false;
+      })
+      .catch(() => {
+        if (!this.storageUnavailableLogged) {
+          this.storageUnavailableLogged = true;
+          this.logger.error({
+            event: 'quest_worker_failed',
+            code: 'QUEST_WORKER_STORAGE_UNAVAILABLE',
+          });
+        }
+      })
       .finally(() => {
         this.running = undefined;
       });

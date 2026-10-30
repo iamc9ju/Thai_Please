@@ -158,12 +158,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
           break;
         }
         default: {
-          status = HttpStatus.BAD_REQUEST;
+          status = HttpStatus.SERVICE_UNAVAILABLE;
           error = 'Database Error';
           code = `PRISMA_${exception.code}`;
-          message = isDev
-            ? exception.message
-            : 'เกิดข้อผิดพลาดในการเข้าถึงฐานข้อมูล';
+          message = 'เกิดข้อผิดพลาดในการเข้าถึงฐานข้อมูล';
           if (isDev) {
             details = exception.meta;
           }

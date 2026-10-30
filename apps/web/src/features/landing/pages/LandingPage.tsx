@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LandingHeader, type LandingNavSection } from '../components/LandingHeader';
 import { LandingHeroSection } from '../components/LandingHeroSection';
 import { MerchantDiscoverySection } from '../components/MerchantDiscoverySection';
@@ -32,20 +32,43 @@ export function LandingPage({
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
 
+  const navigateTo = (nav: LandingNavSection, role?: EligibilityRoleTab) => {
+    setCurrentNav(nav);
+    if (role) {
+      setCurrentRole(role);
+    }
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#actions-section') {
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+  }, []);
+
   const sharedHeaderProps = {
     onLogin,
-    onOpenNews: () => setCurrentNav('news'),
-    onOpenFaq: () => setCurrentNav('faq'),
+    onOpenNews: () => navigateTo('news'),
+    onOpenFaq: () => navigateTo('faq'),
     activeNav: currentNav,
-    onNavigateHome: () => setCurrentNav('home'),
-    onNavigateProjectInfo: () => setCurrentNav('project-info'),
+    onNavigateHome: () => navigateTo('home'),
+    onNavigateProjectInfo: () => navigateTo('project-info'),
     onNavigateHowToJoin: (role?: 'consumer' | 'merchant') => {
-      setCurrentNav('how-to-join');
-      if (role) setCurrentRole(role);
+      navigateTo('how-to-join', role);
     },
-    onNavigateMerchantSearch: () => setCurrentNav('merchant-search'),
-    onNavigateNews: () => setCurrentNav('news'),
-    onNavigateFaq: () => setCurrentNav('faq'),
+    onNavigateMerchantSearch: () => navigateTo('merchant-search'),
+    onNavigateNews: () => navigateTo('news'),
+    onNavigateFaq: () => navigateTo('faq'),
   };
 
   if (currentNav === 'project-info' || currentNav === 'how-to-join') {
@@ -55,7 +78,7 @@ export function LandingPage({
         <ProjectInfoAndEligibilityPage
           initialTab={currentNav}
           initialRole={currentRole}
-          onBackToHome={() => setCurrentNav('home')}
+          onBackToHome={() => navigateTo('home')}
           onRegisterConsumer={onRegisterConsumer}
           onRegisterMerchant={onRegisterMerchant}
           onLoginConsumer={onLoginConsumer ?? onLogin}
@@ -70,7 +93,7 @@ export function LandingPage({
       <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
         <LandingHeader {...sharedHeaderProps} />
         <MerchantSearchPage
-          onBackToHome={() => setCurrentNav('home')}
+          onBackToHome={() => navigateTo('home')}
           onLogin={onLogin}
         />
       </div>
@@ -82,7 +105,7 @@ export function LandingPage({
       <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
         <LandingHeader {...sharedHeaderProps} />
         <MofNewsPage
-          onBackToHome={() => setCurrentNav('home')}
+          onBackToHome={() => navigateTo('home')}
           onLogin={onLogin}
         />
       </div>
@@ -94,7 +117,7 @@ export function LandingPage({
       <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
         <LandingHeader {...sharedHeaderProps} />
         <FaqPage
-          onBackToHome={() => setCurrentNav('home')}
+          onBackToHome={() => navigateTo('home')}
           onLogin={onLogin}
         />
       </div>
@@ -111,13 +134,12 @@ export function LandingPage({
           onCloseNews={() => setIsNewsOpen(false)}
           isFaqOpen={isFaqOpen}
           onCloseFaq={() => setIsFaqOpen(false)}
-          onOpenProjectInfo={() => setCurrentNav('project-info')}
-          onOpenHowToJoin={(role) => {
-            setCurrentNav('how-to-join');
-            if (role) setCurrentRole(role);
-          }}
+          onOpenProjectInfo={() => navigateTo('project-info')}
+          onOpenHowToJoin={(role) => navigateTo('how-to-join', role)}
         />
-        <MerchantDiscoverySection />
+        <MerchantDiscoverySection
+          onViewAllMerchants={() => navigateTo('merchant-search')}
+        />
       </main>
     </div>
   );

@@ -51,7 +51,7 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
       {/* Breadcrumb Bar */}
-      <div className="border-b border-slate-200/80 bg-white shadow-2xs">
+      <div className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
           <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
             <button
@@ -78,21 +78,21 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
       </div>
 
       {/* Header Banner */}
-      <section className="bg-slate-50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-200/80">
+      <section className="bg-white px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-100">
         <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-100/90 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3] shadow-2xs">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3]">
             <Landmark className="size-4" aria-hidden="true" />
             <span>{pageCopy.ministryBadge}</span>
           </div>
-          <h1 className="mt-4 text-2xl sm:text-4xl lg:text-4xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="mt-4 text-2xl sm:text-4xl lg:text-4xl font-extrabold tracking-tight text-[#0f172a]">
             {pageCopy.meta.title}
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-slate-600 leading-relaxed">
+          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-slate-500 leading-relaxed">
             {pageCopy.meta.subtitle}
           </p>
 
           {/* Search Box */}
-          <div className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border-2 border-blue-200/80 bg-white p-2.5 shadow-xl shadow-blue-900/5 focus-within:border-[#0056b3] transition-colors">
+          <div className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-xs focus-within:border-[#0056b3] transition-colors">
             <Search className="ml-2.5 size-5 shrink-0 text-slate-400" aria-hidden="true" />
             <input
               type="search"
@@ -173,35 +173,35 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
 
         {/* Featured Card (When on 'all' and no active search) */}
         {selectedCategory === 'all' && !searchQuery && filteredArticles.length > 0 && (
-          <div className="mb-8 overflow-hidden rounded-3xl border border-blue-200/90 bg-[#003d82] p-6 sm:p-10 text-white shadow-xl">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-xs">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-extrabold text-amber-300 border border-amber-300/30">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0056b3] px-3 py-1 text-xs font-bold text-white">
                 <Sparkles className="size-3.5" aria-hidden="true" />
                 <span>{pageCopy.featuredBadge}</span>
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur-xs">
+              <span className="rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-bold text-[#0056b3]">
                 {filteredArticles[0]?.categoryLabel}
               </span>
-              <span className="inline-flex items-center gap-1 text-xs text-blue-200">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
                 <Calendar className="size-3.5" aria-hidden="true" />
                 <span>{filteredArticles[0]?.date}</span>
               </span>
             </div>
 
-            <h2 className="mt-4 text-xl sm:text-3xl font-extrabold leading-snug tracking-tight text-white max-w-4xl">
+            <h2 className="mt-4 text-xl sm:text-3xl font-extrabold leading-snug tracking-tight text-[#0f172a] max-w-4xl">
               {filteredArticles[0]?.title}
             </h2>
 
-            <p className="mt-3 text-sm sm:text-base text-blue-100/90 leading-relaxed max-w-3xl">
+            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed max-w-3xl">
               {filteredArticles[0]?.excerpt}
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-4">
-              <span className="text-xs text-blue-200">{pageCopy.source}</span>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
+              <span className="text-xs text-slate-500">{pageCopy.source}</span>
               <button
                 type="button"
                 onClick={() => setSelectedArticleId(filteredArticles[0]?.id ?? null)}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-[#003d82] shadow-md hover:bg-blue-50 active:scale-98 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 transition-all cursor-pointer"
               >
                 <BookOpen className="size-4" aria-hidden="true" />
                 <span>{pageCopy.readFullArticle}</span>

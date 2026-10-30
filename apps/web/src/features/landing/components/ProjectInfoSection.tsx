@@ -32,22 +32,22 @@ export function ProjectInfoSection({
       {/* 1. Header & Overview Card */}
       <section
         aria-labelledby="project-info-overview-heading"
-        className="relative overflow-hidden rounded-3xl bg-[#0056b3] p-6 sm:p-10 lg:p-12 text-white shadow-md"
+        className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-10 lg:p-12 shadow-xs"
       >
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-100">
-            <ShieldCheck className="size-4 text-blue-200" aria-hidden="true" />
+        <div className="max-w-3xl space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3]">
+            <ShieldCheck className="size-4 text-[#0056b3]" aria-hidden="true" />
             <span>{t.badge}</span>
           </div>
 
           <h1
             id="project-info-overview-heading"
-            className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight"
+            className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-[#0f172a]"
           >
             {t.title}
           </h1>
 
-          <p className="text-base sm:text-lg text-blue-100 leading-relaxed font-normal">
+          <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
             {t.subtitle}
           </p>
 
@@ -56,7 +56,7 @@ export function ProjectInfoSection({
               <button
                 type="button"
                 onClick={onSwitchToHowToJoin}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm sm:text-base font-bold text-[#0056b3] shadow-md hover:bg-blue-50 active:scale-98 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-3 text-sm sm:text-base font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 transition-all cursor-pointer"
               >
                 <span>{th.projectInfoAndEligibility.tabs.howToJoin}</span>
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -66,23 +66,13 @@ export function ProjectInfoSection({
               <button
                 type="button"
                 onClick={onRegister}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm sm:text-base font-bold text-white backdrop-blur-xs hover:bg-white/20 active:scale-98 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm sm:text-base font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
               >
                 <span>{th.landing.actions.registerConsumer}</span>
               </button>
             )}
           </div>
         </div>
-
-        {/* Decorative background blurs */}
-        <div
-          aria-hidden="true"
-          className="absolute -right-16 -top-16 size-72 sm:size-96 rounded-full bg-white/10 blur-3xl pointer-events-none"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute right-12 -bottom-20 size-60 sm:size-80 rounded-full bg-blue-300/10 blur-2xl pointer-events-none"
-        />
       </section>
 
       {/* 2. Key Metric / Policy Highlight Cards */}
@@ -91,14 +81,14 @@ export function ProjectInfoSection({
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
       >
         {/* Co-Pay 60/40 */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all">
           <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] mb-4">
             <Coins className="size-6" aria-hidden="true" />
           </div>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             {t.stats.coPay.label}
           </p>
-          <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">
+          <p className="mt-1 text-xl sm:text-2xl font-extrabold text-[#0f172a]">
             {t.stats.coPay.value}
           </p>
           <p className="mt-1 text-xs text-slate-600 leading-relaxed">
@@ -107,14 +97,14 @@ export function ProjectInfoSection({
         </div>
 
         {/* Daily Limit */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all">
           <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] mb-4">
             <Wallet className="size-6" aria-hidden="true" />
           </div>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             {t.stats.dailyLimit.label}
           </p>
-          <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">
+          <p className="mt-1 text-xl sm:text-2xl font-extrabold text-[#0f172a]">
             {t.stats.dailyLimit.value}
           </p>
           <p className="mt-1 text-xs text-slate-600 leading-relaxed">
@@ -123,14 +113,14 @@ export function ProjectInfoSection({
         </div>
 
         {/* Campaign Period */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 mb-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] mb-4">
             <Calendar className="size-6" aria-hidden="true" />
           </div>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             {t.stats.period.label}
           </p>
-          <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">
+          <p className="mt-1 text-xl sm:text-2xl font-extrabold text-[#0f172a]">
             {t.stats.period.value}
           </p>
           <p className="mt-1 text-xs text-slate-600 leading-relaxed">
@@ -139,14 +129,14 @@ export function ProjectInfoSection({
         </div>
 
         {/* Weekly Quests & Rewards */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 mb-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] mb-4">
             <Gift className="size-6" aria-hidden="true" />
           </div>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             {t.stats.quests.label}
           </p>
-          <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">
+          <p className="mt-1 text-xl sm:text-2xl font-extrabold text-[#0f172a]">
             {t.stats.quests.value}
           </p>
           <p className="mt-1 text-xs text-slate-600 leading-relaxed">
@@ -158,12 +148,12 @@ export function ProjectInfoSection({
       {/* 3. Objectives Grid */}
       <section
         aria-labelledby="project-objectives-heading"
-        className="rounded-3xl border border-slate-100 bg-slate-50/60 p-6 sm:p-8 lg:p-10"
+        className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 lg:p-10 shadow-xs"
       >
         <div className="max-w-2xl mb-8">
           <h2
             id="project-objectives-heading"
-            className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight"
+            className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#0f172a] tracking-tight"
           >
             {t.objectives.title}
           </h2>
@@ -179,13 +169,13 @@ export function ProjectInfoSection({
             return (
               <div
                 key={item.title}
-                className="flex items-start gap-4 rounded-2xl bg-white p-5 sm:p-6 shadow-xs border border-slate-100/80"
+                className="flex items-start gap-4 rounded-2xl bg-slate-50/70 p-5 sm:p-6 border border-slate-200/70"
               >
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3]">
                   <Icon className="size-5.5" aria-hidden="true" />
                 </div>
                 <div className="space-y-1.5">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  <h3 className="text-base sm:text-lg font-bold text-[#0f172a]">
                     {item.title}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -206,7 +196,7 @@ export function ProjectInfoSection({
         <div className="max-w-2xl">
           <h2
             id="transparency-principles-heading"
-            className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight"
+            className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#0f172a] tracking-tight"
           >
             {t.principles.title}
           </h2>
@@ -222,12 +212,12 @@ export function ProjectInfoSection({
             return (
               <div
                 key={principle.title}
-                className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-3"
+                className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-3"
               >
-                <div className="flex size-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3]">
                   <Icon className="size-5.5" aria-hidden="true" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-[#0f172a]">
                   {principle.title}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -247,7 +237,7 @@ export function ProjectInfoSection({
         <div className="max-w-2xl">
           <h2
             id="categories-heading"
-            className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight"
+            className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#0f172a] tracking-tight"
           >
             {t.categories.title}
           </h2>
@@ -255,10 +245,12 @@ export function ProjectInfoSection({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {/* Eligible */}
-          <div className="rounded-2xl border border-blue-200/80 bg-blue-50/40 p-6 sm:p-7 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="size-6 text-[#0056b3] shrink-0" aria-hidden="true" />
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-xs space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] shrink-0">
+                <CheckCircle2 className="size-5" aria-hidden="true" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-[#0f172a]">
                 {t.categories.eligibleTitle}
               </h3>
             </div>
@@ -268,7 +260,7 @@ export function ProjectInfoSection({
                   key={item}
                   className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700"
                 >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#0056b3] text-xs font-bold mt-0.5">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#0056b3] text-xs font-bold mt-0.5">
                     ✓
                   </span>
                   <span>{item}</span>
@@ -278,10 +270,12 @@ export function ProjectInfoSection({
           </div>
 
           {/* Ineligible */}
-          <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-6 sm:p-7 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <XCircle className="size-6 text-rose-600 shrink-0" aria-hidden="true" />
-              <h3 className="text-base sm:text-lg font-bold text-rose-950">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-xs space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3.5">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shrink-0">
+                <XCircle className="size-5" aria-hidden="true" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-[#0f172a]">
                 {t.categories.ineligibleTitle}
               </h3>
             </div>
@@ -289,9 +283,9 @@ export function ProjectInfoSection({
               {t.categories.ineligibleItems.map((item) => (
                 <li
                   key={item}
-                  className="flex items-start gap-2.5 text-xs sm:text-sm text-rose-900"
+                  className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600"
                 >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 text-xs font-bold mt-0.5">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-xs font-bold mt-0.5">
                     ✕
                   </span>
                   <span>{item}</span>

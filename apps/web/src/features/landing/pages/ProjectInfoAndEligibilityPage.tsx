@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -40,6 +40,14 @@ export function ProjectInfoAndEligibilityPage({
   const [activeRole, setActiveRole] = useState<EligibilityRoleTab>(initialRole);
   const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setActiveRole(initialRole);
+  }, [initialRole]);
+
   const tMeta = th.projectInfoAndEligibility.meta;
   const tTabs = th.projectInfoAndEligibility.tabs;
   const tFaq = th.projectInfoAndEligibility.faq;
@@ -51,15 +59,15 @@ export function ProjectInfoAndEligibilityPage({
   return (
     <div className="min-h-screen bg-slate-50/50 text-slate-900 font-sans flex flex-col">
       {/* Top Breadcrumb & Action Header */}
-      <div className="border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+      <div className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
           {/* Back button & Breadcrumb */}
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={onBackToHome}
               aria-label={tMeta.backToHome}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
               <span>{tMeta.backToHome}</span>
@@ -67,22 +75,22 @@ export function ProjectInfoAndEligibilityPage({
 
             <nav
               aria-label="Breadcrumb"
-              className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-600"
+              className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500"
             >
               <button
                 type="button"
                 onClick={onBackToHome}
-                className="hover:text-blue-600 cursor-pointer"
+                className="hover:text-[#0056b3] cursor-pointer"
               >
                 {tMeta.breadcrumbHome}
               </button>
-              <span aria-hidden="true" className="text-slate-400">/</span>
-              <span className="text-slate-700">{tMeta.breadcrumbCurrent}</span>
+              <span aria-hidden="true" className="text-slate-300">/</span>
+              <span className="text-slate-900">{tMeta.breadcrumbCurrent}</span>
             </nav>
           </div>
 
           {/* Quick Hotline Pill */}
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-blue-50/80 px-3 py-1.5 rounded-full border border-blue-100">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200/80">
             <Phone className="size-3.5 text-[#0056b3]" aria-hidden="true" />
             <span className="hidden md:inline">สายด่วน:</span>
             <span className="font-bold text-[#0056b3]">02-111-1122</span>
@@ -96,7 +104,7 @@ export function ProjectInfoAndEligibilityPage({
         <section aria-label={tTabs.ariaLabel} className="flex justify-center">
           <div
             role="tablist"
-            className="inline-flex rounded-2xl bg-white p-1.5 shadow-sm border border-slate-200/80 max-w-full"
+            className="inline-flex rounded-2xl bg-white p-1.5 shadow-2xs border border-slate-200/80 max-w-full"
           >
             <button
               type="button"
@@ -107,7 +115,7 @@ export function ProjectInfoAndEligibilityPage({
               onClick={() => setActiveTab('project-info')}
               className={`flex items-center gap-2 rounded-xl px-5 sm:px-8 py-3 text-sm sm:text-base font-bold transition-all cursor-pointer ${
                 activeTab === 'project-info'
-                  ? 'bg-[#0056b3] text-white shadow-md'
+                  ? 'bg-[#0056b3] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -124,7 +132,7 @@ export function ProjectInfoAndEligibilityPage({
               onClick={() => setActiveTab('how-to-join')}
               className={`flex items-center gap-2 rounded-xl px-5 sm:px-8 py-3 text-sm sm:text-base font-bold transition-all cursor-pointer ${
                 activeTab === 'how-to-join'
-                  ? 'bg-[#0056b3] text-white shadow-md'
+                  ? 'bg-[#0056b3] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -171,13 +179,13 @@ export function ProjectInfoAndEligibilityPage({
           className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-10 shadow-xs space-y-8"
         >
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0056b3] mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-bold text-[#0056b3] mb-3">
               <HelpCircle className="size-3.5" aria-hidden="true" />
               <span>คำถามที่พบบ่อย</span>
             </div>
             <h2
               id="faq-section-heading"
-              className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight"
+              className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#0f172a] tracking-tight"
             >
               {tFaq.title}
             </h2>
@@ -199,7 +207,7 @@ export function ProjectInfoAndEligibilityPage({
                     onClick={() => toggleFaq(index)}
                     aria-expanded={isExpanded}
                     aria-controls={`faq-answer-${index}`}
-                    className="flex w-full items-center justify-between p-4 sm:p-5 text-left text-sm sm:text-base font-bold text-slate-900 hover:bg-slate-100/60 transition-colors cursor-pointer gap-4"
+                    className="flex w-full items-center justify-between p-4 sm:p-5 text-left text-sm sm:text-base font-bold text-[#0f172a] hover:bg-slate-100/60 transition-colors cursor-pointer gap-4"
                   >
                     <span>{item.q}</span>
                     <ChevronDown
@@ -212,7 +220,7 @@ export function ProjectInfoAndEligibilityPage({
                   {isExpanded && (
                     <div
                       id={`faq-answer-${index}`}
-                      className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/50"
+                      className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-200/50 bg-white"
                     >
                       {item.a}
                     </div>
@@ -223,20 +231,20 @@ export function ProjectInfoAndEligibilityPage({
           </div>
         </section>
 
-        {/* Bottom Support Banner */}
+        {/* Bottom Support Banner - Clean White Card Theme */}
         <section
           aria-label="ติดต่อสอบถามเพิ่มเติม"
-          className="rounded-2xl bg-[#0056b3] p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md"
+          className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xs"
         >
           <div className="space-y-2 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-blue-300 text-xs sm:text-sm font-semibold">
-              <ShieldCheck className="size-4" aria-hidden="true" />
+            <div className="inline-flex items-center justify-center sm:justify-start gap-2 rounded-full bg-blue-50 px-3 py-1 text-[#0056b3] text-xs font-bold border border-blue-200/80">
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
               <span>ศูนย์ช่วยเหลือและบริการประชาชน</span>
             </div>
-            <h3 className="text-lg sm:text-xl font-bold">
+            <h3 className="text-lg sm:text-xl font-extrabold text-[#0f172a]">
               ยังมีข้อสงสัยหรือต้องการสอบถามข้อมูลเพิ่มเติม?
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300">
+            <p className="text-xs sm:text-sm text-slate-600">
               ติดต่อสายด่วนโครงการได้ทุกวันตลอด 24 ชั่วโมง หรือส่งข้อความผ่านระบบบริการช่วยเหลือ
             </p>
           </div>
@@ -244,7 +252,7 @@ export function ProjectInfoAndEligibilityPage({
           <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
             <a
               href="tel:021111122"
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-500 active:scale-98 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-3 text-sm font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 transition-all"
             >
               <Phone className="size-4" aria-hidden="true" />
               <span>โทร 02-111-1122</span>
@@ -254,7 +262,7 @@ export function ProjectInfoAndEligibilityPage({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/80 bg-white py-6 text-center text-xs text-slate-600">
+      <footer className="border-t border-slate-100 bg-white py-6 text-center text-xs text-slate-500">
         <p>{th.footer}</p>
       </footer>
     </div>
