@@ -6,15 +6,20 @@ import {
   X,
   HelpCircle,
   Newspaper,
+  ArrowRight,
+  Info,
+  UserCheck,
 } from 'lucide-react';
 import { th } from '../../../i18n/th';
 
 export interface LandingHeroSectionProps {
-  onLogin?: () => void;
-  isNewsOpen?: boolean;
-  onCloseNews?: () => void;
-  isFaqOpen?: boolean;
-  onCloseFaq?: () => void;
+  onLogin?: (() => void) | undefined;
+  isNewsOpen?: boolean | undefined;
+  onCloseNews?: (() => void) | undefined;
+  isFaqOpen?: boolean | undefined;
+  onCloseFaq?: (() => void) | undefined;
+  onOpenProjectInfo?: (() => void) | undefined;
+  onOpenHowToJoin?: ((role?: 'consumer' | 'merchant') => void) | undefined;
 }
 
 export function LandingHeroSection({
@@ -23,6 +28,8 @@ export function LandingHeroSection({
   onCloseNews,
   isFaqOpen,
   onCloseFaq,
+  onOpenProjectInfo,
+  onOpenHowToJoin,
 }: LandingHeroSectionProps) {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
 
@@ -66,13 +73,39 @@ export function LandingHeroSection({
           <p className="text-sm sm:text-base lg:text-lg font-medium text-slate-500 max-w-2xl mx-auto leading-relaxed">
             {th.landing.schedule.subtitle}
           </p>
+
+          {/* Quick Links to Project Info and How to Join */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            {onOpenProjectInfo && (
+              <button
+                type="button"
+                onClick={onOpenProjectInfo}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-200/90 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-[#0056b3] shadow-xs hover:bg-blue-100 hover:border-blue-300 active:scale-98 transition-all cursor-pointer"
+              >
+                <Info className="size-4" aria-hidden="true" />
+                <span>{th.landing.schedule.viewProjectInfo}</span>
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </button>
+            )}
+            {onOpenHowToJoin && (
+              <button
+                type="button"
+                onClick={() => onOpenHowToJoin('consumer')}
+                className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-300 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
+              >
+                <UserCheck className="size-4 text-emerald-600" aria-hidden="true" />
+                <span>{th.landing.schedule.viewHowToJoin}</span>
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
       {/* 3. How It Works / Steps Infographic Section */}
       <section
         aria-label={th.landing.howItWorks.ariaLabel}
-        className="w-full bg-slate-50/70 px-4 py-8 sm:py-12 lg:py-16 border-t border-slate-100 flex justify-center"
+        className="w-full bg-slate-50/70 px-4 py-8 sm:py-12 lg:py-16 border-t border-slate-100 flex flex-col items-center gap-6"
       >
         <div className="w-full max-w-5xl lg:max-w-6xl">
           <div className="overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-lg ring-1 ring-slate-900/5 transition-all hover:shadow-xl">
@@ -85,6 +118,17 @@ export function LandingHeroSection({
             />
           </div>
         </div>
+
+        {onOpenHowToJoin && (
+          <button
+            type="button"
+            onClick={() => onOpenHowToJoin('consumer')}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#004494] active:scale-98 transition-all cursor-pointer"
+          >
+            <span>ดูคู่มือและขั้นตอนเข้าร่วมสิทธิโดยละเอียด</span>
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </button>
+        )}
       </section>
 
       {/* 4. Floating Action Button: Fixed at bottom right */}

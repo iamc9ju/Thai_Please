@@ -1,7 +1,11 @@
 import { lazy, Suspense, useState } from 'react';
-import { LoadingState } from '../components/LoadingState';
+import { BrandLoadingScreen } from '../components/BrandLoadingScreen';
+import { LogoutConfirmDialog } from '../components/LogoutConfirmDialog';
+import { ToastProvider } from '../components/toast';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
+import type { LoginRole } from '../features/auth/auth.types';
+import type { RegistrationRole } from '../features/registration/registration.validation';
 import { LandingPage } from '../features/landing/pages/LandingPage';
 import { th } from '../i18n/th';
 
@@ -34,55 +38,67 @@ const MerchantPendingApproval = lazy(async () => {
 
 function PortalLoadingFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface p-6">
-      <LoadingState label={th.app.checkingSession} />
-    </div>
+    <BrandLoadingScreen
+      label={th.app.checkingSession}
+      sublabel={th.app.checkingSessionSub}
+    />
   );
 }
 
 function MainContent() {
   const { user, isLoading, logout, refreshSession } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loginRole, setLoginRole] = useState<LoginRole | undefined>();
+  const [registrationRole, setRegistrationRole] =
+    useState<RegistrationRole | null>(null);
+
+  const handleRequestLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
+    void logout();
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
 
   if (isLoading) {
     return <PortalLoadingFallback />;
   }
 
   if (user) {
-    if (user.role === 'CONSUMER') {
-      return (
-        <Suspense fallback={<PortalLoadingFallback />}>
-          <ConsumerDashboard
-            citizenId={user.citizenId}
-            fullName={user.fullName}
-            onLogout={() => void logout()}
-          />
-        </Suspense>
-      );
-    }
+    let dashboardContent = null;
 
-    if (user.role === 'MERCHANT') {
+    if (user.role === 'CONSUMER') {
+      dashboardContent = (
+        <ConsumerDashboard
+          citizenId={user.citizenId}
+          fullName={user.fullName}
+          onLogout={handleRequestLogout}
+        />
+      );
+    } else if (user.role === 'MERCHANT') {
       const isApproved = user.merchantStatus === 'ACTIVE';
 
       if (!isApproved) {
-        return (
-          <Suspense fallback={<PortalLoadingFallback />}>
-            <MerchantPendingApproval
-              merchantName={
-                user.merchantName ?? user.fullName ?? 'ร้านค้าของฉัน'
-              }
-              citizenId={user.citizenId}
-              status={user.merchantStatus ?? 'PENDING'}
-              merchantRole={user.merchantRole ?? 'OWNER'}
-              onRefresh={() => void refreshSession()}
-              onLogout={() => void logout()}
-            />
-          </Suspense>
+        dashboardContent = (
+          <MerchantPendingApproval
+            merchantName={
+              user.merchantName ?? user.fullName ?? 'ร้านค้าของฉัน'
+            }
+            citizenId={user.citizenId}
+            status={user.merchantStatus ?? 'PENDING'}
+            merchantRole={user.merchantRole ?? 'OWNER'}
+            onRefresh={() => void refreshSession()}
+            onLogout={handleRequestLogout}
+          />
         );
-      }
-
-      return (
-        <Suspense fallback={<PortalLoadingFallback />}>
+      } else {
+        dashboardContent = (
           <MerchantPos
             merchantName={
               user.merchantName ?? user.fullName ?? 'ร้านค้าคนละครึ่ง'
@@ -90,33 +106,75 @@ function MainContent() {
             merchantRole={user.merchantRole ?? 'OWNER'}
             fullName={user.fullName}
             citizenId={user.citizenId}
-            onLogout={() => void logout()}
+            onLogout={handleRequestLogout}
           />
-        </Suspense>
+        );
+      }
+    } else if (user.role === 'ADMIN') {
+      dashboardContent = (
+        <AdminDashboard
+          adminName={user.fullName ?? 'ผู้ดูแลระบบกลาง'}
+          onLogout={handleRequestLogout}
+        />
       );
     }
 
-    if (user.role === 'ADMIN') {
-      return (
-        <Suspense fallback={<PortalLoadingFallback />}>
-          <AdminDashboard
-            adminName={user.fullName ?? 'ผู้ดูแลระบบกลาง'}
-            onLogout={() => void logout()}
-          />
-        </Suspense>
-      );
-    }
+    return (
+      <Suspense fallback={<PortalLoadingFallback />}>
+        {dashboardContent}
+        <LogoutConfirmDialog
+          isOpen={showLogoutConfirm}
+          onConfirm={handleConfirmLogout}
+          onCancel={handleCancelLogout}
+        />
+      </Suspense>
+    );
   }
 
   if (showLogin) {
     return (
       <Suspense fallback={<PortalLoadingFallback />}>
-        <LoginPage onBack={() => setShowLogin(false)} />
+        <LoginPage
+          onBack={() => {
+            setShowLogin(false);
+            setRegistrationRole(null);
+          }}
+          initialRole={loginRole}
+          initialRegistrationRole={registrationRole}
+        />
       </Suspense>
     );
   }
 
-  return <LandingPage onLogin={() => setShowLogin(true)} />;
+  return (
+    <LandingPage
+      onLogin={() => {
+        setLoginRole(undefined);
+        setRegistrationRole(null);
+        setShowLogin(true);
+      }}
+      onLoginConsumer={() => {
+        setLoginRole('consumer');
+        setRegistrationRole(null);
+        setShowLogin(true);
+      }}
+      onLoginMerchant={() => {
+        setLoginRole('merchant');
+        setRegistrationRole(null);
+        setShowLogin(true);
+      }}
+      onRegisterConsumer={() => {
+        setLoginRole('consumer');
+        setRegistrationRole('consumer');
+        setShowLogin(true);
+      }}
+      onRegisterMerchant={() => {
+        setLoginRole('merchant');
+        setRegistrationRole('merchant');
+        setShowLogin(true);
+      }}
+    />
+  );
 }
 
 function App() {
@@ -137,9 +195,11 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <MainContent />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <MainContent />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

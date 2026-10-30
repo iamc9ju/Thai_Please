@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { th } from '../i18n/th';
@@ -196,5 +196,57 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText('ร้านค้าสมชาย').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('รออนุมัติ (PENDING)').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows logout confirmation dialog before logging out', async () => {
+    const { getMe, logout } = await import('../features/auth/api/auth.api');
+    vi.mocked(getMe).mockResolvedValueOnce({
+      userId: '101',
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ค้าขาย',
+      role: 'MERCHANT',
+      activeMerchantId: '1',
+      merchantStatus: 'PENDING',
+      merchantName: 'ร้านค้าสมชาย',
+      merchantRole: 'OWNER',
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('อยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ'),
+    ).toBeInTheDocument();
+
+    // Click the logout button in the dashboard
+    const logoutBtn = screen.getAllByRole('button', {
+      name: th.merchantPortal.pendingApproval.logoutButton,
+    })[0];
+    if (!logoutBtn) throw new Error('Logout button not found');
+    fireEvent.click(logoutBtn);
+
+    // Confirmation dialog should appear asking if user really wants to logout
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(th.logoutConfirm.title)).toBeInTheDocument();
+    expect(screen.getByText(th.logoutConfirm.description)).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
+
+    // Click cancel first
+    const cancelBtn = screen.getByRole('button', {
+      name: th.logoutConfirm.cancel,
+    });
+    fireEvent.click(cancelBtn);
+
+    expect(screen.queryByText(th.logoutConfirm.title)).not.toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
+
+    // Click logout button again and confirm
+    fireEvent.click(logoutBtn);
+    const dialog = screen.getByRole('dialog');
+    const confirmBtn = within(dialog).getByRole('button', {
+      name: th.logoutConfirm.confirm,
+    });
+    fireEvent.click(confirmBtn);
+
+    expect(logout).toHaveBeenCalled();
   });
 });
