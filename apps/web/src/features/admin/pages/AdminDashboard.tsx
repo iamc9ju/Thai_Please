@@ -1,3 +1,4 @@
+import { QuestLogList } from '../components/QuestLogList';
 import { RewardHistoryPages } from '../components/RewardHistoryPages';
 import { MerchantSales } from '../components/MerchantSales';
 import { formatTrendDate } from '../format-trend-date';
@@ -26,7 +27,6 @@ import {
   Gift,
   Plus,
   RefreshCw,
-  Sparkles,
   Store,
   Target,
   TrendingUp,
@@ -60,7 +60,6 @@ import {
   getSocialImpactDashboard,
   getSubsidyPrograms,
   grantAdminRole,
-  triggerQuestGeneration,
   updateAdminRoleStatus,
   updateMerchantApprovalStatus,
   updateSubsidyProgramStatus,
@@ -126,6 +125,7 @@ function formatShortDate(iso: string): string {
   });
 }
 
+/* Quest generation control logic retained while the admin page is read-only.
 function createUuidV4(): string {
   if (
     typeof crypto !== 'undefined' &&
@@ -140,6 +140,7 @@ function createUuidV4(): string {
   });
 }
 
+*/
 export function AdminDashboard({
   adminName = th.adminPortal.shell.defaultName,
   onLogout,
@@ -246,6 +247,7 @@ export function AdminDashboard({
 
   const [questLogsData, setQuestLogsData] =
     useState<QuestGenerationLogsResponse | null>(null);
+  /* Quest generation control logic retained while the admin page is read-only.
   const [selectedConsumerId, setSelectedConsumerId] = useState<string>('');
   const [consumerSegment, setConsumerSegment] = useState<
     'ALL_ELIGIBLE' | 'NO_ACTIVE_QUEST'
@@ -262,6 +264,7 @@ export function AdminDashboard({
     : (selectableConsumers[0]?.userId ?? '');
   const selectedConsumerIsEligible = effectiveConsumerId !== '';
   const [isGeneratingQuest, setIsGeneratingQuest] = useState(false);
+*/
 
   const [rewardMonitoring, setRewardMonitoring] =
     useState<RewardMonitoringResponse | null>(null);
@@ -301,6 +304,7 @@ export function AdminDashboard({
           const res = await getQuestGenerationLogs();
           if (!isCurrent()) return;
           setQuestLogsData(res);
+          /* Retained with the admin quest generation controls.
           setSelectedConsumerId((previous) =>
             res.eligibleConsumers.some(
               (consumer) => consumer.userId === previous,
@@ -308,6 +312,7 @@ export function AdminDashboard({
               ? previous
               : (res.eligibleConsumers[0]?.userId ?? ''),
           );
+          */
         } else if (tab === 'rewards') {
           const res = await getRewardMonitoring();
           if (!isCurrent()) return;
@@ -541,6 +546,7 @@ export function AdminDashboard({
     }
   };
 
+  /* Quest generation control logic retained while the admin page is read-only.
   const handleTriggerQuestGeneration = async () => {
     if (!selectedConsumerIsEligible || isGeneratingQuest) return;
     setIsGeneratingQuest(true);
@@ -569,6 +575,7 @@ export function AdminDashboard({
     }
   };
 
+*/
   const handleGrantAdmin = async (userId: string) => {
     setProcessingUserId(userId);
     setActionBanner(null);
@@ -1579,6 +1586,7 @@ export function AdminDashboard({
               </p>
             </div>
 
+            {/* Admin quest generation controls retained for future restoration.
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-5 text-brand" />
@@ -1668,6 +1676,7 @@ export function AdminDashboard({
               </div>
             </div>
 
+            */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-base font-bold text-slate-900">
                 {copy.quests.logsTitle}
@@ -1679,103 +1688,109 @@ export function AdminDashboard({
                 </p>
               ) : (
                 <div className="mt-4 space-y-3">
-                  {questLogsData.logs.map((log) => (
-                    <div
-                      key={log.generationId}
-                      className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-lg bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
-                              Log #{log.generationId}
-                            </span>
-                            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
-                              {log.status}
-                            </span>
-                            <span className="text-xs font-semibold text-slate-700">
-                              ผู้รับภารกิจ: {log.user.fullName} (
-                              {log.user.citizenIdMasked})
-                            </span>
-                          </div>
-                          {log.quest && (
-                            <p className="mt-1.5 text-sm font-bold text-slate-900">
-                              {log.quest.questName} (+{log.quest.rewardPoint}{' '}
-                              พอยต์ · ขั้นต่ำ {formatBaht(log.quest.minSpend)})
-                            </p>
-                          )}
-                          {log.selectionReason && (
-                            <p className="mt-1 text-xs text-slate-600">
-                              เหตุผลการคัดเลือก: {log.selectionReason}
-                            </p>
-                          )}
-                          {(log.proposals?.length ?? 0) > 0 && (
-                            <div className="mt-2 text-xs text-slate-700">
-                              <p className="font-semibold">
-                                {copy.questAudit.proposals}
-                              </p>
-                              <ul>
-                                {log.proposals?.map((proposal) => (
-                                  <li key={proposal.id}>
-                                    {proposal.type} ·{' '}
-                                    {proposal.targetId
-                                      ? `${copy.questAudit.category} ${proposal.targetId}`
-                                      : copy.questAudit.allCategories}
-                                    {' · '}
-                                    {copy.questAudit.personalTarget}:{' '}
-                                    {formatBaht(
-                                      Number(proposal.minimumSpendMinor) / 100,
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
+                  <QuestLogList logs={questLogsData.logs}>
+                    {(log) => (
+                      <div
+                        key={log.generationId}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-lg bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
+                                Log #{log.generationId}
+                              </span>
+                              <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
+                                {log.status}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-700">
+                                ผู้รับภารกิจ: {log.user.fullName} (
+                                {log.user.citizenIdMasked})
+                              </span>
                             </div>
-                          )}
-                          {(log.validation?.attempts.length ?? 0) > 0 && (
-                            <details className="mt-2 text-xs text-slate-600">
-                              <summary>{copy.questAudit.validation}</summary>
-                              {log.validation?.attempts.map((attempt) => (
-                                <p key={attempt.call}>
-                                  {copy.questAudit.call} {attempt.call}:{' '}
-                                  {copy.questAudit.accepted}{' '}
-                                  {attempt.acceptedCount}
-                                  {' · '}
-                                  {attempt.rejections.join(', ') ||
-                                    copy.questAudit.noRejections}
+                            {log.quest && (
+                              <p className="mt-1.5 text-sm font-bold text-slate-900">
+                                {log.quest.questName} (+{log.quest.rewardPoint}{' '}
+                                พอยต์ · ขั้นต่ำ {formatBaht(log.quest.minSpend)}
+                                )
+                              </p>
+                            )}
+                            {log.selectionReason && (
+                              <p className="mt-1 text-xs text-slate-600">
+                                เหตุผลการคัดเลือก: {log.selectionReason}
+                              </p>
+                            )}
+                            {(log.proposals?.length ?? 0) > 0 && (
+                              <div className="mt-2 text-xs text-slate-700">
+                                <p className="font-semibold">
+                                  {copy.questAudit.proposals}
                                 </p>
-                              ))}
-                              {(log.validation?.rejections.length ?? 0) > 0 && (
-                                <p>{log.validation?.rejections.join(', ')}</p>
-                              )}
-                            </details>
-                          )}
-                        </div>
+                                <ul>
+                                  {log.proposals?.map((proposal) => (
+                                    <li key={proposal.id}>
+                                      {proposal.type} ·{' '}
+                                      {proposal.targetId
+                                        ? `${copy.questAudit.category} ${proposal.targetId}`
+                                        : copy.questAudit.allCategories}
+                                      {' · '}
+                                      {copy.questAudit.personalTarget}:{' '}
+                                      {formatBaht(
+                                        Number(proposal.minimumSpendMinor) /
+                                          100,
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {(log.validation?.attempts.length ?? 0) > 0 && (
+                              <details className="mt-2 text-xs text-slate-600">
+                                <summary>{copy.questAudit.validation}</summary>
+                                {log.validation?.attempts.map((attempt) => (
+                                  <p key={attempt.call}>
+                                    {copy.questAudit.call} {attempt.call}:{' '}
+                                    {copy.questAudit.accepted}{' '}
+                                    {attempt.acceptedCount}
+                                    {' · '}
+                                    {attempt.rejections.join(', ') ||
+                                      copy.questAudit.noRejections}
+                                  </p>
+                                ))}
+                                {(log.validation?.rejections.length ?? 0) >
+                                  0 && (
+                                  <p>{log.validation?.rejections.join(', ')}</p>
+                                )}
+                              </details>
+                            )}
+                          </div>
 
-                        <div className="text-right text-xs text-slate-500">
-                          <p>
-                            Provider:{' '}
-                            <strong>
-                              {log.provider ?? adminManagementCopy.notRecorded}
-                            </strong>{' '}
-                            (
-                            {log.modelVersion ??
-                              adminManagementCopy.notRecorded}
-                            )
-                          </p>
-                          <p>
-                            Prompt{' '}
-                            {log.promptVersion ??
-                              adminManagementCopy.notRecorded}{' '}
-                            · Policy{' '}
-                            {log.policyVersion ??
-                              adminManagementCopy.notRecorded}
-                          </p>
-                          <p>{formatDateTime(log.generatedAt)}</p>
+                          <div className="text-right text-xs text-slate-500">
+                            <p>
+                              Provider:{' '}
+                              <strong>
+                                {log.provider ??
+                                  adminManagementCopy.notRecorded}
+                              </strong>{' '}
+                              (
+                              {log.modelVersion ??
+                                adminManagementCopy.notRecorded}
+                              )
+                            </p>
+                            <p>
+                              Prompt{' '}
+                              {log.promptVersion ??
+                                adminManagementCopy.notRecorded}{' '}
+                              · Policy{' '}
+                              {log.policyVersion ??
+                                adminManagementCopy.notRecorded}
+                            </p>
+                            <p>{formatDateTime(log.generatedAt)}</p>
+                          </div>
                         </div>
+                        <QuestGenerationDetails log={log} />
                       </div>
-                      <QuestGenerationDetails log={log} />
-                    </div>
-                  ))}
+                    )}
+                  </QuestLogList>
                 </div>
               )}
             </div>

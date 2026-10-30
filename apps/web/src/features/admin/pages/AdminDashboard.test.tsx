@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe('AdminDashboard (FR-A01 through FR-A07)', () => {
-  it('queues proposals without claiming assignment and shows bounded validation audit', async () => {
+  it('shows bounded validation audit without admin generation controls', async () => {
     const copy = th.adminPortal;
     vi.mocked(adminApi.getQuestGenerationLogs).mockResolvedValue({
       eligibleConsumers: [
@@ -101,16 +101,10 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByText(copy.questAudit.validation));
     expect(screen.getByText(/PROPOSAL_AMOUNT_INVALID/)).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: copy.quests.generateBtn }),
-    );
     expect(
-      await screen.findByText(copy.questProposalStatus.PENDING),
-    ).toBeInTheDocument();
-    expect(adminApi.triggerQuestGeneration).toHaveBeenCalledWith(
-      '1',
-      expect.stringMatching(/^[0-9a-f-]{36}$/i),
-    );
+      screen.queryByRole('button', { name: copy.quests.generateBtn }),
+    ).not.toBeInTheDocument();
+    expect(adminApi.triggerQuestGeneration).not.toHaveBeenCalled();
   });
   beforeEach(() => {
     vi.clearAllMocks();
@@ -458,46 +452,25 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     expect(screen.getByText('ร้านก๋วยเตี๋ยวเรือลุงเข้ม')).toBeInTheDocument();
   });
 
-  it('filters quest consumers without refetching logs when a user is selected (FR-A05)', async () => {
-    vi.mocked(adminApi.getQuestGenerationLogs).mockResolvedValue({
-      logs: [],
-      eligibleConsumers: [
-        {
-          userId: '51',
-          fullName: 'ผู้ใช้มีภารกิจ',
-          citizenIdMasked: 'X-XXXX',
-          pointBalance: 0,
-          paidOrdersCount: 1,
-          activeQuestsCount: 1,
-        },
-        {
-          userId: '52',
-          fullName: 'ผู้ใช้ไม่มีภารกิจ',
-          citizenIdMasked: 'X-XXXX',
-          pointBalance: 0,
-          paidOrdersCount: 1,
-          activeQuestsCount: 0,
-        },
-      ],
-    });
+  it('shows quest details without admin generation controls (FR-A05)', async () => {
     render(<AdminDashboard onLogout={vi.fn()} />);
     await screen.findByText('10 บัญชี');
     fireEvent.click(
       screen.getByRole('button', { name: th.adminPortal.nav.quests }),
     );
-    const selector = await screen.findByLabelText(
-      th.adminPortal.quests.selectConsumerLabel,
-    );
-    fireEvent.change(selector, { target: { value: '52' } });
-    expect(adminApi.getQuestGenerationLogs).toHaveBeenCalledOnce();
-    fireEvent.change(screen.getByLabelText('กรองกลุ่มผู้บริโภค'), {
-      target: { value: 'NO_ACTIVE_QUEST' },
-    });
     expect(
-      screen.queryByRole('option', { name: /ผู้ใช้มีภารกิจ/ }),
+      await screen.findByRole('heading', { name: th.adminPortal.quests.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(th.adminPortal.quests.selectConsumerLabel),
     ).not.toBeInTheDocument();
-    expect(selector).toHaveValue('52');
-    expect(adminApi.getQuestGenerationLogs).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole('button', { name: th.adminPortal.quests.generateBtn }),
+    ).not.toBeInTheDocument();
+    expect(adminApi.triggerQuestGeneration).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('heading', { name: th.adminPortal.quests.logsTitle }),
+    ).toBeInTheDocument();
   });
 
   it('opens the API-backed program editor (FR-A04)', async () => {
