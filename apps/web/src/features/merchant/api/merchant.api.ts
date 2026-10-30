@@ -28,11 +28,22 @@ export function getMyProducts(includeInactive = true): Promise<Product[]> {
   return apiClient.get<Product[]>(`${MERCHANT_API}/products${query}`);
 }
 
+export function uploadProductImage(dataUrl: string): Promise<{
+  imageUrl: string;
+  publicId: string;
+}> {
+  return apiClient.post<{ imageUrl: string; publicId: string }>(
+    `${MERCHANT_API}/products/upload-image`,
+    { dataUrl },
+  );
+}
+
 export function createProduct(data: {
   productName: string;
   price: number;
   categoryId: number;
   description?: string;
+  imageUrl?: string;
   isRecommended?: boolean;
 }): Promise<Product> {
   return apiClient.post<Product>(`${MERCHANT_API}/products`, data);
@@ -45,6 +56,7 @@ export function updateProduct(
     price?: number;
     categoryId?: number;
     description?: string;
+    imageUrl?: string;
     status?: 'ACTIVE' | 'INACTIVE';
     isRecommended?: boolean;
   },

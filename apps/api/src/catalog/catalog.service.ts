@@ -206,6 +206,7 @@ export class CatalogService {
       productId: p.productId.toString(),
       productName: p.productName,
       description: p.description,
+      imageUrl: p.imageUrl ?? null,
       price: Number(p.price),
       status: p.status,
       isRecommended: p.isRecommended,
@@ -233,6 +234,7 @@ export class CatalogService {
         categoryId: BigInt(dto.categoryId),
         productName: dto.productName.trim(),
         description: dto.description?.trim() || null,
+        imageUrl: dto.imageUrl?.trim() || null,
         price: dto.price,
         status: 'ACTIVE',
         isRecommended: dto.isRecommended ?? false,
@@ -244,6 +246,7 @@ export class CatalogService {
       productId: product.productId.toString(),
       productName: product.productName,
       description: product.description,
+      imageUrl: product.imageUrl ?? null,
       price: Number(product.price),
       status: product.status,
       isRecommended: product.isRecommended,
@@ -294,6 +297,10 @@ export class CatalogService {
           dto.description !== undefined
             ? dto.description.trim() || null
             : product.description,
+        imageUrl:
+          dto.imageUrl !== undefined
+            ? dto.imageUrl.trim() || null
+            : product.imageUrl,
         price: dto.price !== undefined ? dto.price : product.price,
         categoryId,
         status: dto.status ?? product.status,
@@ -307,6 +314,7 @@ export class CatalogService {
       productId: updated.productId.toString(),
       productName: updated.productName,
       description: updated.description,
+      imageUrl: updated.imageUrl ?? null,
       price: Number(updated.price),
       status: updated.status,
       isRecommended: updated.isRecommended,
@@ -345,6 +353,7 @@ export class CatalogService {
       productId: updated.productId.toString(),
       productName: updated.productName,
       description: updated.description,
+      imageUrl: updated.imageUrl ?? null,
       price: Number(updated.price),
       status: updated.status,
       isRecommended: updated.isRecommended,

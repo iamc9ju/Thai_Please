@@ -1,14 +1,23 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useState,
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import {
   Edit3,
+  ImagePlus,
+  LoaderCircle,
   Plus,
   Power,
   Settings2,
   ShoppingCart,
   Star,
+  Trash2,
 } from 'lucide-react';
 import { LoadingState } from '../../../components/LoadingState';
 import { th } from '../../../i18n/th';
+import { uploadProductImage } from '../api/merchant.api';
 import type { CartItem, Category, Product } from '../merchant.types';
 import { resolveProductImage } from '../utils/product-image';
 
@@ -19,6 +28,7 @@ interface NewProductForm {
   price: string;
   categoryId: string;
   description: string;
+  imageUrl: string;
   isRecommended: boolean;
 }
 
@@ -102,6 +112,54 @@ export function MerchantSalesView({
   const posCopy = th.merchantPortal.pos;
   const [pendingDeactivateProduct, setPendingDeactivateProduct] =
     useState<Product | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
+  const handleImageFileSelect = async (
+    event: ChangeEvent<HTMLInputElement>,
+    mode: 'add' | 'edit',
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setImageUploadError('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG หรือ WEBP)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError('ขนาดรูปภาพต้องไม่เกิน 5 MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setImageUploadError(null);
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพได้'));
+        reader.readAsDataURL(file);
+      });
+
+      const uploaded = await uploadProductImage(dataUrl);
+      if (mode === 'add') {
+        setNewProduct((prev) => ({ ...prev, imageUrl: uploaded.imageUrl }));
+      } else {
+        setEditForm((prev) => ({ ...prev, imageUrl: uploaded.imageUrl }));
+      }
+    } catch (err) {
+      setImageUploadError(
+        err instanceof Error
+          ? err.message
+          : 'อัปโหลดรูปภาพไปยัง Cloudinary ไม่สำเร็จ',
+      );
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const confirmDeactivateProduct = async () => {
     if (!pendingDeactivateProduct) return;
@@ -237,12 +295,71 @@ export function MerchantSalesView({
 
         {/* Add Product Modal */}
         {showAddProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl my-4">
               <h3 className="mb-4 text-base font-extrabold text-slate-900">
                 {posCopy.addModalTitle}
               </h3>
               <div className="space-y-3">
+                {/* Product Image Upload to Cloudinary */}
+                <div>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                    รูปภาพเมนู / สินค้า
+                  </span>
+                  {newProduct.imageUrl ? (
+                    <div className="relative h-36 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                      <img
+                        src={newProduct.imageUrl}
+                        alt="ตัวอย่างรูปสินค้า"
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewProduct((prev) => ({ ...prev, imageUrl: '' }))
+                        }
+                        className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-900/80 px-2.5 py-1 text-xs font-bold text-white hover:bg-red-600 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>ลบรูป</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex h-28 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/70 px-4 text-center hover:border-[#0056b3] hover:bg-blue-50/40 transition-colors">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        disabled={isUploadingImage}
+                        onChange={(e) => void handleImageFileSelect(e, 'add')}
+                        className="hidden"
+                      />
+                      {isUploadingImage ? (
+                        <>
+                          <LoaderCircle className="size-6 animate-spin text-[#0056b3]" />
+                          <span className="text-xs font-bold text-[#0056b3]">
+                            กำลังอัปโหลดรูปภาพขึ้น Cloudinary...
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <ImagePlus className="size-6 text-[#0056b3]" />
+                          <span className="text-xs font-bold text-slate-700">
+                            คลิกเพื่ออัปโหลดรูปอาหาร/สินค้า
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            รองรับ JPG, PNG, WEBP (ไม่เกิน 5 MB)
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                  {imageUploadError && (
+                    <p className="mt-1.5 text-xs font-medium text-red-600">
+                      {imageUploadError}
+                    </p>
+                  )}
+                </div>
+
                 <input
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0056b3] focus:bg-white focus:outline-none"
                   placeholder="ชื่อสินค้า *"
@@ -318,7 +435,10 @@ export function MerchantSalesView({
               <div className="mt-5 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddProduct(false)}
+                  onClick={() => {
+                    setImageUploadError(null);
+                    setShowAddProduct(false);
+                  }}
                   className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   ยกเลิก
@@ -328,6 +448,7 @@ export function MerchantSalesView({
                   onClick={() => void handleSaveProduct()}
                   disabled={
                     isSavingProduct ||
+                    isUploadingImage ||
                     !newProduct.productName ||
                     !newProduct.price ||
                     !newProduct.categoryId
@@ -343,8 +464,8 @@ export function MerchantSalesView({
 
         {/* Edit Product Modal (FR-M02) */}
         {editingProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl my-4">
               <h3 className="mb-1 text-base font-extrabold text-slate-900">
                 {posCopy.editModalTitle}
               </h3>
@@ -352,6 +473,67 @@ export function MerchantSalesView({
                 {posCopy.immutableSnapshotNote}
               </p>
               <div className="space-y-3">
+                {/* Edit Product Image Upload to Cloudinary */}
+                <div>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                    รูปภาพเมนู / สินค้า
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                      <img
+                        src={resolveProductImage(
+                          editForm.productName || editingProduct.productName,
+                          editingProduct.categoryName,
+                          editForm.imageUrl,
+                        )}
+                        alt="รูปสินค้า"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      <label className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={isUploadingImage}
+                          onChange={(e) =>
+                            void handleImageFileSelect(e, 'edit')
+                          }
+                          className="hidden"
+                        />
+                        {isUploadingImage ? (
+                          <>
+                            <LoaderCircle className="size-3.5 animate-spin text-[#0056b3]" />
+                            <span>กำลังอัปโหลด...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ImagePlus className="size-3.5 text-[#0056b3]" />
+                            <span>เปลี่ยนรูปภาพสินค้า</span>
+                          </>
+                        )}
+                      </label>
+                      {editForm.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditForm((prev) => ({ ...prev, imageUrl: '' }))
+                          }
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="size-3" />
+                          <span>ใช้รูปเริ่มต้นตามชื่อเมนู</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {imageUploadError && (
+                    <p className="mt-1.5 text-xs font-medium text-red-600">
+                      {imageUploadError}
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label
                     htmlFor="edit-product-name"
@@ -534,6 +716,7 @@ export function MerchantSalesView({
               const imageUrl = resolveProductImage(
                 product.productName,
                 product.categoryName,
+                product.imageUrl,
               );
 
               return (

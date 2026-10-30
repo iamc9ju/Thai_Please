@@ -19,17 +19,22 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/authorization/roles.decorator.js';
 import { RolesGuard } from '../auth/authorization/roles.guard.js';
 import { CatalogService } from './catalog.service.js';
+import { CloudinaryService } from './cloudinary.service.js';
 import {
   CreateCategoryDto,
   CreateProductDto,
   UpdateProductDto,
   UpdateProductStatusDto,
+  UploadProductImageDto,
 } from './dto/product.dto.js';
 
 @Controller()
 @UseGuards(AuthGuard, RolesGuard)
 export class CatalogController {
-  constructor(private readonly catalogService: CatalogService) {}
+  constructor(
+    private readonly catalogService: CatalogService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   // ─── Categories (any authenticated role can read) ─────────────────────────
 
@@ -58,6 +63,16 @@ export class CatalogController {
       merchantId,
       includeInactive === 'true',
     );
+  }
+
+  @Post('merchant/products/upload-image')
+  @Roles('MERCHANT')
+  async uploadProductImage(
+    @Req() req: Request,
+    @Body() dto: UploadProductImageDto,
+  ) {
+    const merchantId = req.user!.activeMerchantId!;
+    return this.cloudinaryService.uploadProductImage(dto.dataUrl, merchantId);
   }
 
   @Post('merchant/products')

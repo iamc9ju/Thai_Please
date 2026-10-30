@@ -33,6 +33,23 @@ const environmentSchema = z
     QUEST_GENERATION_RATE_LIMIT_ENABLED: z
       .enum(['true', 'false'])
       .default('true'),
+    CLOUDINARY_CLOUD_NAME: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_API_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_ASSET_FOLDER: z
+      .string()
+      .trim()
+      .min(1)
+      .default('thai-please/products'),
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),

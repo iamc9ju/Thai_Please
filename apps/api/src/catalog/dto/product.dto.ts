@@ -46,6 +46,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isRecommended?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  imageUrl?: string;
 }
 
 export class UpdateProductDto {
@@ -79,10 +84,20 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isRecommended?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  imageUrl?: string;
 }
 
 export class UpdateProductStatusDto {
   @IsString()
   @IsIn(PRODUCT_STATUSES)
   status!: ProductStatusValue;
+}
+
+export class UploadProductImageDto {
+  @IsString()
+  dataUrl!: string;
 }

@@ -1,4 +1,4 @@
-import { Bell, LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
+import { LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { AdminTab } from './AdminSidebar';
 

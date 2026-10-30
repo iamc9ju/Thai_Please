@@ -73,6 +73,7 @@ export function MerchantPos({
     price: '',
     categoryId: '',
     description: '',
+    imageUrl: '',
     isRecommended: false,
   });
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -84,6 +85,7 @@ export function MerchantPos({
     price: string;
     categoryId: string;
     description: string;
+    imageUrl: string;
     isRecommended: boolean;
     status: 'ACTIVE' | 'INACTIVE';
   }>({
@@ -91,6 +93,7 @@ export function MerchantPos({
     price: '',
     categoryId: '',
     description: '',
+    imageUrl: '',
     isRecommended: false,
     status: 'ACTIVE',
   });
@@ -328,6 +331,7 @@ export function MerchantPos({
         ...(newProduct.description
           ? { description: newProduct.description }
           : {}),
+        ...(newProduct.imageUrl ? { imageUrl: newProduct.imageUrl } : {}),
       };
       const saved = await createProduct(productInput);
       setProducts((prev) => [saved, ...prev]);
@@ -336,6 +340,7 @@ export function MerchantPos({
         price: '',
         categoryId: '',
         description: '',
+        imageUrl: '',
         isRecommended: false,
       });
       setShowAddProduct(false);
@@ -354,6 +359,7 @@ export function MerchantPos({
       price: String(product.price),
       categoryId: String(product.categoryId),
       description: product.description ?? '',
+      imageUrl: product.imageUrl ?? '',
       isRecommended: product.isRecommended,
       status: product.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
     });
@@ -393,6 +399,9 @@ export function MerchantPos({
         description: editForm.description.trim(),
         isRecommended: editForm.isRecommended,
         status: editForm.status,
+        ...(editForm.imageUrl.trim() !== (editingProduct.imageUrl ?? '')
+          ? { imageUrl: editForm.imageUrl.trim() }
+          : {}),
       });
       syncProductInStateAndCart(updated);
       setEditingProduct(null);

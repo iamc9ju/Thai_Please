@@ -2,6 +2,7 @@ export type Product = {
   productId: string;
   productName: string;
   description: string | null;
+  imageUrl?: string | null;
   price: number;
   status: string;
   isRecommended: boolean;

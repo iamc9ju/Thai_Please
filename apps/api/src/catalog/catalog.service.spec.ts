@@ -272,6 +272,7 @@ describe('CatalogService (FR-M02)', () => {
       productId: '5',
       productName: 'ชาไทยสูตรเข้มข้น',
       description: 'หวานน้อย หอมใบชา',
+      imageUrl: null,
       price: 40,
       status: 'ACTIVE',
       isRecommended: true,
