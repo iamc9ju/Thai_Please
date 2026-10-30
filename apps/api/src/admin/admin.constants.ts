@@ -13,7 +13,20 @@ export const ADMIN_ROUTES = {
   questGenerationLogs: 'admin/quest-generation-logs',
   rewardMonitoring: 'admin/rewards/monitoring',
   socialImpact: 'admin/dashboard/social-impact',
+  coupons: 'admin/coupons',
+  coupon: 'admin/coupons/:id',
 } as const;
+
+export const COUPON_DISCOUNT_TYPES = ['FIXED', 'PERCENTAGE'] as const;
+export const COUPON_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
+export const ADMIN_COUPON_ERRORS = {
+  invalidMoney: 'ADMIN_COUPON_INVALID_MONEY',
+  invalidPercentage: 'ADMIN_COUPON_INVALID_PERCENTAGE',
+  issuedImmutable: 'ADMIN_COUPON_ISSUED_IMMUTABLE',
+  notFound: 'ADMIN_COUPON_NOT_FOUND',
+  idempotencyConflict: 'ADMIN_COUPON_IDEMPOTENCY_CONFLICT',
+} as const;
+export const ADMIN_COUPON_LIST_LIMIT = 100;
 
 export const MERCHANT_STATUSES = [
   'PENDING',
@@ -53,6 +66,7 @@ export const ADMIN_OPERATION_ERRORS = {
   merchantStatusChanged: 'ADMIN_MERCHANT_STATUS_CHANGED_CONFLICT',
   programPolicyInUse: 'ADMIN_PROGRAM_POLICY_IN_USE',
   programDatesInvalid: 'ADMIN_PROGRAM_DATES_INVALID',
+  programDatesOverlap: 'ADMIN_PROGRAM_DATES_OVERLAP',
   programCurrencyUnsupported: 'ADMIN_PROGRAM_CURRENCY_UNSUPPORTED',
   programTimezoneUnsupported: 'ADMIN_PROGRAM_TIMEZONE_UNSUPPORTED',
 } as const;

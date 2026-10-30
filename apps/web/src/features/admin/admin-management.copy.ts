@@ -1,4 +1,6 @@
 export const adminManagementCopy = {
+  programCreateRejected: 'ไม่สามารถสร้างโครงการได้',
+  programCreateFailed: 'ไม่สามารถสร้างโครงการเงินอุดหนุนได้ กรุณาลองใหม่',
   programSearch: 'ค้นหาชื่อโครงการ',
   programSearchEmpty: 'ไม่พบโครงการที่ตรงกับการค้นหา',
   directorySearch: 'ค้นหารายชื่อ',

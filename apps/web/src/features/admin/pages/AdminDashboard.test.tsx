@@ -13,6 +13,9 @@ import { th } from '../../../i18n/th';
 import { merchantActionsCopy as merchantCopy } from '../merchant-actions.copy';
 import { ApiError } from '../../../lib/api-client';
 
+const { showToastMock } = vi.hoisted(() => ({ showToastMock: vi.fn() }));
+vi.mock('../../../components/toast/ToastProvider', () => ({ useToast: () => ({ showToast: showToastMock }) }));
+
 vi.mock('../api/admin.api', () => ({
   getPlatformOverview: vi.fn(),
   getAdminMerchants: vi.fn(),
@@ -473,6 +476,25 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     ).toBeInTheDocument();
   });
 
+  it('notifies when a new program overlaps and retains its form', async () => {
+    const overlap = 'ช่วงเวลาของโครงการซ้ำกับโครงการที่มีอยู่';
+    vi.mocked(adminApi.createSubsidyProgram).mockRejectedValueOnce(new Error(overlap));
+    vi.mocked(adminApi.getSubsidyPrograms).mockResolvedValue([]);
+    render(<AdminDashboard onLogout={vi.fn()} />);
+    await screen.findByText('10 บัญชี');
+    fireEvent.click(screen.getByRole('button', {name:th.adminPortal.nav.programs}));
+    const name = await screen.findByLabelText(th.adminPortal.programs.programNameLabel);
+    fireEvent.change(name, {target:{value:'Test program'}});
+    fireEvent.change(screen.getByLabelText(th.adminPortal.programs.startDateLabel), {target:{value:'2026-11-01'}});
+    fireEvent.change(screen.getByLabelText(th.adminPortal.programs.endDateLabel), {target:{value:'2026-11-30'}});
+    const form = name.closest('form');
+    if (!form) throw new Error('Program form missing');
+    fireEvent.submit(form);
+    await waitFor(()=>expect(showToastMock).toHaveBeenCalledWith(expect.objectContaining({type:'warning',description:overlap})));
+    expect(name).toHaveValue('Test program');
+    expect(screen.queryByText(overlap)).not.toBeInTheDocument();
+  });
+
   it('opens the API-backed program editor (FR-A04)', async () => {
     vi.mocked(adminApi.getSubsidyPrograms).mockResolvedValue([
       {
@@ -648,8 +670,8 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     );
     await screen.findByText(base.merchantName);
     expect(
-      screen.queryByRole('button', { name: merchantCopy.approveAll }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: merchantCopy.approveAll }),
+    ).toBeEnabled();
     fireEvent.click(
       screen.getByRole('button', {
         name: th.adminPortal.merchants.filterPending,

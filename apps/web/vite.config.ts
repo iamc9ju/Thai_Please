@@ -33,6 +33,14 @@ const developmentHttps = loadDevelopmentHttps();
 export default defineConfig({
   clearScreen: false,
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@thai-please/contracts': resolve(
+        WEB_DIRECTORY,
+        '../../packages/contracts/src/index.ts',
+      ),
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

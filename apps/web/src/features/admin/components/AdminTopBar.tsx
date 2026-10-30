@@ -1,4 +1,4 @@
-import { LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Bell, LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { AdminTab } from './AdminSidebar';
 
@@ -25,6 +25,7 @@ export function AdminTopBar({
     overview: copy.nav.overview,
     merchants: copy.nav.merchants,
     programs: copy.nav.programs,
+    coupons: copy.nav.coupons,
     quests: copy.nav.quests,
     rewards: copy.nav.rewards,
     socialImpact: copy.nav.socialImpact,

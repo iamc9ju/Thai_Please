@@ -381,7 +381,16 @@ export class RewardsService implements OnModuleInit, OnModuleDestroy {
         lockedUser.point_balance -= expiredCount;
       }
 
-      // 2. Fetch and validate coupon
+      // 2. Lock the catalogue row too. Admin catalogue changes use the same lock,
+      // so a redemption cannot observe a changing reward policy.
+      const lockedCoupons = await tx.$queryRaw<Array<{ coupon_id: bigint }>>`
+        SELECT "coupon_id" FROM "coupons" WHERE "coupon_id" = ${couponId} FOR UPDATE
+      `;
+      if (!lockedCoupons[0]) {
+        throw new NotFoundException('ไม่พบคูปองที่ต้องการแลก');
+      }
+
+      // 3. Fetch and validate coupon
       const coupon = await tx.coupon.findUnique({
         where: { couponId },
         include: {

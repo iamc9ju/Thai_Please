@@ -4,6 +4,40 @@ export type MerchantStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
 export type AdminRoleStatus = 'ACTIVE' | 'SUSPENDED';
 export type ProgramStatus = 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'ARCHIVED';
 
+export type CouponDiscountType = 'FIXED' | 'PERCENTAGE';
+export type CouponStatus = 'ACTIVE' | 'INACTIVE';
+export interface AdminCouponItem {
+  couponId: string;
+  couponName: string;
+  description: string | null;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  pointCost: number;
+  minPurchase: number;
+  validityDays: number;
+  status: CouponStatus;
+  createdAt: string;
+  merchantId: string | null;
+  merchantName: string | null;
+  issuedCount: number;
+}
+export interface AdminCouponPage {
+  items: AdminCouponItem[];
+  limit: number;
+  nextCursor: string | null;
+}
+export interface AdminCouponInput {
+  idempotencyKey?: string;
+  couponName: string;
+  description?: string;
+  discountType: CouponDiscountType;
+  discountValue: string;
+  pointCost: number;
+  minPurchase?: string;
+  validityDays: number;
+  status?: CouponStatus;
+}
+
 export interface PlatformOverviewResponse {
   users: {
     total: number;
