@@ -10,6 +10,7 @@ import {
 import { LoadingState } from '../../../components/LoadingState';
 import { th } from '../../../i18n/th';
 import type { CartItem, Category, Product } from '../merchant.types';
+import { resolveProductImage } from '../utils/product-image';
 
 type ProductStatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 
@@ -523,22 +524,28 @@ export function MerchantSalesView({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filteredProducts.map((product) => {
               const inCart = cart.find(
                 (i) => i.product.productId === product.productId,
               );
               const isInactive = product.status === 'INACTIVE';
               const isToggling = togglingProductId === product.productId;
+              const imageUrl = resolveProductImage(
+                product.productName,
+                product.categoryName,
+              );
 
               return (
                 <div
                   key={product.productId}
                   data-testid="product-card"
-                  className={`group relative flex flex-col justify-between rounded-2xl border p-4 text-left shadow-sm transition-all ${
+                  className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border text-left shadow-xs transition-all duration-200 ${
                     isInactive
                       ? 'border-slate-200 bg-slate-100/80 opacity-85'
-                      : 'border-slate-200/80 bg-white hover:border-[#0056b3] hover:shadow-md'
+                      : inCart
+                        ? 'border-[#0056b3] ring-1 ring-[#0056b3]/20 bg-white shadow-sm'
+                        : 'border-slate-200/80 bg-white hover:border-[#0056b3]/70 hover:shadow-md'
                   }`}
                 >
                   {/* Clickable area to add to POS cart */}
@@ -549,64 +556,103 @@ export function MerchantSalesView({
                     className={`flex flex-1 flex-col text-left ${
                       isInactive
                         ? 'cursor-not-allowed'
-                        : 'cursor-pointer active:scale-98'
+                        : 'cursor-pointer active:scale-[0.99]'
                     }`}
                   >
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-50 text-xl">
-                        🍽️
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {product.isRecommended && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
-                            <Star className="size-3 fill-amber-400 text-amber-500" />
-                            แนะนำ
+                    {/* Menu Photo Header with Floating Badges */}
+                    <div className="relative h-36 sm:h-40 w-full overflow-hidden bg-slate-100">
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        aria-hidden="true"
+                        loading="lazy"
+                        className={`h-full w-full object-cover object-center transition-transform duration-300 ${
+                          isInactive
+                            ? 'grayscale opacity-75'
+                            : 'group-hover:scale-105'
+                        }`}
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-slate-950/15" />
+
+                      {/* Top Badges Row */}
+                      <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {product.isRecommended && (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-amber-300/90 bg-amber-400/95 px-2 py-0.5 text-[10px] font-extrabold text-slate-950 shadow-xs">
+                              <Star className="size-3 fill-slate-950 text-slate-950" />
+                              แนะนำ
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-[10px] font-bold shadow-xs backdrop-blur-xs ${
+                              isInactive
+                                ? 'bg-slate-800/85 text-white'
+                                : 'bg-emerald-50/95 text-emerald-800 border border-emerald-200'
+                            }`}
+                          >
+                            {isInactive
+                              ? posCopy.statusInactiveBadge
+                              : posCopy.statusActiveBadge}
                           </span>
-                        )}
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            isInactive
-                              ? 'bg-slate-200 text-slate-700'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {isInactive
-                            ? posCopy.statusInactiveBadge
-                            : posCopy.statusActiveBadge}
+                          {inCart && (
+                            <span className="flex size-6 items-center justify-center rounded-md bg-[#0056b3] text-xs font-extrabold text-white shadow-sm ring-2 ring-white">
+                              {inCart.quantity}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Category Pill on Image */}
+                      <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2">
+                        <span className="inline-flex max-w-full truncate rounded-md bg-slate-900/70 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-xs">
+                          {product.categoryName}
                         </span>
-                        {inCart && (
-                          <span className="flex size-6 items-center justify-center rounded-full bg-[#0056b3] text-xs font-extrabold text-white shadow-sm">
-                            {inCart.quantity}
+                      </div>
+                    </div>
+
+                    {/* Menu Details & Price Body */}
+                    <div className="flex flex-1 flex-col justify-between p-3.5 sm:p-4">
+                      <div>
+                        <p className="text-sm sm:text-base font-extrabold text-slate-900 line-clamp-1 group-hover:text-[#0056b3] transition-colors">
+                          {product.productName}
+                        </p>
+                        {product.description ? (
+                          <p className="mt-1 text-xs text-slate-500 line-clamp-1">
+                            {product.description}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-400 line-clamp-1">
+                            แตะที่การ์ดเพื่อเพิ่มลงตะกร้าขาย
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2 pt-1">
+                        <p className="font-mono text-base sm:text-lg font-extrabold text-[#0056b3]">
+                          {formatCurrency(product.price)}
+                        </p>
+                        {!isInactive && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-[#0056b3] group-hover:bg-[#0056b3] group-hover:text-white transition-colors">
+                            <Plus className="size-3" aria-hidden="true" />
+                            <span>เลือก</span>
                           </span>
                         )}
                       </div>
                     </div>
-
-                    <p className="text-sm font-bold text-slate-900 line-clamp-2">
-                      {product.productName}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {product.categoryName}
-                    </p>
-                    {product.description && (
-                      <p className="mt-1 text-[11px] text-slate-400 line-clamp-1">
-                        {product.description}
-                      </p>
-                    )}
-                    <p className="mt-auto pt-3 font-mono text-base font-extrabold text-[#0056b3]">
-                      {formatCurrency(product.price)}
-                    </p>
                   </button>
 
-                  {/* Product Management Actions (FR-M02: Edit & Activate/Deactivate) */}
-                  <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                  {/* Product Management Actions (FR-M02: Edit & Activate/Deactivate - Equal Height & Single Line) */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/50 px-3.5 py-2.5">
                     <button
                       type="button"
                       onClick={() => handleOpenEditProduct(product)}
                       aria-label={`แก้ไข ${product.productName}`}
-                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:border-[#0056b3] hover:bg-blue-50 hover:text-[#0056b3] transition-colors cursor-pointer"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-[#0056b3] hover:bg-blue-50 hover:text-[#0056b3] transition-colors cursor-pointer"
                     >
-                      <Edit3 className="size-3" />
+                      <Edit3 className="size-3.5 shrink-0" />
                       <span>{posCopy.editProductButton}</span>
                     </button>
                     <button
@@ -624,13 +670,13 @@ export function MerchantSalesView({
                           ? `เปิดขาย ${product.productName}`
                           : `ปิดการขาย ${product.productName}`
                       }
-                      className={`inline-flex flex-1 items-center justify-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                      className={`inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
                         isInactive
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                           : 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
                       }`}
                     >
-                      <Power className="size-3" />
+                      <Power className="size-3.5 shrink-0" />
                       <span>
                         {isToggling
                           ? '...'
@@ -649,7 +695,7 @@ export function MerchantSalesView({
 
       {/* Cart Panel */}
       <div className="w-full lg:w-80 shrink-0">
-        <div className="sticky top-20 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="sticky top-20 rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
               <ShoppingCart className="size-4 text-[#0056b3]" />
@@ -667,7 +713,7 @@ export function MerchantSalesView({
           </div>
 
           {cart.length === 0 ? (
-            <div className="flex h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
+            <div className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
               <ShoppingCart className="size-6" />
               <p className="text-xs font-medium">เลือกสินค้าจากด้านซ้าย</p>
             </div>
@@ -676,8 +722,17 @@ export function MerchantSalesView({
               {cart.map((item) => (
                 <div
                   key={item.product.productId}
-                  className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2.5"
+                  className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 p-2"
                 >
+                  <img
+                    src={resolveProductImage(
+                      item.product.productName,
+                      item.product.categoryName,
+                    )}
+                    alt=""
+                    aria-hidden="true"
+                    className="size-10 shrink-0 rounded-md object-cover bg-slate-200"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-bold text-slate-900">
                       {item.product.productName}
@@ -690,7 +745,7 @@ export function MerchantSalesView({
                     <button
                       type="button"
                       onClick={() => updateQty(item.product.productId, -1)}
-                      className="flex size-6 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="flex size-6 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       −
                     </button>
@@ -700,7 +755,7 @@ export function MerchantSalesView({
                     <button
                       type="button"
                       onClick={() => updateQty(item.product.productId, 1)}
-                      className="flex size-6 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="flex size-6 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       +
                     </button>
@@ -724,7 +779,7 @@ export function MerchantSalesView({
               type="button"
               onClick={() => void handleCreateOrder()}
               disabled={cart.length === 0 || isCreatingOrder}
-              className="w-full rounded-2xl bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] py-3.5 text-sm font-bold text-white shadow-md shadow-blue-900/15 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer"
+              className="w-full rounded-lg bg-[#0056b3] hover:bg-[#004494] py-3.5 text-sm font-bold text-white shadow-xs disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-98 cursor-pointer"
             >
               {isCreatingOrder ? (
                 <span className="flex items-center justify-center gap-2">
