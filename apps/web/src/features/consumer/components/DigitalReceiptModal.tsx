@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, Printer, Store, User, X } from 'lucide-react';
+import { CheckCircle2, Lock, Printer, X } from 'lucide-react';
 import type { ReceiptDetail } from '../consumer.types';
 import { th } from '../../../i18n/th';
 
@@ -43,125 +43,113 @@ export function DigitalReceiptModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="receipt-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in overflow-y-auto"
     >
-      <div className="relative w-full max-w-lg my-8 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        {/* Receipt Header Banner */}
-        <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white px-6 py-5 relative">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={copy.closeReceipt}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-          >
-            <X className="size-5" />
-          </button>
+      <div className="relative w-full max-w-md my-6 bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden flex flex-col text-slate-900">
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={copy.closeReceipt}
+          className="absolute top-3.5 right-3.5 z-10 p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer print:hidden"
+        >
+          <X className="size-4.5" />
+        </button>
 
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-white p-1.5 shadow-md flex items-center justify-center">
-              <img
-                src="/images/brand-logo.png"
-                alt="Logo"
-                className="size-full object-contain"
-              />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-blue-200 tracking-wide uppercase">
-                {th.brand}
-              </p>
-              <h3
-                id="receipt-modal-title"
-                className="text-base sm:text-lg font-bold text-white leading-tight"
-              >
-                {copy.receiptElectronic}
-              </h3>
-            </div>
-          </div>
-        </div>
-
-        {/* Receipt Body */}
+        {/* Printable Paper Receipt Area */}
         <div
           id="printable-receipt"
-          className="p-6 space-y-5 bg-white text-slate-800"
+          className="px-6 pt-7 pb-6 space-y-4 bg-white text-slate-900"
         >
-          {/* Status and Order Meta */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
-            <div>
-              <span className="text-xs font-semibold text-slate-400">
-                {copy.orderReference}
-              </span>
-              <p className="font-mono text-base font-bold text-slate-900">
-                {receipt.receiptNumber}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle2 className="size-3.5" />
-                <span>{copy.paid}</span>
-              </span>
-              <p className="text-xs text-slate-500 mt-1">
-                {formatThaiDateTime(receipt.paidAt ?? receipt.createdAt)}
-              </p>
-            </div>
+          {/* Centered Brand Logo & Receipt Title */}
+          <div className="text-center border-b border-dashed border-slate-300 pb-4">
+            <img
+              src="/images/brand-logo.png"
+              alt={th.brand}
+              className="h-11 sm:h-12 w-auto object-contain mx-auto mb-2"
+            />
+            <span className="sr-only">{th.brand}</span>
+            <h3
+              id="receipt-modal-title"
+              className="text-sm font-bold text-slate-900 tracking-tight"
+            >
+              {copy.receiptElectronic}
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+              {formatThaiDateTime(receipt.paidAt ?? receipt.createdAt)}
+            </p>
           </div>
 
-          {/* Merchant & Customer Info Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-slate-50 p-4 border border-slate-100 text-xs">
-            {/* Merchant */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-                <Store className="size-3.5 text-blue-600" />
-                <span>ร้านค้า</span>
-              </div>
-              <p className="font-bold text-slate-900 text-sm">
+          {/* Order Reference & Status Row */}
+          <div className="flex items-center justify-between text-xs border-b border-dashed border-slate-300 pb-3.5">
+            <div>
+              <span className="text-[11px] text-slate-500 block">
+                {copy.orderReference}
+              </span>
+              <span className="text-sm font-bold text-slate-900 tabular-nums">
+                {receipt.receiptNumber}
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-bold text-slate-800 border border-slate-300 bg-slate-50">
+              <CheckCircle2 className="size-3 text-slate-700" />
+              <span>{copy.paid}</span>
+            </span>
+          </div>
+
+          {/* Merchant & Customer Details (Clean Paper Text Layout) */}
+          <div className="grid grid-cols-2 gap-4 text-xs border-b border-dashed border-slate-300 pb-4">
+            <div className="space-y-0.5">
+              <span className="text-[11px] text-slate-500 block">ร้านค้า</span>
+              <p className="font-bold text-slate-900 leading-snug">
                 {receipt.merchant.merchantName}
               </p>
-              <p className="text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-500 leading-relaxed">
                 {receipt.merchant.address}
               </p>
               {receipt.merchant.phone && (
-                <p className="text-slate-500">โทร: {receipt.merchant.phone}</p>
+                <p className="text-[11px] text-slate-500 tabular-nums">
+                  โทร: {receipt.merchant.phone}
+                </p>
               )}
             </div>
 
-            {/* Consumer */}
-            <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
-              <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-                <User className="size-3.5 text-blue-600" />
-                <span>{copy.customerName}</span>
-              </div>
-              <p className="font-bold text-slate-900 text-sm">
+            <div className="space-y-0.5 border-l border-slate-200 pl-4">
+              <span className="text-[11px] text-slate-500 block">
+                {copy.customerName}
+              </span>
+              <p className="font-bold text-slate-900 leading-snug">
                 {receipt.consumer.fullName}
               </p>
-              <p className="text-slate-500 font-mono">
+              <p className="text-[11px] text-slate-500 tabular-nums">
                 {receipt.consumer.maskedCitizenId}
               </p>
-              <p className="text-[11px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
+              <p className="text-[11px] text-slate-600 font-medium pt-0.5">
                 {copy.paymentMethodWallet}
               </p>
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* Line Items Table */}
           <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              {copy.itemsBreakdown}
-            </h4>
-            <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider pb-2 border-b border-slate-200">
+              <span>{copy.itemsBreakdown}</span>
+              <span>จำนวนเงิน</span>
+            </div>
+            <div className="divide-y divide-slate-100">
               {receipt.items.map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 text-xs hover:bg-slate-50 transition-colors"
+                  className="flex items-start justify-between py-2.5 text-xs"
                 >
-                  <div className="flex-1 min-w-0 pr-4">
-                    <p className="font-semibold text-slate-900 truncate">
+                  <div className="flex-1 min-w-0 pr-3">
+                    <p className="font-semibold text-slate-900 leading-snug">
                       {item.productName}
                     </p>
-                    <p className="text-slate-400">
+                    <p className="text-[11px] text-slate-500 tabular-nums mt-0.5">
                       {formatCurrency(item.unitPrice)} × {item.quantity}
                     </p>
                   </div>
-                  <span className="font-bold text-slate-800 shrink-0 font-mono">
+                  <span className="font-semibold text-slate-900 shrink-0 tabular-nums">
                     {formatCurrency(item.lineTotal)}
                   </span>
                 </div>
@@ -169,80 +157,80 @@ export function DigitalReceiptModal({
             </div>
           </div>
 
-          {/* Scalloped / Dashed separator */}
-          <div className="relative border-t-2 border-dashed border-slate-200 my-4" />
+          {/* Dashed Separator */}
+          <div className="border-t border-dashed border-slate-300" />
 
-          {/* Financial Breakdown */}
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between text-slate-500">
+          {/* Totals & Payment Split */}
+          <div className="space-y-1.5 text-xs">
+            <div className="flex justify-between text-slate-600">
               <span>{th.consumerPortal.payment.subtotal}</span>
-              <span className="font-mono">
+              <span className="tabular-nums text-slate-900">
                 {formatCurrency(receipt.subtotal)}
               </span>
             </div>
 
             {receipt.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600 font-medium">
+              <div className="flex justify-between text-slate-600">
                 <span>
                   {th.consumerPortal.payment.coupon}{' '}
                   {receipt.appliedCoupon && (
-                    <span className="text-[11px] text-emerald-500">
+                    <span className="text-[11px] text-slate-500">
                       ({receipt.appliedCoupon.couponName})
                     </span>
                   )}
                 </span>
-                <span className="font-mono">
+                <span className="tabular-nums text-slate-900">
                   -{formatCurrency(receipt.discountAmount)}
                 </span>
               </div>
             )}
 
-            <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-100">
+            <div className="flex justify-between items-baseline text-sm font-extrabold text-slate-900 pt-2 pb-2 border-y border-slate-200 my-1">
               <span>{th.consumerPortal.payment.finalAmount}</span>
-              <span className="font-mono text-base text-blue-700">
+              <span className="text-base font-extrabold text-slate-900 tabular-nums">
                 {formatCurrency(receipt.finalAmount)}
               </span>
             </div>
 
-            {/* Subsidy vs Personal Share */}
-            <div className="mt-3 p-3 rounded-xl bg-blue-50/70 border border-blue-100 space-y-1.5 text-xs">
-              <div className="flex justify-between text-blue-900 font-semibold">
+            {/* Co-pay Breakdown */}
+            <div className="pt-1 space-y-1 text-xs text-slate-600">
+              <div className="flex justify-between">
                 <span>{copy.subsidyLabel}</span>
-                <span className="font-mono text-emerald-700">
+                <span className="font-semibold text-slate-800 tabular-nums">
                   {formatCurrency(receipt.subsidyAmount)}
                 </span>
               </div>
-              <div className="flex justify-between text-blue-800">
+              <div className="flex justify-between">
                 <span>{copy.personalLabel}</span>
-                <span className="font-mono">
+                <span className="font-semibold text-slate-800 tabular-nums">
                   {formatCurrency(receipt.userPaidAmount)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Immutable Audit Trail Footer */}
-          <div className="rounded-xl bg-slate-50 p-3 flex items-center gap-2 text-[11px] text-slate-500">
-            <Lock className="size-4 shrink-0 text-slate-400" />
+          {/* Immutable Audit Footer */}
+          <div className="pt-3 border-t border-dashed border-slate-300 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 text-center">
+            <Lock className="size-3.5 shrink-0 text-slate-400" />
             <span>{copy.immutableNote}</span>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-2.5 p-4 bg-slate-50 border-t border-slate-100">
+        <div className="grid grid-cols-2 gap-2.5 px-6 py-3.5 bg-slate-50 border-t border-slate-200 print:hidden">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="h-10 px-4 rounded-md border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap"
           >
             {copy.closeReceipt}
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-700 text-xs font-bold text-white hover:bg-blue-800 shadow-md shadow-blue-700/20 active:scale-98 transition-all cursor-pointer"
+            className="h-10 px-4 rounded-md bg-slate-900 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
-            <Printer className="size-4" />
+            <Printer className="size-3.5 shrink-0" />
             <span>{copy.printReceipt}</span>
           </button>
         </div>

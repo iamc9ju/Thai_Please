@@ -10,6 +10,7 @@ import {
   ReceiptText,
   RotateCcw,
   ShieldCheck,
+  Store,
   Tag,
   Wallet,
 } from 'lucide-react';
@@ -41,6 +42,18 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function formatPaidAt(isoString: string): string {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 }
 
 const DEMO_PREVIEW_FALLBACK: OrderPreviewResponse = {
@@ -428,7 +441,7 @@ export function PaymentView({
   const isExpired = secondsRemaining === 0 && preview !== null;
 
   return (
-    <section className="consumer-view max-w-[1200px] mx-auto py-2">
+    <section className="consumer-view w-full py-1">
       <input
         ref={fileInputRef}
         type="file"
@@ -476,11 +489,11 @@ export function PaymentView({
           </header>
 
           {isCameraActive && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[74vw] max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
-              <span className="absolute -left-0.5 -top-0.5 size-12 rounded-tl-3xl border-l-4 border-t-4 border-white" />
-              <span className="absolute -right-0.5 -top-0.5 size-12 rounded-tr-3xl border-r-4 border-t-4 border-white" />
-              <span className="absolute -bottom-0.5 -left-0.5 size-12 rounded-bl-3xl border-b-4 border-l-4 border-white" />
-              <span className="absolute -bottom-0.5 -right-0.5 size-12 rounded-br-3xl border-b-4 border-r-4 border-white" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[74vw] max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
+              <span className="absolute -left-0.5 -top-0.5 size-12 rounded-tl-2xl border-l-4 border-t-4 border-white" />
+              <span className="absolute -right-0.5 -top-0.5 size-12 rounded-tr-2xl border-r-4 border-t-4 border-white" />
+              <span className="absolute -bottom-0.5 -left-0.5 size-12 rounded-bl-2xl border-b-4 border-l-4 border-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 size-12 rounded-br-2xl border-b-4 border-r-4 border-white" />
               <span
                 data-testid="qr-scan-line"
                 className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.8)]"
@@ -527,28 +540,28 @@ export function PaymentView({
 
       {/* ── STEP 1: SCAN QR (FR-C04) ── */}
       {step === 'scan' && !isScannerOpen && (
-        <article className="relative mx-auto w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 text-center shadow-xs sm:p-10">
+        <article className="relative w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white p-6 text-center shadow-xs sm:p-10">
           <div className="flex justify-center mb-5">
-            <div className="size-24 rounded-3xl bg-blue-50/60 p-4 flex items-center justify-center border border-blue-100 shadow-inner">
+            <div className="size-20 rounded-xl bg-blue-50/70 p-3.5 flex items-center justify-center border border-blue-100">
               <img
                 src="/images/scan-qr-icon.png"
                 alt=""
-                className="size-18 object-contain drop-shadow-md hover:scale-105 transition-transform"
+                className="size-14 object-contain drop-shadow-xs"
               />
             </div>
           </div>
 
-          <h2 className="text-xl font-bold text-slate-900 mb-1.5">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-1.5">
             {copy.scanTitle}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-6">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto mb-6">
             {copy.scanDescription}
           </p>
 
           {errorMessage && (
             <div
               role="alert"
-              className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium flex items-center gap-2.5 text-left"
+              className="mx-auto max-w-lg mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium flex items-center gap-2.5 text-left"
             >
               <AlertCircle className="size-4 shrink-0 text-red-600" />
               <span className="flex-1">{errorMessage}</span>
@@ -563,14 +576,14 @@ export function PaymentView({
           )}
 
           {/* Camera & QR Image Upload Action Buttons (FR-C04) */}
-          <div className="mx-auto mb-5 grid max-w-xl grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="mx-auto mb-5 grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => void handleStartCamera()}
               disabled={isLoading || isDecodingImage || isStartingCamera}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0056b3] px-4 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-[#004494] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
             >
-              <Camera className="size-4" />
+              <Camera className="size-4 shrink-0" />
               <span>
                 {isStartingCamera ? copy.startingCamera : copy.cameraAction}
               </span>
@@ -580,9 +593,9 @@ export function PaymentView({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || isDecodingImage}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-[#0056b3] hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
             >
-              <ImageUp className="size-4" />
+              <ImageUp className="size-4 shrink-0 text-[#0056b3]" />
               <span>
                 {isDecodingImage ? copy.scanning : copy.uploadQrImageAction}
               </span>
@@ -594,7 +607,7 @@ export function PaymentView({
             <button
               type="button"
               onClick={handleDemoAction}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
             >
               <span>{copy.demoAction}</span>
             </button>
@@ -604,31 +617,31 @@ export function PaymentView({
 
       {/* ── STEP 2: REVIEW ORDER BEFORE PAYMENT ── */}
       {step === 'review' && preview && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left: Merchant & Items details */}
-          <article className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs flex flex-col justify-between">
+          <article className="lg:col-span-7 bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
             <div>
               {/* Header: Merchant + Expiry */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-5 border-b border-slate-100 mb-5">
-                <div className="flex items-center gap-3.5">
-                  <div className="size-11 rounded-2xl bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
-                    <ReceiptText className="size-5" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+                    <Store className="size-5" />
                   </div>
                   <div>
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                       {copy.reviewTitle}
                     </span>
-                    <h2 className="text-lg font-bold text-slate-900">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">
                       {preview.merchantName}
                     </h2>
-                    <p className="text-xs font-mono text-slate-400 mt-0.5">
+                    <p className="text-xs font-medium text-slate-400 mt-0.5 tabular-nums">
                       Order #{preview.orderId}
                     </p>
                   </div>
                 </div>
 
                 <div
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shrink-0 ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tabular-nums shrink-0 ${
                     isExpired
                       ? 'bg-red-50 text-red-600 border border-red-200'
                       : secondsRemaining < 60
@@ -646,11 +659,11 @@ export function PaymentView({
               </div>
 
               {/* Items List */}
-              <div className="space-y-3 mb-6">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <div className="space-y-2.5 mb-5">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {copy.itemsTitle}
                 </h3>
-                <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+                <div className="divide-y divide-slate-100 border border-slate-200/70 rounded-lg overflow-hidden">
                   {preview.items.map((item) => (
                     <div
                       key={item.productName}
@@ -660,11 +673,11 @@ export function PaymentView({
                         <strong className="font-bold text-slate-800 block">
                           {item.productName}
                         </strong>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-500 tabular-nums">
                           {item.quantity} × ฿{formatCurrency(item.unitPrice)}
                         </span>
                       </div>
-                      <strong className="font-extrabold text-slate-900 font-mono">
+                      <strong className="font-bold text-slate-900 tabular-nums">
                         ฿{formatCurrency(item.lineTotal)}
                       </strong>
                     </div>
@@ -680,7 +693,7 @@ export function PaymentView({
                 setStep('scan');
                 setErrorMessage(null);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer pt-3"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer pt-2"
             >
               <RotateCcw className="size-3.5" />
               <span>{copy.backToScan}</span>
@@ -688,7 +701,7 @@ export function PaymentView({
           </article>
 
           {/* Right: Payment Calculation & Confirmation */}
-          <article className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs flex flex-col justify-between">
+          <article className="lg:col-span-5 bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">
                 {copy.reviewTitle}
@@ -697,7 +710,7 @@ export function PaymentView({
               {errorMessage && (
                 <div
                   role="alert"
-                  className="mb-4 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2"
+                  className="mb-4 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2"
                 >
                   <AlertCircle className="size-4 shrink-0" />
                   <span>{errorMessage}</span>
@@ -706,7 +719,7 @@ export function PaymentView({
 
               {/* Coupon Selector */}
               {availableCoupons.length > 0 && (
-                <div className="mb-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80">
+                <div className="mb-4 p-3.5 rounded-lg bg-amber-50/70 border border-amber-200/80">
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-900 mb-1.5">
                     <Tag className="size-3.5 text-amber-600" />
                     <span>{copy.coupon}</span>
@@ -716,7 +729,7 @@ export function PaymentView({
                     onChange={(e) => void handleCouponChange(e.target.value)}
                     disabled={isPaying}
                     aria-label={copy.coupon}
-                    className="w-full text-xs font-medium bg-white border border-amber-300 rounded-xl p-2 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="w-full text-xs font-medium bg-white border border-amber-300 rounded-lg p-2.5 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20"
                   >
                     <option value="">{copy.noCoupon}</option>
                     {availableCoupons.map((c) => (
@@ -732,7 +745,7 @@ export function PaymentView({
               <dl className="space-y-2.5 text-sm mb-5">
                 <div className="flex justify-between text-slate-600">
                   <dt>{copy.subtotal}</dt>
-                  <dd className="font-mono">
+                  <dd className="font-semibold text-slate-800 tabular-nums">
                     ฿{formatCurrency(preview.subtotal)}
                   </dd>
                 </div>
@@ -747,7 +760,7 @@ export function PaymentView({
                         </small>
                       )}
                     </dt>
-                    <dd className="font-mono">
+                    <dd className="font-semibold tabular-nums">
                       -฿{formatCurrency(preview.discountAmount)}
                     </dd>
                   </div>
@@ -755,18 +768,18 @@ export function PaymentView({
 
                 <div className="flex justify-between items-baseline pt-3 border-t border-slate-100 text-slate-900">
                   <dt className="text-base font-bold">{copy.finalAmount}</dt>
-                  <dd className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                  <dd className="text-2xl font-extrabold text-[#0a2540] tracking-tight tabular-nums">
                     ฿{formatCurrency(preview.finalAmount)}
                   </dd>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 mt-3">
+                <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70 space-y-2 mt-3">
                   <div className="flex justify-between text-xs text-slate-600">
                     <dt className="flex items-center gap-1.5">
                       <span className="size-2 rounded-full bg-emerald-500" />
                       <span>{copy.subsidyExpected}</span>
                     </dt>
-                    <dd className="font-mono font-bold text-slate-900">
+                    <dd className="font-bold text-emerald-600 tabular-nums">
                       ฿{formatCurrency(preview.subsidyAmount)}
                     </dd>
                   </div>
@@ -776,13 +789,13 @@ export function PaymentView({
                       <span className="size-2 rounded-full bg-[#0056b3]" />
                       <span>{copy.personalExpected}</span>
                     </dt>
-                    <dd className="font-mono font-bold text-[#0056b3]">
+                    <dd className="font-bold text-[#0056b3] tabular-nums">
                       ฿{formatCurrency(preview.userPaidAmount)}
                     </dd>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-slate-500 text-right pt-1 font-mono">
+                <div className="text-[11px] text-slate-500 text-right pt-1 tabular-nums">
                   {copy.walletAfterAmount(
                     formatCurrency(
                       Math.max(
@@ -796,7 +809,7 @@ export function PaymentView({
 
               {/* Insufficient Balance Alert */}
               {!preview.canAfford && (
-                <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                <div className="mb-4 p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
                   <div className="font-bold flex items-center gap-1.5 mb-1">
                     <AlertCircle className="size-4 text-amber-600" />
                     <span>{copy.insufficientBalanceTitle}</span>
@@ -811,7 +824,7 @@ export function PaymentView({
                   <button
                     type="button"
                     onClick={() => onNavigate('wallet')}
-                    className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
                     <Wallet className="size-3.5" />
                     <span>{copy.topUpAction}</span>
@@ -827,7 +840,7 @@ export function PaymentView({
                 onClick={() => void handleConfirmPay()}
                 disabled={!preview.canAfford || isPaying || isExpired}
                 aria-label={copy.confirm}
-                className="w-full py-3.5 px-5 rounded-xl bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-md active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer mb-3"
+                className="w-full h-11 px-5 rounded-lg bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-xs active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer mb-3 whitespace-nowrap"
               >
                 {isPaying ? (
                   <>
@@ -854,60 +867,134 @@ export function PaymentView({
 
       {/* ── STEP 3: PAYMENT SUCCESS & RECEIPT SUMMARY ── */}
       {step === 'success' && paymentResult && (
-        <article className="bg-white rounded-3xl border border-slate-200/80 p-8 sm:p-12 shadow-xs max-w-lg mx-auto text-center">
-          <div className="size-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 ring-8 ring-emerald-50">
-            <CheckCircle2 className="size-9" />
+        <article className="mx-auto w-full max-w-md bg-white rounded-lg border border-slate-200 p-6 sm:p-7 shadow-xs text-slate-900">
+          {/* Paper Receipt Header with Centered Thai Please Logo */}
+          <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
+            <img
+              src="/images/brand-logo.png"
+              alt={th.brand}
+              className="h-11 sm:h-12 w-auto object-contain mx-auto mb-2"
+            />
+            <div className="inline-flex items-center gap-1.5 text-slate-900 justify-center">
+              <CheckCircle2 className="size-4 text-slate-700 shrink-0" />
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                {copy.successTitle}
+              </h2>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {copy.successDescriptionWithId(paymentResult.orderId)}
+            </p>
           </div>
 
-          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
-            {copy.orderIdPrefix(paymentResult.orderId)}
-          </span>
-          <h2 className="text-2xl font-extrabold text-slate-900 mb-1">
-            {copy.successTitle}
-          </h2>
-          <div className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight my-3">
-            ฿{formatCurrency(paymentResult.finalAmount)}
+          {/* Order Meta */}
+          <div className="space-y-1.5 text-xs border-b border-dashed border-slate-300 pb-3.5 mb-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">{copy.merchantLabel}</span>
+              <span className="font-bold text-slate-900">
+                {preview?.merchantName ?? copy.merchant}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">เลขอ้างอิง</span>
+              <span className="font-semibold text-slate-900 tabular-nums">
+                {copy.orderIdPrefix(paymentResult.orderId)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">{copy.paidAtLabel}</span>
+              <span className="text-slate-700 tabular-nums">
+                {formatPaidAt(paymentResult.paidAt)}
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mb-6">
-            {copy.successDescriptionWithId(paymentResult.orderId)}
-          </p>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs space-y-2 mb-6 text-left">
-            <div className="flex justify-between text-slate-600">
-              <span>{copy.personalExpected}</span>
-              <strong className="font-mono text-slate-900">
-                ฿{formatCurrency(paymentResult.userPaidAmount)}
-              </strong>
+          {/* Line Items Snapshot (if preview items exist) */}
+          {preview?.items && preview.items.length > 0 && (
+            <div className="border-b border-dashed border-slate-300 pb-3.5 mb-3.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 pb-1.5">
+                <span>{copy.itemsTitle}</span>
+                <span>จำนวนเงิน</span>
+              </div>
+              <div className="space-y-1.5 text-xs">
+                {preview.items.map((item) => (
+                  <div
+                    key={item.productName}
+                    className="flex items-start justify-between gap-2"
+                  >
+                    <span className="text-slate-800">
+                      {item.productName}{' '}
+                      <span className="text-slate-400 tabular-nums">
+                        ×{item.quantity}
+                      </span>
+                    </span>
+                    <span className="font-medium text-slate-900 tabular-nums shrink-0">
+                      ฿{formatCurrency(item.lineTotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Totals & Co-pay Breakdown */}
+          <div className="space-y-1.5 text-xs border-b border-dashed border-slate-300 pb-4 mb-4">
             <div className="flex justify-between text-slate-600">
-              <span>{copy.subsidyExpected}</span>
-              <strong className="font-mono text-slate-900">
-                ฿{formatCurrency(paymentResult.subsidyAmount)}
-              </strong>
+              <span>{copy.subtotal}</span>
+              <span className="tabular-nums text-slate-900">
+                ฿{formatCurrency(paymentResult.subtotal)}
+              </span>
             </div>
+
             {paymentResult.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600">
+              <div className="flex justify-between text-slate-600">
                 <span>{copy.coupon}</span>
-                <strong className="font-mono">
+                <strong className="font-semibold text-slate-900 tabular-nums">
                   -฿{formatCurrency(paymentResult.discountAmount)}
                 </strong>
               </div>
             )}
+
+            <div className="flex justify-between items-baseline text-sm font-extrabold text-slate-900 py-2 border-y border-slate-200 my-1">
+              <span>{copy.finalAmount}</span>
+              <span className="text-xl font-extrabold text-slate-900 tabular-nums">
+                ฿{formatCurrency(paymentResult.finalAmount)}
+              </span>
+            </div>
+
+            <div className="pt-1 space-y-1 text-slate-600">
+              <div className="flex justify-between">
+                <span>{copy.personalExpected}</span>
+                <strong className="font-semibold text-slate-900 tabular-nums">
+                  ฿{formatCurrency(paymentResult.userPaidAmount)}
+                </strong>
+              </div>
+              <div className="flex justify-between">
+                <span>{copy.subsidyExpected}</span>
+                <strong className="font-semibold text-slate-900 tabular-nums">
+                  ฿{formatCurrency(paymentResult.subsidyAmount)}
+                </strong>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <p className="text-[11px] text-slate-400 text-center mb-4">
+            {copy.receiptVerifiedBadge}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
               onClick={() => onNavigate('orders')}
-              className="flex-1 py-3 px-4 rounded-xl bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              className="h-10 px-4 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
             >
-              <ReceiptText className="size-4" />
+              <ReceiptText className="size-3.5 shrink-0" />
               <span>{copy.receiptAction}</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigate('overview')}
-              className="flex-1 py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
+              className="h-10 px-4 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer inline-flex items-center justify-center whitespace-nowrap"
             >
               <span>{copy.homeAction}</span>
             </button>

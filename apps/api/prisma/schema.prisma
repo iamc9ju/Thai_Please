@@ -464,28 +464,3 @@ model AuditEvent {
   @@index([targetType, targetId], map: "idx_audit_events_target")
   @@map("audit_events")
 }
-
-model merchant_categories {
-  merchant_category_id          BigInt                          @id @default(autoincrement())
-  category_code                 String                          @unique @db.VarChar(50)
-  category_name                 String                          @db.VarChar(120)
-  description                   String?
-  sort_order                    Int                             @default(0)
-  status                        String                          @default("ACTIVE") @db.VarChar(20)
-  created_at                    DateTime                        @default(now()) @db.Timestamp(6)
-  updated_at                    DateTime                        @default(now()) @db.Timestamp(6)
-  merchant_category_assignments merchant_category_assignments[]
-
-  @@index([status, sort_order], map: "idx_merchant_categories_status_sort")
-}
-
-model merchant_category_assignments {
-  merchant_id          BigInt
-  merchant_category_id BigInt
-  assigned_at          DateTime            @default(now()) @db.Timestamp(6)
-  merchant_categories  merchant_categories @relation(fields: [merchant_category_id], references: [merchant_category_id], onDelete: Cascade, onUpdate: NoAction, map: "merchant_category_assignments_category_id_fkey")
-  merchants            Merchant            @relation(fields: [merchant_id], references: [merchantId], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([merchant_id, merchant_category_id])
-  @@index([merchant_category_id, merchant_id], map: "idx_merchant_category_assignments_category")
-}
