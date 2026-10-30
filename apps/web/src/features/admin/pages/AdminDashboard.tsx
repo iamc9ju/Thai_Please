@@ -3,6 +3,7 @@ import { AdminDirectoryList } from '../components/AdminDirectoryList';
 import { QuestLogList } from '../components/QuestLogList';
 import { RewardHistoryPages } from '../components/RewardHistoryPages';
 import { MerchantSales } from '../components/MerchantSales';
+import { CouponManager } from '../components/CouponManager';
 import { formatTrendDate } from '../format-trend-date';
 import {
   LoadingState,
@@ -54,6 +55,9 @@ import { SubsidyProgramEditor } from '../components/SubsidyProgramEditor';
 import { adminManagementCopy } from '../admin-management.copy';
 import {
   createSubsidyProgram,
+  createAdminCoupon,
+  deleteAdminCoupon,
+  getAdminCoupons,
   getAdminMerchants,
   getAdminUsersAndRoles,
   getPlatformOverview,
@@ -65,6 +69,7 @@ import {
   updateAdminRoleStatus,
   updateMerchantApprovalStatus,
   updateSubsidyProgramStatus,
+  updateAdminCoupon,
 } from '../api/admin.api';
 import type {
   AdminMerchantItem,
@@ -75,6 +80,9 @@ import type {
   RewardMonitoringResponse,
   SocialImpactDashboardResponse,
   SubsidyProgramItem,
+  AdminCouponInput,
+  AdminCouponItem,
+  AdminCouponPage,
 } from '../admin.types';
 
 const UNSPECIFIED_MERCHANT_TYPE = '__UNSPECIFIED__';
@@ -84,6 +92,7 @@ const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
   overview: 'dashboard',
   merchants: 'table',
   programs: 'cards',
+  coupons: 'cards',
   quests: 'table',
   rewards: 'dashboard',
   socialImpact: 'dashboard',
@@ -234,6 +243,9 @@ export function AdminDashboard({
   const merchantSubmissionLock = useRef(false);
 
   const [programs, setPrograms] = useState<SubsidyProgramItem[]>([]);
+  const [coupons, setCoupons] = useState<AdminCouponItem[]>([]);
+  const [couponPage, setCouponPage] = useState<AdminCouponPage | null>(null);
+  const [isCouponSubmitting, setIsCouponSubmitting] = useState(false);
   const [newProgram, setNewProgram] = useState({
     programName: '',
     initialGrant: '',
@@ -302,6 +314,11 @@ export function AdminDashboard({
           const items = await getSubsidyPrograms();
           if (!isCurrent()) return;
           setPrograms(items);
+        } else if (tab === 'coupons') {
+          const page = await getAdminCoupons();
+          if (!isCurrent()) return;
+          setCoupons(page.items);
+          setCouponPage(page);
         } else if (tab === 'quests') {
           const res = await getQuestGenerationLogs();
           if (!isCurrent()) return;
@@ -338,6 +355,53 @@ export function AdminDashboard({
     },
     [beginRequest, copy.errorTitle, impactDays, merchantFilter],
   );
+
+  const manageCoupon = async (
+    action: 'create' | 'update' | 'delete',
+    input?: AdminCouponInput,
+    couponId?: string,
+  ) => {
+    setIsCouponSubmitting(true);
+    try {
+      if (action === 'create' && input) await createAdminCoupon(input);
+      if (action === 'update' && input && couponId)
+        await updateAdminCoupon(couponId, input);
+      if (action === 'delete' && couponId) await deleteAdminCoupon(couponId);
+      const page = await getAdminCoupons();
+      setCoupons(page.items);
+      setCouponPage(page);
+      setActionBanner({
+        type: 'success',
+        message: th.adminPortal.coupons.saved,
+      });
+    } catch (err) {
+      setActionBanner({
+        type: 'error',
+        message:
+          err instanceof Error ? err.message : th.adminPortal.coupons.failed,
+      });
+      throw err;
+    } finally {
+      setIsCouponSubmitting(false);
+    }
+  };
+
+  const loadNextCouponPage = async () => {
+    if (!couponPage?.nextCursor || isCouponSubmitting) return;
+    setIsCouponSubmitting(true);
+    try {
+      const page = await getAdminCoupons(couponPage.nextCursor);
+      setCoupons((previous) => [...previous, ...page.items]);
+      setCouponPage(page);
+    } catch (err) {
+      setActionBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : copy.errorTitle,
+      });
+    } finally {
+      setIsCouponSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     void loadActiveTabData(activeTab);
@@ -1061,7 +1125,7 @@ export function AdminDashboard({
               ))}
             </div>
 
-            {merchantFilter === 'PENDING' && (
+            {(merchantFilter === 'ALL' || merchantFilter === 'PENDING') && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-panel p-4">
                 <p className="text-sm font-semibold">
                   {merchantActionsCopy.total(
@@ -1279,6 +1343,20 @@ export function AdminDashboard({
               </div>
             )}
           </section>
+        )}
+
+        {!isLoading && !error && activeTab === 'coupons' && (
+          <CouponManager
+            items={coupons}
+            busy={isCouponSubmitting}
+            onCreate={(input) => manageCoupon('create', input)}
+            onUpdate={(couponId, input) =>
+              manageCoupon('update', input, couponId)
+            }
+            onDelete={(couponId) => manageCoupon('delete', undefined, couponId)}
+            hasMore={couponPage?.nextCursor !== null}
+            onLoadMore={() => void loadNextCouponPage()}
+          />
         )}
 
         {/* TAB 3: FR-A04 Subsidy Program Management */}

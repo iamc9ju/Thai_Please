@@ -648,8 +648,8 @@ describe('AdminDashboard (FR-A01 through FR-A07)', () => {
     );
     await screen.findByText(base.merchantName);
     expect(
-      screen.queryByRole('button', { name: merchantCopy.approveAll }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: merchantCopy.approveAll }),
+    ).toBeEnabled();
     fireEvent.click(
       screen.getByRole('button', {
         name: th.adminPortal.merchants.filterPending,

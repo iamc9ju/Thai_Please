@@ -1,3 +1,4 @@
+import { th } from '../../../i18n/th';
 import { apiClient } from '../../../lib/api-client';
 import type { ConsumerQuestProposalsResponse } from '../../consumer/consumer.types';
 import type {
@@ -13,6 +14,9 @@ import type {
   RewardMonitoringResponse,
   SocialImpactDashboardResponse,
   SubsidyProgramItem,
+  AdminCouponInput,
+  AdminCouponItem,
+  AdminCouponPage,
 } from '../admin.types';
 
 const ADMIN_API_BASE = '/api/v1/admin';
@@ -26,7 +30,45 @@ export const ADMIN_API_ROUTES = {
   questGenerationLogs: `${ADMIN_API_BASE}/quest-generation-logs`,
   rewardMonitoring: `${ADMIN_API_BASE}/rewards/monitoring`,
   socialImpact: `${ADMIN_API_BASE}/dashboard/social-impact`,
+  coupons: `${ADMIN_API_BASE}/coupons`,
 } as const;
+
+export function getAdminCoupons(before?: string): Promise<AdminCouponPage> {
+  return apiClient.get<AdminCouponPage>(
+    `${ADMIN_API_ROUTES.coupons}${before ? `?before=${encodeURIComponent(before)}` : ''}`,
+  );
+}
+async function couponMutation<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    if (error instanceof Error) {
+      const entry = Object.entries(th.adminPortal.coupons.errors).find(
+        ([code]) => code === error.message,
+      );
+      if (entry) throw new Error(entry[1]);
+    }
+    throw error;
+  }
+}
+export function createAdminCoupon(
+  input: AdminCouponInput,
+): Promise<AdminCouponItem> {
+  return couponMutation(apiClient.post(ADMIN_API_ROUTES.coupons, input));
+}
+export function updateAdminCoupon(
+  couponId: string,
+  input: AdminCouponInput,
+): Promise<AdminCouponItem> {
+  return couponMutation(
+    apiClient.patch(`${ADMIN_API_ROUTES.coupons}/${couponId}`, input),
+  );
+}
+export function deleteAdminCoupon(couponId: string): Promise<void> {
+  return couponMutation(
+    apiClient.delete(`${ADMIN_API_ROUTES.coupons}/${couponId}`),
+  );
+}
 
 export function updateSubsidyProgram(
   programId: string,

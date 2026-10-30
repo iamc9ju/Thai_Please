@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
@@ -28,6 +29,8 @@ import {
   MerchantStatusActionDto,
   UpdateAdminRoleStatusDto,
   UpdateSubsidyProgramDto,
+  CreateAdminCouponDto,
+  UpdateAdminCouponDto,
 } from './dto/admin.dto.js';
 
 function parseBigIntId(rawId: string, label: string): bigint {
@@ -56,11 +59,65 @@ export class AdminController {
     return req.user.userId;
   }
 
+  private requireTrustedMutationOrigin(
+    req: Request,
+    requiresJson = true,
+  ): void {
+    const origin = req.get('origin');
+    if (
+      !origin ||
+      (requiresJson && !req.is('application/json')) ||
+      !parseCorsOrigins(
+        this.config.getOrThrow<string>('CORS_ORIGINS'),
+      ).includes(origin)
+    ) {
+      throw new ForbiddenException('ADMIN_MUTATION_ORIGIN_REJECTED');
+    }
+  }
+
   /** FR-A01: Platform Overview */
   @Get(ADMIN_ROUTES.overview)
   async getPlatformOverview(@Req() req: Request) {
     this.requireAdminId(req);
     return this.adminService.getPlatformOverview();
+  }
+
+  @Get(ADMIN_ROUTES.coupons)
+  async listCoupons(@Req() req: Request, @Query('before') before?: string) {
+    this.requireAdminId(req);
+    return this.adminService.listCoupons(
+      before ? parseBigIntId(before, 'คูปอง') : undefined,
+    );
+  }
+
+  @Post(ADMIN_ROUTES.coupons)
+  async createCoupon(@Req() req: Request, @Body() dto: CreateAdminCouponDto) {
+    this.requireTrustedMutationOrigin(req);
+    return this.adminService.createCoupon(dto, this.requireAdminId(req));
+  }
+
+  @Patch(ADMIN_ROUTES.coupon)
+  async updateCoupon(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminCouponDto,
+  ) {
+    this.requireTrustedMutationOrigin(req);
+    return this.adminService.updateCoupon(
+      parseBigIntId(id, 'คูปอง'),
+      dto,
+      this.requireAdminId(req),
+    );
+  }
+
+  @Delete(ADMIN_ROUTES.coupon)
+  @HttpCode(HttpStatus.OK)
+  async deleteCoupon(@Req() req: Request, @Param('id') id: string) {
+    this.requireTrustedMutationOrigin(req, false);
+    return this.adminService.deleteCoupon(
+      parseBigIntId(id, 'คูปอง'),
+      this.requireAdminId(req),
+    );
   }
 
   /** FR-A02 & FR-M01: Merchant Approval & Management */

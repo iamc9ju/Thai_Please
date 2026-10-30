@@ -1,10 +1,4 @@
-import {
-  Bell,
-  LogOut,
-  Menu,
-  RefreshCw,
-  ShieldCheck,
-} from 'lucide-react';
+import { Bell, LogOut, Menu, RefreshCw, ShieldCheck } from 'lucide-react';
 import { th } from '../../../i18n/th';
 import type { AdminTab } from './AdminSidebar';
 
@@ -33,6 +27,7 @@ export function AdminTopBar({
     overview: copy.nav.overview,
     merchants: copy.nav.merchants,
     programs: copy.nav.programs,
+    coupons: copy.nav.coupons,
     quests: copy.nav.quests,
     rewards: copy.nav.rewards,
     socialImpact: copy.nav.socialImpact,
@@ -115,10 +110,7 @@ export function AdminTopBar({
 
         {/* Profile Summary Badge (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 pl-2.5 pr-3 py-1 rounded-xl border border-slate-200 bg-white">
-          <ShieldCheck
-            className="size-4.5 text-[#0056b3]"
-            aria-hidden="true"
-          />
+          <ShieldCheck className="size-4.5 text-[#0056b3]" aria-hidden="true" />
           <span className="text-xs font-bold text-slate-800 max-w-[140px] truncate">
             {adminName}
           </span>

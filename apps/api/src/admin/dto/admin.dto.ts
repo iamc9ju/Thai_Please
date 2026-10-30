@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -20,6 +21,8 @@ import {
   PROGRAM_TIMEZONES,
   type AdminRoleStatus,
   type ProgramStatus,
+  COUPON_DISCOUNT_TYPES,
+  COUPON_STATUSES,
 } from '../admin.constants.js';
 
 export class MerchantStatusActionDto {
@@ -141,4 +144,72 @@ export class AdminGenerateQuestDto {
 
   @IsUUID('4')
   idempotencyKey!: string;
+}
+
+export class CreateAdminCouponDto {
+  @IsUUID('4')
+  idempotencyKey!: string;
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/)
+  @MaxLength(150)
+  couponName!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+  @IsString()
+  @IsIn(COUPON_DISCOUNT_TYPES)
+  discountType!: (typeof COUPON_DISCOUNT_TYPES)[number];
+  @IsString()
+  @IsNotEmpty()
+  discountValue!: string;
+  @IsInt()
+  @Min(1)
+  @Max(1_000_000)
+  pointCost!: number;
+  @IsOptional()
+  @IsString()
+  minPurchase?: string;
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  validityDays!: number;
+  @IsOptional()
+  @IsString()
+  @IsIn(COUPON_STATUSES)
+  status?: (typeof COUPON_STATUSES)[number];
+}
+
+export class UpdateAdminCouponDto {
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/)
+  @MaxLength(150)
+  couponName!: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+  @IsString()
+  @IsIn(COUPON_DISCOUNT_TYPES)
+  discountType!: (typeof COUPON_DISCOUNT_TYPES)[number];
+  @IsString()
+  @IsNotEmpty()
+  discountValue!: string;
+  @IsInt()
+  @Min(1)
+  @Max(1_000_000)
+  pointCost!: number;
+  @IsOptional()
+  @IsString()
+  minPurchase?: string;
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  validityDays!: number;
+  @IsOptional()
+  @IsString()
+  @IsIn(COUPON_STATUSES)
+  status?: (typeof COUPON_STATUSES)[number];
 }

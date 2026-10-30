@@ -92,7 +92,10 @@ export class ReconciliationService {
         },
       });
     } catch (auditErr) {
-      this.logger.error('Failed to persist reconciliation audit event', auditErr);
+      this.logger.error(
+        'Failed to persist reconciliation audit event',
+        auditErr,
+      );
     }
 
     this.cachedReport = report;
@@ -358,9 +361,9 @@ export class ReconciliationService {
     });
 
     for (const uq of completedQuests) {
-      const rewardTxs = uq.pointTransactions.filter(
-        (t) => t.transactionType === 'QUEST_REWARD',
-      );
+      const rewardTxs = (
+        uq.pointTransactions ? [uq.pointTransactions] : []
+      ).filter((t) => t.transactionType === 'QUEST_REWARD');
       if (rewardTxs.length > 1) {
         discrepancies.push({
           userQuestId: uq.userQuestId.toString(),

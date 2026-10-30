@@ -6,11 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuestsService } from '../quests/quests.service.js';
 import { questAudit } from './quest-audit.js';
 import { BANGKOK_TZ_OFFSET_HOURS } from '../wallet/wallet.constants.js';
 import {
+  ADMIN_COUPON_ERRORS,
+  ADMIN_COUPON_LIST_LIMIT,
   ADMIN_OPERATION_ERRORS,
   QUEST_DIAGNOSTICS_LIMITS,
   PROGRAM_CURRENCIES,
@@ -20,7 +23,9 @@ import {
   type MerchantStatus,
 } from './admin.constants.js';
 import type {
+  CreateAdminCouponDto,
   CreateSubsidyProgramDto,
+  UpdateAdminCouponDto,
   UpdateSubsidyProgramDto,
 } from './dto/admin.dto.js';
 
@@ -38,6 +43,31 @@ function toNumber(value: unknown): number {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function couponMoney(value: string | undefined): Prisma.Decimal {
+  const normalized = value?.trim() ?? '0';
+  if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(normalized)) {
+    throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidMoney);
+  }
+  return new Prisma.Decimal(normalized);
+}
+
+function couponRequestHash(dto: CreateAdminCouponDto): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        couponName: dto.couponName.trim(),
+        description: dto.description?.trim() ?? '',
+        discountType: dto.discountType,
+        discountValue: dto.discountValue.trim(),
+        pointCost: dto.pointCost,
+        minPurchase: dto.minPurchase?.trim() ?? '0',
+        validityDays: dto.validityDays,
+        status: dto.status ?? 'ACTIVE',
+      }),
+    )
+    .digest('hex');
 }
 
 function assertSupportedProgramSettings(dto: {
@@ -206,6 +236,210 @@ export class AdminService {
         metadata: e.metadata,
         createdAt: e.createdAt.toISOString(),
       })),
+    };
+  }
+
+  async listCoupons(beforeId?: bigint) {
+    const coupons = await this.prisma.coupon.findMany({
+      where: beforeId ? { couponId: { lt: beforeId } } : undefined,
+      include: {
+        merchant: { select: { merchantName: true } },
+        _count: { select: { userCoupons: true } },
+      },
+      orderBy: { couponId: 'desc' },
+      take: ADMIN_COUPON_LIST_LIMIT + 1,
+    });
+    const hasMore = coupons.length > ADMIN_COUPON_LIST_LIMIT;
+    const page = hasMore ? coupons.slice(0, ADMIN_COUPON_LIST_LIMIT) : coupons;
+    return {
+      items: page.map((coupon) => this.couponResponse(coupon)),
+      limit: ADMIN_COUPON_LIST_LIMIT,
+      nextCursor: hasMore ? (page.at(-1)?.couponId.toString() ?? null) : null,
+    };
+  }
+
+  async createCoupon(dto: CreateAdminCouponDto, actorUserId: bigint) {
+    const discountValue = couponMoney(dto.discountValue);
+    const requestHash = couponRequestHash(dto);
+    const minPurchase = couponMoney(dto.minPurchase);
+    if (
+      dto.discountType === 'PERCENTAGE' &&
+      (discountValue.lte(0) || discountValue.gt(100))
+    ) {
+      throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidPercentage);
+    }
+    if (dto.discountType === 'FIXED' && discountValue.lte(0)) {
+      throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidMoney);
+    }
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${dto.idempotencyKey}))`;
+      const prior = await tx.auditEvent.findFirst({
+        where: {
+          actorUserId,
+          action: 'ADMIN_COUPON_CREATED',
+          correlationId: dto.idempotencyKey,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (prior?.targetId) {
+        const metadata = prior.metadata;
+        if (
+          !metadata ||
+          typeof metadata !== 'object' ||
+          Array.isArray(metadata) ||
+          (metadata as Record<string, unknown>).requestHash !== requestHash
+        ) {
+          throw new ConflictException(ADMIN_COUPON_ERRORS.idempotencyConflict);
+        }
+        const existing = await tx.coupon.findUnique({
+          where: { couponId: BigInt(prior.targetId) },
+          include: {
+            merchant: { select: { merchantName: true } },
+            _count: { select: { userCoupons: true } },
+          },
+        });
+        if (!existing)
+          throw new ConflictException(ADMIN_COUPON_ERRORS.notFound);
+        return existing;
+      }
+      const coupon = await tx.coupon.create({
+        data: {
+          couponName: dto.couponName.trim(),
+          description: dto.description?.trim() || null,
+          discountType: dto.discountType,
+          discountValue,
+          pointCost: dto.pointCost,
+          minPurchase,
+          validityDays: dto.validityDays,
+          status: dto.status ?? 'ACTIVE',
+        },
+        include: {
+          merchant: { select: { merchantName: true } },
+          _count: { select: { userCoupons: true } },
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId,
+          actorRole: 'ADMIN',
+          action: 'ADMIN_COUPON_CREATED',
+          targetType: 'COUPON',
+          targetId: coupon.couponId.toString(),
+          correlationId: dto.idempotencyKey,
+          metadata: { couponName: coupon.couponName, requestHash },
+        },
+      });
+      return coupon;
+    });
+    return this.couponResponse(created);
+  }
+
+  async updateCoupon(
+    couponId: bigint,
+    dto: UpdateAdminCouponDto,
+    actorUserId: bigint,
+  ) {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        Array<{ coupon_id: bigint; status: string }>
+      >`
+        SELECT "coupon_id", "status" FROM "coupons" WHERE "coupon_id" = ${couponId} FOR UPDATE`;
+      if (!locked[0]) throw new NotFoundException(ADMIN_COUPON_ERRORS.notFound);
+      const issued = await tx.userCoupon.count({ where: { couponId } });
+      if (issued > 0)
+        throw new ConflictException(ADMIN_COUPON_ERRORS.issuedImmutable);
+      const discountValue = couponMoney(dto.discountValue);
+      const minPurchase = couponMoney(dto.minPurchase);
+      if (
+        dto.discountType === 'PERCENTAGE' &&
+        (discountValue.lte(0) || discountValue.gt(100))
+      )
+        throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidPercentage);
+      if (dto.discountType === 'FIXED' && discountValue.lte(0))
+        throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidMoney);
+      const coupon = await tx.coupon.update({
+        where: { couponId },
+        data: {
+          couponName: dto.couponName.trim(),
+          description: dto.description?.trim() || null,
+          discountType: dto.discountType,
+          discountValue,
+          pointCost: dto.pointCost,
+          minPurchase,
+          validityDays: dto.validityDays,
+          status: dto.status ?? locked[0].status,
+        },
+        include: {
+          merchant: { select: { merchantName: true } },
+          _count: { select: { userCoupons: true } },
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId,
+          actorRole: 'ADMIN',
+          action: 'ADMIN_COUPON_UPDATED',
+          targetType: 'COUPON',
+          targetId: couponId.toString(),
+          metadata: { couponName: coupon.couponName },
+        },
+      });
+      return coupon;
+    });
+    return this.couponResponse(updated);
+  }
+
+  async deleteCoupon(couponId: bigint, actorUserId: bigint) {
+    await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ coupon_id: bigint }>>`
+        SELECT "coupon_id" FROM "coupons" WHERE "coupon_id" = ${couponId} FOR UPDATE`;
+      if (!locked[0]) throw new NotFoundException(ADMIN_COUPON_ERRORS.notFound);
+      if (await tx.userCoupon.count({ where: { couponId } }))
+        throw new ConflictException(ADMIN_COUPON_ERRORS.issuedImmutable);
+      const coupon = await tx.coupon.delete({ where: { couponId } });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId,
+          actorRole: 'ADMIN',
+          action: 'ADMIN_COUPON_DELETED',
+          targetType: 'COUPON',
+          targetId: couponId.toString(),
+          metadata: { couponName: coupon.couponName },
+        },
+      });
+    });
+    return { deleted: true };
+  }
+
+  private couponResponse(coupon: {
+    couponId: bigint;
+    couponName: string;
+    description: string | null;
+    discountType: string;
+    discountValue: unknown;
+    pointCost: number;
+    minPurchase: unknown;
+    validityDays: number;
+    status: string;
+    createdAt: Date;
+    merchantId: bigint | null;
+    merchant: { merchantName: string } | null;
+    _count: { userCoupons: number };
+  }) {
+    return {
+      couponId: coupon.couponId.toString(),
+      couponName: coupon.couponName,
+      description: coupon.description,
+      discountType: coupon.discountType,
+      discountValue: toNumber(coupon.discountValue),
+      pointCost: coupon.pointCost,
+      minPurchase: toNumber(coupon.minPurchase),
+      validityDays: coupon.validityDays,
+      status: coupon.status,
+      createdAt: coupon.createdAt.toISOString(),
+      merchantId: coupon.merchantId?.toString() ?? null,
+      merchantName: coupon.merchant?.merchantName ?? null,
+      issuedCount: coupon._count.userCoupons,
     };
   }
 
@@ -428,6 +662,9 @@ export class AdminService {
           ? { status: statusFilter }
           : undefined,
       include: {
+        merchant_category_assignments: {
+          include: { merchant_categories: true },
+        },
         owner: {
           select: {
             userId: true,
@@ -464,8 +701,13 @@ export class AdminService {
       items: merchants.map((m) => ({
         merchantId: m.merchantId.toString(),
         merchantName: m.merchantName,
-        merchantType: m.merchantType,
-        merchantTypes: m.merchantTypes,
+        merchantType:
+          m.merchant_category_assignments
+            .map((item) => item.merchant_categories.category_name)
+            .join(', ') || null,
+        merchantTypes: m.merchant_category_assignments.map(
+          (item) => item.merchant_categories.category_code,
+        ),
         description: m.description,
         address: m.address,
         phone: m.phone ?? m.owner.phone,

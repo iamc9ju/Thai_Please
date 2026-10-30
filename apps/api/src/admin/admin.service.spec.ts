@@ -173,6 +173,49 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
     },
   );
 
+  it('FR-M01: lists merchant categories from assignments without legacy columns', async () => {
+    prismaMock.merchant.findMany.mockResolvedValue([
+      {
+        merchantId: 10n,
+        merchantName: 'Test merchant',
+        status: 'PENDING',
+        merchant_category_assignments: [
+          {
+            merchant_categories: {
+              category_code: 'FOOD_BEVERAGE',
+              category_name: 'Food',
+            },
+          },
+        ],
+        owner: {
+          userId: 1n,
+          fullName: 'Owner',
+          citizenId: '1234567890123',
+          phone: null,
+        },
+        wallet: null,
+        products: [],
+        orders: [],
+        createdAt: new Date('2026-10-30T00:00:00Z'),
+        updatedAt: new Date('2026-10-30T00:00:00Z'),
+      },
+    ]);
+    const result = await service.listMerchants();
+    expect(result.items[0]).toMatchObject({
+      merchantType: 'Food',
+      merchantTypes: ['FOOD_BEVERAGE'],
+    });
+    expect(prismaMock.merchant.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          merchant_category_assignments: {
+            include: { merchant_categories: true },
+          },
+        }),
+      }),
+    );
+  });
+
   describe('getPlatformOverview (FR-A01)', () => {
     it('aggregates platform users, merchants, orders, points, coupons, quests, and active program', async () => {
       prismaMock.user.findMany.mockResolvedValue([
