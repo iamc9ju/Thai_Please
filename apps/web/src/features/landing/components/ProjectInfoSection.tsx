@@ -32,11 +32,11 @@ export function ProjectInfoSection({
       {/* 1. Header & Overview Card */}
       <section
         aria-labelledby="project-info-overview-heading"
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#003d82] via-[#0056b3] to-[#0072ce] p-6 sm:p-10 lg:p-12 text-white shadow-xl ring-1 ring-black/5"
+        className="relative overflow-hidden rounded-3xl bg-[#0056b3] p-6 sm:p-10 lg:p-12 text-white shadow-md"
       >
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-100 backdrop-blur-md">
-            <ShieldCheck className="size-4 text-emerald-300" aria-hidden="true" />
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-100">
+            <ShieldCheck className="size-4 text-blue-200" aria-hidden="true" />
             <span>{t.badge}</span>
           </div>
 
@@ -108,7 +108,7 @@ export function ProjectInfoSection({
 
         {/* Daily Limit */}
         <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mb-4">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#0056b3] mb-4">
             <Wallet className="size-6" aria-hidden="true" />
           </div>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -255,10 +255,10 @@ export function ProjectInfoSection({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {/* Eligible */}
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-6 sm:p-7 space-y-4">
+          <div className="rounded-2xl border border-blue-200/80 bg-blue-50/40 p-6 sm:p-7 space-y-4">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="size-6 text-emerald-600 shrink-0" aria-hidden="true" />
-              <h3 className="text-base sm:text-lg font-bold text-emerald-950">
+              <CheckCircle2 className="size-6 text-[#0056b3] shrink-0" aria-hidden="true" />
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">
                 {t.categories.eligibleTitle}
               </h3>
             </div>
@@ -266,9 +266,9 @@ export function ProjectInfoSection({
               {t.categories.eligibleItems.map((item) => (
                 <li
                   key={item}
-                  className="flex items-start gap-2.5 text-xs sm:text-sm text-emerald-900"
+                  className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700"
                 >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold mt-0.5">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#0056b3] text-xs font-bold mt-0.5">
                     ✓
                   </span>
                   <span>{item}</span>

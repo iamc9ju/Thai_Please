@@ -226,7 +226,7 @@ export function ProjectInfoAndEligibilityPage({
         {/* Bottom Support Banner */}
         <section
           aria-label="ติดต่อสอบถามเพิ่มเติม"
-          className="rounded-2xl bg-gradient-to-r from-slate-900 to-blue-950 p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md"
+          className="rounded-2xl bg-[#0056b3] p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md"
         >
           <div className="space-y-2 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2 text-blue-300 text-xs sm:text-sm font-semibold">

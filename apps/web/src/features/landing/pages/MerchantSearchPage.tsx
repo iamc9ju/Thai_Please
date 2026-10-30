@@ -128,7 +128,7 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
       </div>
 
       {/* Hero Search Header */}
-      <section className="bg-gradient-to-b from-blue-50/90 via-blue-50/40 to-slate-50/50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-blue-100/60">
+      <section className="bg-slate-50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-200/80">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-100/80 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3] shadow-2xs">
             <Store className="size-4" aria-hidden="true" />
@@ -315,8 +315,8 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
                       <Store className="size-5.5" aria-hidden="true" />
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="size-3 text-emerald-600" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-[#0056b3] border border-blue-200">
+                        <CheckCircle2 className="size-3 text-[#0056b3]" aria-hidden="true" />
                         <span>{pageCopy.card.verifiedBadge}</span>
                       </span>
                     </div>
@@ -359,8 +359,8 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
                     <span className="font-bold text-[#0056b3]">
                       {pageCopy.card.acceptingQr}
                     </span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
-                      <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-1 font-semibold text-[#0056b3]">
+                      <span className="size-1.5 rounded-full bg-[#0056b3]" aria-hidden="true" />
                       <span>{pageCopy.card.statusActive}</span>
                     </span>
                   </div>

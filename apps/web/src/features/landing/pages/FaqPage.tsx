@@ -73,7 +73,7 @@ export function FaqPage({
       case 'consumer':
         return <Users className="size-3.5 text-blue-600" aria-hidden="true" />;
       case 'merchant':
-        return <Store className="size-3.5 text-emerald-600" aria-hidden="true" />;
+        return <Store className="size-3.5 text-[#0056b3]" aria-hidden="true" />;
       case 'system':
         return <ShieldCheck className="size-3.5 text-indigo-600" aria-hidden="true" />;
       default:
@@ -111,7 +111,7 @@ export function FaqPage({
       </div>
 
       {/* Header Banner */}
-      <section className="bg-gradient-to-b from-blue-50/90 via-blue-50/40 to-slate-50/50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-blue-100/60">
+      <section className="bg-slate-50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-200/80">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-100/90 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3] shadow-2xs">
             <HelpCircle className="size-4" aria-hidden="true" />

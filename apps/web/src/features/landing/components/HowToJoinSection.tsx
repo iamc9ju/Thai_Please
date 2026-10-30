@@ -114,21 +114,15 @@ export function HowToJoinSection({
         className="space-y-10 sm:space-y-12 animate-in fade-in duration-200"
       >
         {/* Banner with Title and Description */}
-        <div
-          className={`rounded-3xl p-6 sm:p-8 lg:p-10 text-white shadow-lg ${
-            isConsumer
-              ? 'bg-gradient-to-r from-[#0056b3] to-[#0080ff]'
-              : 'bg-gradient-to-r from-[#004d40] to-[#00897b]'
-          }`}
-        >
+        <div className="rounded-3xl bg-[#0056b3] p-6 sm:p-8 lg:p-10 text-white shadow-md">
           <div className="max-w-3xl space-y-3">
-            <span className="inline-block rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider backdrop-blur-xs">
+            <span className="inline-block rounded-lg bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
               {isConsumer ? 'สำหรับบุคคลทั่วไป' : 'สำหรับผู้ประกอบการ'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {roleData.title}
             </h2>
-            <p className="text-sm sm:text-base text-blue-50/90 leading-relaxed">
+            <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
               {roleData.description}
             </p>
           </div>
@@ -153,7 +147,7 @@ export function HowToJoinSection({
                   className="flex items-start gap-3 text-xs sm:text-sm text-slate-700"
                 >
                   <CheckCircle2
-                    className="size-5 shrink-0 text-emerald-600 mt-0.5"
+                    className="size-5 shrink-0 text-[#0056b3] mt-0.5"
                     aria-hidden="true"
                   />
                   <span>{item}</span>

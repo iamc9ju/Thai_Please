@@ -93,7 +93,7 @@ export function LandingHeroSection({
                 onClick={() => onOpenHowToJoin('consumer')}
                 className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-300 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all cursor-pointer"
               >
-                <UserCheck className="size-4 text-emerald-600" aria-hidden="true" />
+                <UserCheck className="size-4 text-[#0056b3]" aria-hidden="true" />
                 <span>{th.landing.schedule.viewHowToJoin}</span>
                 <ArrowRight className="size-4" aria-hidden="true" />
               </button>

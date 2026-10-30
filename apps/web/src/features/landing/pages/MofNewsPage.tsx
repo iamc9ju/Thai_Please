@@ -78,7 +78,7 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
       </div>
 
       {/* Header Banner */}
-      <section className="bg-gradient-to-b from-blue-50/90 via-blue-50/40 to-slate-50/50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-blue-100/60">
+      <section className="bg-slate-50 px-4 pt-10 pb-12 sm:pt-14 sm:pb-16 border-b border-slate-200/80">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-100/90 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0056b3] shadow-2xs">
             <Landmark className="size-4" aria-hidden="true" />
@@ -173,7 +173,7 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
 
         {/* Featured Card (When on 'all' and no active search) */}
         {selectedCategory === 'all' && !searchQuery && filteredArticles.length > 0 && (
-          <div className="mb-8 overflow-hidden rounded-3xl border border-blue-200/90 bg-gradient-to-br from-blue-900 via-[#004494] to-[#002f6c] p-6 sm:p-10 text-white shadow-xl">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-blue-200/90 bg-[#003d82] p-6 sm:p-10 text-white shadow-xl">
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-extrabold text-amber-300 border border-amber-300/30">
                 <Sparkles className="size-3.5" aria-hidden="true" />

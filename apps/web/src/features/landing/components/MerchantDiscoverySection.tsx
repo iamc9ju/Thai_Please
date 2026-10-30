@@ -57,7 +57,7 @@ export function MerchantDiscoverySection() {
     <section
       id="merchant-search-section"
       aria-labelledby="merchant-search-heading"
-      className="border-t border-blue-100 bg-gradient-to-b from-blue-50/60 to-white px-4 py-12 sm:py-16"
+      className="border-t border-slate-200/80 bg-slate-50/60 px-4 py-12 sm:py-16"
     >
       <div className="mx-auto max-w-6xl">
         <div className="text-center">
