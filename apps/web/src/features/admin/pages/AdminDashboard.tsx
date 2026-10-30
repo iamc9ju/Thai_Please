@@ -1779,9 +1779,7 @@ export function AdminDashboard({
                               <span className="rounded-lg bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">
                                 Log #{log.generationId}
                               </span>
-                              <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
-                                {log.status}
-                              </span>
+
                               <span className="text-xs font-semibold text-slate-700">
                                 ผู้รับภารกิจ: {log.user.fullName} (
                                 {log.user.citizenIdMasked})

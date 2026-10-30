@@ -11,22 +11,12 @@ export function QuestLogList({
   children: (log: QuestGenerationLogItem) => ReactNode;
 }) {
   const [sort, setSort] = useState('newest');
-  const [status, setStatus] = useState('');
-  const statuses = [...new Set(logs.map((log) => log.status))].sort();
-  const filtered = logs
-    .filter((log) => !status || log.status === status)
-    .sort((a, b) => {
-      const time = Date.parse(b.generatedAt) - Date.parse(a.generatedAt);
-      if (sort === 'oldest')
-        return -time || a.generationId.localeCompare(b.generationId);
-      if (sort === 'status')
-        return (
-          a.status.localeCompare(b.status) ||
-          time ||
-          a.generationId.localeCompare(b.generationId)
-        );
-      return time || a.generationId.localeCompare(b.generationId);
-    });
+  const filtered = [...logs].sort((a, b) => {
+    const time = Date.parse(b.generatedAt) - Date.parse(a.generatedAt);
+    if (sort === 'oldest')
+      return -time || a.generationId.localeCompare(b.generationId);
+    return time || a.generationId.localeCompare(b.generationId);
+  });
   return (
     <div className="mt-4 space-y-3">
       <div className="flex flex-wrap gap-3">
@@ -39,22 +29,6 @@ export function QuestLogList({
           >
             <option value="newest">{copy.newest}</option>
             <option value="oldest">{copy.oldest}</option>
-            <option value="status">{copy.byStatus}</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          {copy.status}
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="ml-2 rounded-xl border border-line bg-panel p-2"
-          >
-            <option value="">{copy.allStatuses}</option>
-            {statuses.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
           </select>
         </label>
       </div>
@@ -63,7 +37,7 @@ export function QuestLogList({
           {copy.empty}
         </p>
       ) : (
-        <RewardHistoryPages key={`${sort}-${status}`}>
+        <RewardHistoryPages key={sort}>
           {filtered.map(children)}
         </RewardHistoryPages>
       )}
