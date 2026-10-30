@@ -540,4 +540,72 @@ describe('WalletView FR-C02 integration', () => {
       expect(screen.queryByText('+111.00')).not.toBeInTheDocument();
     });
   });
+
+  it('paginates transaction history across pages and navigates with page controls', async () => {
+    const sevenTransactions = Array.from({ length: 7 }, (_, index) => ({
+      transactionId: `tx-${index + 1}`,
+      fundType: index % 2 === 0 ? 'PERSONAL' : 'SUBSIDY',
+      transactionType:
+        index === 5 ? 'MERCHANT_WITHDRAWAL_CREDIT' : 'PAYMENT_PERSONAL',
+      amount: (index + 1) * 100,
+      balanceBefore: 1_000,
+      balanceAfter: index === 5 ? 1_600 : 1_000 - (index + 1) * 100,
+      createdAt: `2026-10-${String(20 - index).padStart(2, '0')}T03:00:00.000Z`,
+    }));
+
+    mockedGetTransactions.mockResolvedValueOnce({
+      items: sevenTransactions,
+      nextCursor: null,
+    });
+
+    await renderLoadedWallet();
+
+    expect(
+      await screen.findByText(
+        th.consumerPortal.wallet.pagination.showingRange(1, 5, 7),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerPortal.wallet.pagination.pageSummary(1, 2)),
+    ).toBeInTheDocument();
+    expect(screen.getByText('-100.00')).toBeInTheDocument();
+    expect(screen.queryByText('+600.00')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.consumerPortal.wallet.pagination.next,
+      }),
+    );
+
+    expect(
+      screen.getByText(
+        th.consumerPortal.wallet.pagination.showingRange(6, 7, 7),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.consumerPortal.wallet.pagination.pageSummary(2, 2)),
+    ).toBeInTheDocument();
+    expect(screen.getByText('+600.00')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        th.consumerPortal.wallet.transactionTypes.merchantWithdrawalCredit,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('-100.00')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.consumerPortal.wallet.pagination.page(1),
+      }),
+    );
+    expect(screen.getByText('-100.00')).toBeInTheDocument();
+  });
+
+  it('fills the top-up amount when clicking a quick amount preset chip', async () => {
+    const input = await renderLoadedWallet();
+
+    fireEvent.click(screen.getByRole('button', { name: '+฿500' }));
+
+    expect(input).toHaveValue(500);
+  });
 });

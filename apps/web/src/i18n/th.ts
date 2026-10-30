@@ -278,7 +278,10 @@ export const th = {
       dailyUsed: 'ใช้ไปวันนี้',
       dailyRemaining: 'คงเหลือวันนี้',
       subsidyRate: 'สัดส่วนช่วยจ่าย',
+      dailyUsageLabel: 'สัดส่วนการใช้สิทธิ์วันนี้',
       dailyTimezone: 'คำนวณตามวันในเขตเวลา Asia/Bangkok',
+      quickAmountLabel: 'เลือกจำนวนเงินด่วน',
+      balanceAfterLabel: (amount: string) => `คงเหลือ ฿${amount}`,
       historyTitle: 'ประวัติกระเป๋าเงิน',
       historyFilterTitle: 'ค้นหารายการเคลื่อนไหว',
       filterAll: 'ทั้งหมด',
@@ -295,10 +298,23 @@ export const th = {
       loadMore: 'ดูรายการย้อนหลังเพิ่มเติม',
       loadingMore: 'กำลังโหลดรายการเพิ่มเติม...',
       loadMoreError: 'ไม่สามารถโหลดรายการเพิ่มเติมได้ กรุณาลองใหม่อีกครั้ง',
+      pagination: {
+        label: 'เปลี่ยนหน้าประวัติกระเป๋าเงิน',
+        previous: 'ก่อนหน้า',
+        next: 'ถัดไป',
+        page: (page: number) => `หน้า ${page}`,
+        pageSummary: (page: number, totalPages: number) =>
+          `หน้า ${page} จาก ${totalPages}`,
+        showingRange: (start: number, end: number, total: number) =>
+          `แสดง ${start}–${end} จาก ${total} รายการ`,
+      },
       transactionTypes: {
         personalTopUp: 'เติมเงินส่วนตัว',
         subsidyGrant: 'รับเงินสนับสนุน',
         payment: 'ชำระเงิน',
+        merchantWithdrawalCredit: 'รับเงินโอนจากกระเป๋าร้านค้า',
+        adjustment: 'ปรับปรุงยอดกระเป๋าเงิน',
+        expiry: 'สิทธิ์สนับสนุนหมดอายุ',
         other: 'รายการกระเป๋าเงิน',
       },
       fundTypes: {

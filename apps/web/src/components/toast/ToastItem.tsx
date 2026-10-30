@@ -142,40 +142,40 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Card (Centered, Thai Please Theme) */}
+      {/* Modal Dialog Card (Centered, Thai Please Theme, Narrow & Uniform Size) */}
       <div
-        className="relative z-10 w-full max-w-sm sm:max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center select-none animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 w-full max-w-[320px] min-h-[200px] rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 flex flex-col items-center justify-center text-center select-none animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Top Close Button */}
         <button
           type="button"
           onClick={() => onDismiss(id)}
           aria-label={th.authToast.dismiss}
-          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+          className="absolute top-3.5 right-3.5 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
         >
-          <X className="size-5" aria-hidden="true" />
+          <X className="size-4.5" aria-hidden="true" />
         </button>
 
         {/* Brand Logo Header */}
-        <div className="mb-4 flex items-center justify-center">
+        <div className="mb-3 flex items-center justify-center">
           <img
             src="/images/brand-logo.png"
             alt={th.brand}
-            className="h-10 sm:h-12 w-auto object-contain mx-auto"
+            className="h-9 sm:h-10 w-auto object-contain mx-auto"
           />
         </div>
 
         {/* Center Icon Podium with Pulsing Ripple Ring - Hidden for auth modals (login/logout) as requested */}
         {!isAuthModal && (
-          <div className="relative mb-4 flex items-center justify-center" aria-hidden="true">
+          <div className="relative mb-3 flex items-center justify-center" aria-hidden="true">
             <div
-              className={`absolute size-20 rounded-full ${configByType.ringAura} animate-ping`}
+              className={`absolute size-16 rounded-full ${configByType.ringAura} animate-ping`}
               style={{ animationDuration: '2.5s' }}
             />
             <div
-              className={`relative size-16 rounded-2xl flex items-center justify-center shadow-xs transition-transform motion-safe:animate-bounce-subtle ${configByType.iconWrap}`}
+              className={`relative size-12 rounded-xl flex items-center justify-center shadow-xs transition-transform motion-safe:animate-bounce-subtle ${configByType.iconWrap}`}
             >
-              <Icon className="size-8" />
+              <Icon className="size-6" />
             </div>
           </div>
         )}
@@ -183,36 +183,27 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
         {/* Role / Status Badge - Hidden for auth modals (login/logout) as requested */}
         {!isAuthModal && currentBadge && (
           <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold mb-2.5 ${configByType.badgeClass}`}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold mb-2 ${configByType.badgeClass}`}
           >
             {currentBadge}
           </span>
         )}
 
         {/* Modal Heading & Description */}
-        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
           {title}
         </h3>
 
         {description && (
-          <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs sm:max-w-sm">
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-[260px]">
             {description}
           </p>
         )}
 
-        {/* Primary Action Button (Thai Please Theme) */}
-        <button
-          type="button"
-          onClick={() => onDismiss(id)}
-          className={`mt-6 w-full py-3 px-5 rounded-xl text-white font-bold text-sm shadow-md transition-all active:scale-98 cursor-pointer ${configByType.buttonClass}`}
-        >
-          {configByType.actionLabel}
-        </button>
-
         {/* Auto-dismissing Progress Indicator (runs continuously) */}
         {duration > 0 && (
           <div
-            className="mt-4 w-32 h-1 bg-slate-100 rounded-full overflow-hidden"
+            className="mt-5 w-28 h-1 bg-slate-100 rounded-full overflow-hidden"
             aria-hidden="true"
           >
             <div

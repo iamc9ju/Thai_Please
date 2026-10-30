@@ -78,7 +78,7 @@ function OverviewStatus({
       <section
         aria-live="assertive"
         role="alert"
-        className="p-8 text-center bg-white rounded-3xl border border-red-200 shadow-xs"
+        className="p-8 text-center bg-white rounded-xl border border-red-200 shadow-xs"
       >
         <h2 className="text-lg font-bold text-red-600 mb-2">
           {th.consumerDashboard.states.permissionDeniedTitle}
@@ -93,7 +93,7 @@ function OverviewStatus({
   return (
     <section
       aria-live="assertive"
-      className="p-8 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs"
+      className="p-8 text-center bg-white rounded-xl border border-slate-200/80 shadow-xs"
     >
       <h2 className="text-lg font-bold text-slate-900 mb-2">
         {th.consumerDashboard.states.errorTitle}
@@ -104,7 +104,7 @@ function OverviewStatus({
       <button
         onClick={onRetry}
         type="button"
-        className="px-5 py-2.5 rounded-xl bg-[#0056b3] text-white text-sm font-bold shadow-xs hover:bg-[#004494] transition-all cursor-pointer"
+        className="px-5 py-2.5 rounded-lg bg-[#0056b3] text-white text-sm font-bold shadow-xs hover:bg-[#004494] transition-all cursor-pointer"
       >
         {th.consumerDashboard.states.retry}
       </button>
@@ -114,11 +114,9 @@ function OverviewStatus({
 
 function OverviewContent({
   data,
-  displayName,
   onNavigate,
 }: Readonly<{
   data: ConsumerOverviewResponse;
-  displayName: string;
   onNavigate: (view: ConsumerView) => void;
 }>) {
   const [showBalance, setShowBalance] = useState(true);
@@ -136,19 +134,9 @@ function OverviewContent({
       : 0;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-5">
-      {/* Top Greeting Header (Mobile/Tablet Native Style) */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-          {th.consumerDashboard.greetingUser(displayName)}
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
-          {th.consumerDashboard.prototypeSubtitle}
-        </p>
-      </div>
-
+    <div className="w-full space-y-5">
       {/* 1. Main Wallet Card (กระเป๋าเงินของฉัน) */}
-      <article className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-xs">
+      <article className="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-7 shadow-xs">
         {/* Card Header: Blue Wallet Icon + "กระเป๋าเงินของฉัน" + Eye Toggle */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -164,7 +152,7 @@ function OverviewContent({
           <button
             type="button"
             onClick={() => setShowBalance((prev) => !prev)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label={showBalance ? 'Hide balance' : 'Show balance'}
           >
             {showBalance ? (
@@ -218,7 +206,7 @@ function OverviewContent({
           <button
             type="button"
             onClick={() => onNavigate('wallet')}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#0056b3] text-white font-bold text-sm hover:bg-[#004494] active:scale-98 shadow-xs transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-[#0056b3] text-white font-bold text-sm hover:bg-[#004494] active:scale-98 shadow-xs transition-all cursor-pointer"
           >
             <Plus className="size-4" aria-hidden="true" />
             <span>{th.consumerDashboard.wallet.topUp}</span>
@@ -227,7 +215,7 @@ function OverviewContent({
           <button
             type="button"
             onClick={() => onNavigate('wallet')}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 active:scale-98 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 active:scale-98 transition-all cursor-pointer"
           >
             <History className="size-4 text-slate-500" aria-hidden="true" />
             <span>{th.consumerDashboard.wallet.history}</span>
@@ -238,10 +226,10 @@ function OverviewContent({
       {/* 2. Two-Column Quick Status Cards (สิทธิ์วันนี้ & คะแนนสะสม) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {/* Left: สิทธิ์วันนี้ */}
-        <article className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+        <article className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="size-7 sm:size-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <div className="size-7 sm:size-8 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                 <Gift className="size-4 sm:size-4.5" aria-hidden="true" />
               </div>
               <h2 className="text-xs sm:text-sm font-bold text-slate-800">
@@ -299,10 +287,10 @@ function OverviewContent({
         </article>
 
         {/* Right: คะแนนสะสม */}
-        <article className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+        <article className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="size-7 sm:size-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <div className="size-7 sm:size-8 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                 <Star className="size-4 sm:size-4.5" aria-hidden="true" />
               </div>
               <h2 className="text-xs sm:text-sm font-bold text-slate-800">
@@ -330,10 +318,10 @@ function OverviewContent({
       </div>
 
       {/* 3. Quests Card (ภารกิจของคุณ) */}
-      <article className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+      <article className="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
-            <div className="size-7 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+            <div className="size-7 rounded-md bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
               <ClipboardList className="size-4" aria-hidden="true" />
             </div>
             <h2 className="text-base font-bold text-slate-900">
@@ -351,7 +339,7 @@ function OverviewContent({
         </div>
 
         {activeQuest ? (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-start justify-between gap-3">
+          <div className="p-3.5 sm:p-4 rounded-lg bg-slate-50/80 border border-slate-100 flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-slate-900 mb-1">
                 {activeQuest.questName}
@@ -365,7 +353,7 @@ function OverviewContent({
                 )}
               </span>
             </div>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60 shrink-0">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60 shrink-0">
               {th.consumerDashboard.quest.reward(activeQuest.rewardPoint)}
             </span>
           </div>
@@ -382,10 +370,10 @@ function OverviewContent({
       </article>
 
       {/* 4. Coupons Card (คูปองของฉัน) */}
-      <article className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+      <article className="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
-            <div className="size-7 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+            <div className="size-7 rounded-md bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
               <Ticket className="size-4" aria-hidden="true" />
             </div>
             <h2 className="text-base font-bold text-slate-900">
@@ -404,7 +392,7 @@ function OverviewContent({
         </div>
 
         {activeCoupon ? (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-start justify-between gap-3">
+          <div className="p-3.5 sm:p-4 rounded-lg bg-slate-50/80 border border-slate-100 flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-slate-900 mb-1">
                 {activeCoupon.couponName}
@@ -418,7 +406,7 @@ function OverviewContent({
                 )}
               </span>
             </div>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0056b3] border border-blue-200/60 shrink-0">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-[#0056b3] border border-blue-200/60 shrink-0">
               {activeCoupon.discountType === 'FIXED'
                 ? `ลด ${activeCoupon.discountValue} บาท`
                 : `ลด ${activeCoupon.discountValue}%`}
@@ -434,10 +422,10 @@ function OverviewContent({
       </article>
 
       {/* 5. Recent Orders Card (รายการล่าสุด) */}
-      <article className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+      <article className="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="size-7 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+            <div className="size-7 rounded-md bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
               <ReceiptText className="size-4" aria-hidden="true" />
             </div>
             <h2 className="text-base font-bold text-slate-900">
@@ -463,7 +451,7 @@ function OverviewContent({
               >
                 {/* Shop icon + Shop name & datetime */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="size-10 rounded-xl bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+                  <div className="size-10 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
                     <ReceiptText className="size-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
@@ -481,7 +469,7 @@ function OverviewContent({
                   <div className="font-bold text-sm sm:text-base text-slate-900">
                     ฿{formatBaht(order.finalAmount)}
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 mt-1">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 mt-1">
                     <CheckCircle2
                       className="size-3 shrink-0"
                       aria-hidden="true"
@@ -521,18 +509,14 @@ export function ConsumerOverview({
       {announcement && (
         <p
           aria-live="polite"
-          className="mb-4 text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/80 font-medium"
+          className="mb-4 text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/80 font-medium"
         >
           {announcement}
         </p>
       )}
 
       {overviewState.status === 'success' ? (
-        <OverviewContent
-          data={overviewState.data}
-          displayName={displayName}
-          onNavigate={onNavigate}
-        />
+        <OverviewContent data={overviewState.data} onNavigate={onNavigate} />
       ) : (
         <OverviewStatus state={overviewState} onRetry={onRetry} />
       )}

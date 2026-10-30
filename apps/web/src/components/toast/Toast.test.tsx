@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
-  it('renders login-success centered modal with brand logo and action button, omitting center icon podium and role badge as requested', () => {
+  it('renders login-success centered modal with brand logo, omitting center icon podium, role badge, and action button as requested', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -32,14 +32,17 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
     expect(
       screen.getByText('ยินดีต้อนรับคุณ สมชาย ใจดี เข้าสู่ระบบเรียบร้อยแล้ว'),
     ).toBeInTheDocument();
-    // Center icon podium and role badge removed for auth modals
+    // Center icon podium, role badge, and primary action button removed for auth modals
     expect(screen.queryByText('ประชาชน')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: th.authToast.goToDashboard }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: th.authToast.goToDashboard }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: th.authToast.confirm }),
+    ).not.toBeInTheDocument();
   });
 
-  it('renders logout-success modal with confirm button', () => {
+  it('renders logout-success modal without confirm button', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -58,11 +61,11 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
     expect(screen.getByText(th.authToast.logoutSuccessTitle)).toBeInTheDocument();
     expect(screen.getByText(th.authToast.logoutSuccessDesc)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: th.authToast.confirm }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: th.authToast.confirm }),
+    ).not.toBeInTheDocument();
   });
 
-  it('dismisses modal when clicking the primary action button', () => {
+  it('dismisses modal when clicking the close button', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -76,10 +79,10 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
       />,
     );
 
-    const actionBtn = screen.getByRole('button', {
-      name: th.authToast.goToDashboard,
+    const closeBtn = screen.getByRole('button', {
+      name: th.authToast.dismiss,
     });
-    fireEvent.click(actionBtn);
+    fireEvent.click(closeBtn);
 
     expect(onDismiss).toHaveBeenCalledWith('test-action-dismiss');
   });

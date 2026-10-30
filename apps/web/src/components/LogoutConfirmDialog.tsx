@@ -44,45 +44,45 @@ export function LogoutConfirmDialog({
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-sm sm:max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-10 w-full max-w-[320px] min-h-[200px] rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-200">
         {/* Top Close Button */}
         <button
           type="button"
           onClick={onCancel}
           aria-label={th.logoutConfirm.close}
-          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+          className="absolute top-3.5 right-3.5 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
         >
-          <X className="size-5" aria-hidden="true" />
+          <X className="size-4.5" aria-hidden="true" />
         </button>
 
         {/* Warning / LogOut Icon Podium */}
-        <div className="relative mb-4 flex items-center justify-center" aria-hidden="true">
-          <div className="size-16 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 ring-8 ring-amber-50/70 flex items-center justify-center shadow-xs">
-            <LogOut className="size-8" />
+        <div className="relative mb-3 flex items-center justify-center" aria-hidden="true">
+          <div className="size-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/80 ring-4 ring-amber-50/70 flex items-center justify-center shadow-xs">
+            <LogOut className="size-6" />
           </div>
         </div>
 
         {/* Heading & Description */}
         <h3
           id="logout-confirm-title"
-          className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight"
+          className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight"
         >
           {th.logoutConfirm.title}
         </h3>
 
         <p
           id="logout-confirm-desc"
-          className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs sm:max-w-sm"
+          className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-[260px]"
         >
           {th.logoutConfirm.description}
         </p>
 
         {/* Action Buttons: Cancel vs Confirm */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center gap-3 w-full">
+        <div className="mt-5 flex items-center gap-2.5 w-full">
           <button
             type="button"
             onClick={onCancel}
-            className="w-full sm:w-1/2 py-3 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-sm transition-all active:scale-98 cursor-pointer"
+            className="w-1/2 py-2.5 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm transition-all active:scale-98 cursor-pointer"
           >
             {th.logoutConfirm.cancel}
           </button>
@@ -90,7 +90,7 @@ export function LogoutConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="w-full sm:w-1/2 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md shadow-rose-600/20 transition-all active:scale-98 cursor-pointer"
+            className="w-1/2 py-2.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-rose-600/20 transition-all active:scale-98 cursor-pointer"
           >
             {th.logoutConfirm.confirm}
           </button>
