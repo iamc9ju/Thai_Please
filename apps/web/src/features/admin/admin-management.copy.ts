@@ -1,4 +1,6 @@
 export const adminManagementCopy = {
+  programSearch: 'ค้นหาชื่อโครงการ',
+  programSearchEmpty: 'ไม่พบโครงการที่ตรงกับการค้นหา',
   directorySearch: 'ค้นหารายชื่อ',
   directorySearchHint: 'ค้นหาด้วยชื่อหรือเลขประจำตัวที่แสดง',
   directoryEmpty: 'ไม่พบรายชื่อที่ตรงกับการค้นหา',
