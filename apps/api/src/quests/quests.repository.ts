@@ -23,6 +23,11 @@ import {
   type QuestCompletionResult,
   type ReceiptFact,
 } from './domain/quest-evaluation.js';
+import {
+  USER_CANCELLED_QUEST_REASON,
+  type ConsumerQuestCancellationPreview,
+  type ConsumerQuestCancellationResponse,
+} from '@thai-please/contracts';
 
 const DAY_MS = 86_400_000;
 const LEASE_MS = 120_000;
@@ -269,7 +274,13 @@ export class QuestsRepository {
     const latest = await tx.userQuest.findFirst({
       where: {
         userId,
-        status: { not: 'CANCELLED' },
+        OR: [
+          { status: { not: 'CANCELLED' } },
+          {
+            status: 'CANCELLED',
+            cancellationReason: USER_CANCELLED_QUEST_REASON,
+          },
+        ],
         nextEligibleAt: { gt: now },
       },
       orderBy: { nextEligibleAt: 'desc' },
@@ -843,6 +854,135 @@ export class QuestsRepository {
         r.quest.minSpend === null ? null : minor(r.quest.minSpend).toString(),
       rewardPoints: r.quest.rewardPoint,
     }));
+  }
+
+  private cancellationNextEligibleAt(
+    assignedAt: Date,
+    nextEligibleAt: Date | null,
+    policy: QuestPolicy,
+  ): Date {
+    return (
+      nextEligibleAt ??
+      new Date(assignedAt.getTime() + policy.assignment.cycleDays * DAY_MS)
+    );
+  }
+
+  private assertCancellableAssignment(
+    assignment: {
+      status: string;
+      expiresAt: Date;
+      cancellationReason: string | null;
+    },
+    now: Date,
+  ): void {
+    if (
+      assignment.status === 'CANCELLED' &&
+      assignment.cancellationReason === USER_CANCELLED_QUEST_REASON
+    )
+      return;
+    if (assignment.status !== 'ACTIVE')
+      throw new ConflictException('QUEST_CANCELLATION_NOT_ACTIVE');
+    if (assignment.expiresAt <= now)
+      throw new ConflictException('QUEST_CANCELLATION_EXPIRED');
+  }
+
+  async cancellationPreview(
+    userId: bigint,
+    assignmentId: bigint,
+    now: Date,
+    policy: QuestPolicy,
+  ): Promise<ConsumerQuestCancellationPreview> {
+    const assignment = await this.db.userQuest.findFirst({
+      where: { userQuestId: assignmentId, userId },
+      select: {
+        userQuestId: true,
+        status: true,
+        assignedAt: true,
+        expiresAt: true,
+        nextEligibleAt: true,
+        cancellationReason: true,
+      },
+    });
+    if (!assignment) throw new NotFoundException('QUEST_ASSIGNMENT_NOT_FOUND');
+    this.assertCancellableAssignment(assignment, now);
+    return {
+      assignmentId: assignment.userQuestId.toString(),
+      nextEligibleAt: this.cancellationNextEligibleAt(
+        assignment.assignedAt,
+        assignment.nextEligibleAt,
+        policy,
+      ).toISOString(),
+    };
+  }
+
+  async cancel(
+    userId: bigint,
+    assignmentId: bigint,
+    now: Date,
+    policy: QuestPolicy,
+  ): Promise<ConsumerQuestCancellationResponse & { replayed: boolean }> {
+    return this.db.$transaction(
+      async (tx) => {
+        // Serialize with selection so a legacy null cycle cannot be read between
+        // its ACTIVE check and the persisted cancellation entitlement.
+        await this.lock(tx);
+        const [assignment] = await tx.$queryRaw<
+          Array<{
+            user_quest_id: bigint;
+            status: string;
+            assigned_at: Date;
+            expires_at: Date;
+            next_eligible_at: Date | null;
+            cancellation_reason: string | null;
+          }>
+        >`
+        SELECT user_quest_id, status, assigned_at, expires_at,
+               next_eligible_at, cancellation_reason
+        FROM user_quests
+        WHERE user_quest_id = ${assignmentId} AND user_id = ${userId}
+        FOR UPDATE
+      `;
+        if (!assignment)
+          throw new NotFoundException('QUEST_ASSIGNMENT_NOT_FOUND');
+        this.assertCancellableAssignment(
+          {
+            status: assignment.status,
+            expiresAt: assignment.expires_at,
+            cancellationReason: assignment.cancellation_reason,
+          },
+          now,
+        );
+        const nextEligibleAt = this.cancellationNextEligibleAt(
+          assignment.assigned_at,
+          assignment.next_eligible_at,
+          policy,
+        );
+        const replayed =
+          assignment.status === 'CANCELLED' &&
+          assignment.cancellation_reason === USER_CANCELLED_QUEST_REASON;
+        if (!replayed) {
+          await tx.userQuest.update({
+            where: { userQuestId: assignmentId },
+            data: {
+              status: 'CANCELLED',
+              cancelledAt: now,
+              cancellationReason: USER_CANCELLED_QUEST_REASON,
+              nextEligibleAt,
+            },
+          });
+        }
+        return {
+          assignmentId: assignment.user_quest_id.toString(),
+          status: 'CANCELLED' as const,
+          nextEligibleAt: nextEligibleAt.toISOString(),
+          replayed,
+        };
+      },
+      {
+        ...TRANSACTION_OPTIONS,
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      },
+    );
   }
 
   async evaluateAndCompleteOrder(

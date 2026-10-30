@@ -273,6 +273,32 @@ export class QuestsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async cancellationPreview(userId: bigint, assignmentId: bigint) {
+    return this.repository.cancellationPreview(
+      userId,
+      assignmentId,
+      new Date(),
+      this.policy,
+    );
+  }
+
+  async cancel(userId: bigint, assignmentId: bigint) {
+    const { replayed, ...result } = await this.repository.cancel(
+      userId,
+      assignmentId,
+      new Date(),
+      this.policy,
+    );
+    if (!replayed)
+      this.logger.log({
+        event: 'quest_cancelled_by_consumer',
+        userId: userId.toString(),
+        assignmentId: assignmentId.toString(),
+        nextEligibleAt: result.nextEligibleAt,
+      });
+    return result;
+  }
+
   async evaluateOrder(orderId: bigint) {
     const result = await this.repository.evaluateAndCompleteOrder(
       orderId,

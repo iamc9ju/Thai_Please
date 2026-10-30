@@ -10,11 +10,20 @@ import { th } from '../../../i18n/th';
 import { ApiError } from '../../../lib/api-client';
 import * as consumerApi from '../api/consumer.api';
 import type { ConsumerQuestListResponse } from '../consumer.types';
+import {
+  cancelQuest,
+  getQuestCancellation,
+} from '../api/quest-cancellation.api';
 import { QuestsView } from './QuestsView';
 
 vi.mock('../api/consumer.api', () => ({
   getConsumerQuests: vi.fn(),
   getOrderReceipt: vi.fn(),
+}));
+
+vi.mock('../api/quest-cancellation.api', () => ({
+  cancelQuest: vi.fn(),
+  getQuestCancellation: vi.fn(),
 }));
 
 const mockedGetConsumerQuests = vi.mocked(consumerApi.getConsumerQuests);
@@ -61,6 +70,66 @@ describe('QuestsView (FR-C07)', () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it('moves a voluntarily cancelled quest into history and refreshes its list', async () => {
+    const copy = th.consumerPortal.quests;
+    const first = mockQuestData.items[0];
+    if (!first) throw new Error('Missing fixture');
+    mockedGetConsumerQuests
+      .mockResolvedValueOnce(mockQuestData)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            ...first,
+            status: 'CANCELLED',
+            cancelledAt: '2026-10-20T00:00:00Z',
+            cancellationReason: 'USER_CANCELLED',
+          },
+        ],
+        nextCursor: null,
+      });
+    vi.mocked(getQuestCancellation).mockResolvedValue({
+      assignmentId: first.id,
+      nextEligibleAt: first.expiresAt,
+    });
+    vi.mocked(cancelQuest).mockResolvedValue({
+      assignmentId: first.id,
+      nextEligibleAt: first.expiresAt,
+      status: 'CANCELLED',
+    });
+    Object.defineProperties(HTMLDialogElement.prototype, {
+      showModal: {
+        configurable: true,
+        value: function (this: HTMLDialogElement) {
+          this.setAttribute('open', '');
+        },
+      },
+      close: {
+        configurable: true,
+        value: function (this: HTMLDialogElement) {
+          this.removeAttribute('open');
+        },
+      },
+    });
+    render(<QuestsView />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: copy.cancellation.action }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: copy.cancellation.confirm }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: copy.cancellation.confirm }),
+    );
+    expect(
+      await screen.findByText(copy.cancellationReasons.USER_CANCELLED),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(cancelQuest).toHaveBeenCalledWith(first.id);
+    expect(mockedGetConsumerQuests).toHaveBeenCalledTimes(2);
   });
 
   it('renders loading state and then displays active quests', async () => {

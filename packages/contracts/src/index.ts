@@ -9,6 +9,22 @@ export type ConsumerProfileResponse = {
   address: string | null;
 };
 
+export const CONSUMER_QUEST_ASSIGNMENT_PATH =
+  '/api/v1/consumer/quests/:assignmentId' as const;
+export const QUEST_CANCELLATION_PATH_SUFFIX = 'cancellation' as const;
+export const QUEST_CANCEL_PATH_SUFFIX = 'cancel' as const;
+export const USER_CANCELLED_QUEST_REASON = 'USER_CANCELLED' as const;
+
+export type ConsumerQuestCancellationPreview = {
+  assignmentId: string;
+  nextEligibleAt: string;
+};
+
+export type ConsumerQuestCancellationResponse =
+  ConsumerQuestCancellationPreview & {
+    status: 'CANCELLED';
+  };
+
 export type HealthStatus = 'error' | 'ok' | 'shutting_down';
 
 export type HealthResponse = {

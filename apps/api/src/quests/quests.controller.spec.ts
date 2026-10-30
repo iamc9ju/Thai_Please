@@ -22,6 +22,15 @@ describe('quest HTTP authorization and contracts', () => {
     assignmentId: '9',
     nextEligibleAt: '2026-11-04T03:00:00.000Z',
   });
+  const cancellationPreview = vi.fn().mockResolvedValue({
+    assignmentId: '9',
+    nextEligibleAt: '2026-11-04T03:00:00.000Z',
+  });
+  const cancel = vi.fn().mockResolvedValue({
+    assignmentId: '9',
+    nextEligibleAt: '2026-11-04T03:00:00.000Z',
+    status: 'CANCELLED',
+  });
   afterEach(async () => {
     await app?.close();
     vi.clearAllMocks();
@@ -32,7 +41,14 @@ describe('quest HTTP authorization and contracts', () => {
       providers: [
         {
           provide: QuestsService,
-          useValue: { generate, list, proposals, select },
+          useValue: {
+            generate,
+            list,
+            proposals,
+            select,
+            cancellationPreview,
+            cancel,
+          },
         },
         {
           provide: ConfigService,
@@ -154,5 +170,52 @@ describe('quest HTTP authorization and contracts', () => {
     const url = await start('ADMIN');
     expect((await fetch(`${url}/consumer/quests/proposals`)).status).toBe(403);
     expect(proposals).not.toHaveBeenCalled();
+  });
+
+  it('previews and cancels only the session consumer assignment', async () => {
+    const url = await start('CONSUMER');
+    expect(
+      (await fetch(`${url}/consumer/quests/9/cancellation?userId=1`)).status,
+    ).toBe(400);
+    expect(
+      (await fetch(`${url}/consumer/quests/invalid/cancellation`)).status,
+    ).toBe(400);
+    expect((await fetch(`${url}/consumer/quests/9/cancellation`)).status).toBe(
+      200,
+    );
+    expect(cancellationPreview).toHaveBeenCalledWith(5n, 9n);
+
+    const post = (payload: unknown, origin = 'http://localhost:5173') =>
+      fetch(`${url}/consumer/quests/9/cancel`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin },
+        body: JSON.stringify(payload),
+      });
+    expect((await post({}, 'https://untrusted.invalid')).status).toBe(403);
+    expect((await post({ userId: '1' })).status).toBe(400);
+    expect(cancel).not.toHaveBeenCalled();
+    expect((await post({})).status).toBe(200);
+    expect(cancel).toHaveBeenCalledWith(5n, 9n);
+  });
+
+  it('denies admin access to consumer quest cancellation', async () => {
+    const url = await start('ADMIN');
+    expect((await fetch(`${url}/consumer/quests/9/cancellation`)).status).toBe(
+      403,
+    );
+    expect(
+      (
+        await fetch(`${url}/consumer/quests/9/cancel`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin: 'http://localhost:5173',
+          },
+          body: '{}',
+        })
+      ).status,
+    ).toBe(403);
+    expect(cancellationPreview).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
   });
 });

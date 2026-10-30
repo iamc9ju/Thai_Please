@@ -226,4 +226,30 @@ describe('FR-C07 constrained proposal workflow', () => {
     expect(await f.service.evaluateOrder(99n)).toBeNull();
     expect(complete).toHaveBeenCalledWith(99n, expect.any(Object));
   });
+  it('previews and cancels with the repository policy while hiding replay metadata', async () => {
+    const f = fixture();
+    const preview = vi
+      .spyOn(f.repository, 'cancellationPreview')
+      .mockResolvedValue({
+        assignmentId: '9',
+        nextEligibleAt: '2026-11-04T03:00:00.000Z',
+      });
+    const cancel = vi.spyOn(f.repository, 'cancel').mockResolvedValue({
+      assignmentId: '9',
+      nextEligibleAt: '2026-11-04T03:00:00.000Z',
+      status: 'CANCELLED',
+      replayed: false,
+    });
+    expect(await f.service.cancellationPreview(1n, 9n)).toEqual({
+      assignmentId: '9',
+      nextEligibleAt: '2026-11-04T03:00:00.000Z',
+    });
+    expect(await f.service.cancel(1n, 9n)).toEqual({
+      assignmentId: '9',
+      nextEligibleAt: '2026-11-04T03:00:00.000Z',
+      status: 'CANCELLED',
+    });
+    expect(preview).toHaveBeenCalledWith(1n, 9n, NOW, expect.any(Object));
+    expect(cancel).toHaveBeenCalledWith(1n, 9n, NOW, expect.any(Object));
+  });
 });

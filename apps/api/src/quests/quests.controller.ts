@@ -1,4 +1,10 @@
 import {
+  type ConsumerQuestCancellationPreview,
+  type ConsumerQuestCancellationResponse,
+  QUEST_CANCELLATION_PATH_SUFFIX,
+  QUEST_CANCEL_PATH_SUFFIX,
+} from '@thai-please/contracts';
+import {
   BadRequestException,
   Body,
   Controller,
@@ -42,12 +48,16 @@ export const QUEST_ROUTES = {
   generate: 'admin/quests/generate',
   proposals: 'consumer/quests/proposals',
   select: 'consumer/quests/proposals/:requestKey/select',
+  cancellation: `consumer/quests/:assignmentId/${QUEST_CANCELLATION_PATH_SUFFIX}`,
+  cancel: `consumer/quests/:assignmentId/${QUEST_CANCEL_PATH_SUFFIX}`,
 } as const;
 const databaseId = z
   .string()
   .regex(/^[1-9][0-9]*$/)
   .max(19)
-  .refine((id) => BigInt(id) <= 9223372036854775807n);
+  .refine(
+    (id) => /^[1-9][0-9]*$/.test(id) && BigInt(id) <= 9223372036854775807n,
+  );
 export class GenerateQuestDto {
   @ApiProperty({
     type: String,
@@ -80,6 +90,8 @@ export class SelectProposalDto extends CreateProposalsDto {
   proposalId = '';
 }
 
+export class CancelQuestDto {}
+
 export class QuestProposalDto {
   @ApiProperty() id!: string;
   @ApiProperty({ enum: ['MIN_SPEND', 'CATEGORY_SPEND'] }) type!: string;
@@ -110,6 +122,18 @@ export class QuestProposalStateDto {
 export class QuestSelectionResultDto {
   @ApiProperty() assignmentId!: string;
   @ApiProperty({ format: 'date-time' }) nextEligibleAt!: string;
+}
+
+export class QuestCancellationPreviewDto implements ConsumerQuestCancellationPreview {
+  @ApiProperty() assignmentId!: string;
+  @ApiProperty({ format: 'date-time' }) nextEligibleAt!: string;
+}
+
+export class QuestCancellationResultDto
+  extends QuestCancellationPreviewDto
+  implements ConsumerQuestCancellationResponse
+{
+  @ApiProperty({ enum: ['CANCELLED'] }) status!: 'CANCELLED';
 }
 
 @ApiTags('quests')
@@ -188,6 +212,52 @@ export class QuestsController {
       dto.proposalId,
       dto.idempotencyKey,
     );
+  }
+
+  @Get(QUEST_ROUTES.cancellation)
+  @Roles('CONSUMER')
+  @ApiOperation({
+    summary: 'Preview cancellation and the unchanged next entitlement time',
+  })
+  @ApiOkResponse({ type: QuestCancellationPreviewDto })
+  cancellationPreview(
+    @Req() req: Request,
+    @Param('assignmentId') assignmentId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    if (!req.user) throw new UnauthorizedException('QUEST_SESSION_REQUIRED');
+    if (!z.strictObject({}).safeParse(query).success)
+      throw new BadRequestException('QUEST_INVALID_QUERY');
+    const parsed = databaseId.safeParse(assignmentId);
+    if (!parsed.success)
+      throw new BadRequestException('QUEST_INVALID_ASSIGNMENT_ID');
+    return this.quests.cancellationPreview(
+      req.user.userId,
+      BigInt(parsed.data),
+    );
+  }
+
+  @Post(QUEST_ROUTES.cancel)
+  @HttpCode(HttpStatus.OK)
+  @Roles('CONSUMER')
+  @ApiOperation({
+    summary:
+      'Cancel an active assignment without restarting or refunding its seven-day cycle',
+  })
+  @ApiOkResponse({ type: QuestCancellationResultDto })
+  cancel(
+    @Req() req: Request,
+    @Param('assignmentId') assignmentId: string,
+    @Body() _dto: CancelQuestDto,
+  ) {
+    if (!req.user) throw new UnauthorizedException('QUEST_SESSION_REQUIRED');
+    this.requireMutationOrigin(req);
+    if (!z.strictObject({}).safeParse(_dto).success)
+      throw new BadRequestException('QUEST_INVALID_CANCELLATION_BODY');
+    const parsed = databaseId.safeParse(assignmentId);
+    if (!parsed.success)
+      throw new BadRequestException('QUEST_INVALID_ASSIGNMENT_ID');
+    return this.quests.cancel(req.user.userId, BigInt(parsed.data));
   }
 
   @Get([QUEST_ROUTES.list, QUEST_ROUTES.consumerList])

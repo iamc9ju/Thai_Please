@@ -98,6 +98,16 @@ describe.skipIf(!enabled)('personal-spend proposal PostgreSQL workflow', () => {
         'utf8',
       ),
     );
+    // Product fixtures use the current Prisma model, including recommendation.
+    await admin.query(
+      readFileSync(
+        new URL(
+          '../../prisma/migrations/20261030130000_add_product_recommendation/migration.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
     const isolated = new URL(url);
     isolated.searchParams.set('schema', schema);
     isolated.searchParams.set(
@@ -363,6 +373,289 @@ describe.skipIf(!enabled)('personal-spend proposal PostgreSQL workflow', () => {
     await expect(
       repo.select(u.userId, key, wrongId, log.selectionKey, policy, now),
     ).rejects.toThrow('QUEST_IDEMPOTENCY_CONFLICT');
+  });
+  it('cancels only an owned active assignment, preserves its cycle and replays safely', async () => {
+    const owner = await user();
+    const stranger = await user();
+    const key = await ready(owner.userId);
+    await repo.select(
+      owner.userId,
+      key,
+      candidate.id,
+      randomUUID(),
+      policy,
+      now,
+    );
+    const assignment = await db.userQuest.findFirstOrThrow({
+      where: { userId: owner.userId },
+    });
+    const expectedNextEligibleAt = new Date(
+      now.getTime() + policy.assignment.cycleDays * day,
+    ).toISOString();
+    await expect(
+      repo.cancellationPreview(
+        stranger.userId,
+        assignment.userQuestId,
+        now,
+        policy,
+      ),
+    ).rejects.toThrow('QUEST_ASSIGNMENT_NOT_FOUND');
+    expect(
+      await repo.cancellationPreview(
+        owner.userId,
+        assignment.userQuestId,
+        now,
+        policy,
+      ),
+    ).toEqual({
+      assignmentId: assignment.userQuestId.toString(),
+      nextEligibleAt: expectedNextEligibleAt,
+    });
+
+    await expect(
+      repo.cancel(stranger.userId, assignment.userQuestId, now, policy),
+    ).rejects.toThrow('QUEST_ASSIGNMENT_NOT_FOUND');
+    const cancelledAt = new Date(now.getTime() + day);
+    const results = await Promise.all([
+      repo.cancel(owner.userId, assignment.userQuestId, cancelledAt, policy),
+      repo.cancel(owner.userId, assignment.userQuestId, cancelledAt, policy),
+    ]);
+    expect(
+      results
+        .map((result) => result.replayed)
+        .sort((a, b) => Number(a) - Number(b)),
+    ).toEqual([false, true]);
+    expect(results[0]?.nextEligibleAt).toBe(expectedNextEligibleAt);
+    expect(results[1]?.nextEligibleAt).toBe(expectedNextEligibleAt);
+    expect(
+      await repo.cancellationPreview(
+        owner.userId,
+        assignment.userQuestId,
+        cancelledAt,
+        policy,
+      ),
+    ).toEqual({
+      assignmentId: assignment.userQuestId.toString(),
+      nextEligibleAt: expectedNextEligibleAt,
+    });
+    expect(
+      await db.userQuest.findUnique({
+        where: { userQuestId: assignment.userQuestId },
+      }),
+    ).toMatchObject({
+      status: 'CANCELLED',
+      cancellationReason: 'USER_CANCELLED',
+      cancelledAt,
+    });
+    expect(
+      (
+        await repo.proposalState(
+          owner.userId,
+          new Date(now.getTime() + 6 * day),
+          policy,
+        )
+      ).status,
+    ).toBe('COOLDOWN');
+    expect(
+      (
+        await repo.proposalState(
+          owner.userId,
+          new Date(now.getTime() + 7 * day),
+          policy,
+        )
+      ).status,
+    ).toBe('ELIGIBLE');
+  });
+  it('rejects cancellation after completion or expiry', async () => {
+    const completedOwner = await user();
+    const completedKey = await ready(completedOwner.userId);
+    await repo.select(
+      completedOwner.userId,
+      completedKey,
+      candidate.id,
+      randomUUID(),
+      policy,
+      now,
+    );
+    const completed = await db.userQuest.findFirstOrThrow({
+      where: { userId: completedOwner.userId },
+    });
+    await db.userQuest.update({
+      where: { userQuestId: completed.userQuestId },
+      data: { status: 'COMPLETED', completedAt: now },
+    });
+    await expect(
+      repo.cancel(completedOwner.userId, completed.userQuestId, now, policy),
+    ).rejects.toThrow('QUEST_CANCELLATION_NOT_ACTIVE');
+
+    const expiredOwner = await user();
+    const expiredKey = await ready(expiredOwner.userId);
+    await repo.select(
+      expiredOwner.userId,
+      expiredKey,
+      candidate.id,
+      randomUUID(),
+      policy,
+      now,
+    );
+    const expired = await db.userQuest.findFirstOrThrow({
+      where: { userId: expiredOwner.userId },
+    });
+    await expect(
+      repo.cancel(
+        expiredOwner.userId,
+        expired.userQuestId,
+        expired.expiresAt,
+        policy,
+      ),
+    ).rejects.toThrow('QUEST_CANCELLATION_EXPIRED');
+  });
+  it.each(['cancel-first', 'reward-first', 'concurrent'] as const)(
+    'serializes cancellation with reward completion: %s',
+    async (mode) => {
+      const owner = await user();
+      const category = await db.productCategory.create({
+        data: { categoryName: `Race ${mode}` },
+      });
+      const shop = await db.merchant.create({
+        data: {
+          ownerUserId: actorId,
+          merchantName: `Race ${mode}`,
+          status: 'ACTIVE',
+        },
+      });
+      const product = await db.product.create({
+        data: {
+          merchantId: shop.merchantId,
+          categoryId: category.categoryId,
+          productName: 'Race fixture',
+          price: '100',
+        },
+      });
+      const quest = await db.quest.create({
+        data: {
+          questName: 'Race fixture',
+          questType: 'MIN_SPEND',
+          minSpend: '60',
+          rewardPoint: 20,
+          durationDays: 7,
+          amountBasis: 'PERSONAL_AFTER_DISCOUNT',
+          ruleVersion: policy.version,
+        },
+      });
+      const assignment = await db.userQuest.create({
+        data: {
+          userId: owner.userId,
+          questId: quest.questId,
+          assignedAt: now,
+          expiresAt: new Date(now.getTime() + 7 * day),
+          nextEligibleAt: new Date(now.getTime() + 7 * day),
+        },
+      });
+      const paidAt = new Date(now.getTime() + 1000);
+      const receipt = await db.order.create({
+        data: {
+          userId: owner.userId,
+          merchantId: shop.merchantId,
+          status: 'PAID',
+          subtotal: '100',
+          finalAmount: '100',
+          userPaidAmount: '100',
+          subsidyAmount: '0',
+          paidAt,
+          orderItems: {
+            create: {
+              productId: product.productId,
+              categoryId: category.categoryId,
+              productNameSnapshot: 'Race fixture',
+              unitPrice: '100',
+              quantity: 1,
+              lineTotal: '100',
+            },
+          },
+        },
+      });
+      const cancel = () =>
+        repo.cancel(owner.userId, assignment.userQuestId, paidAt, policy);
+      const reward = () =>
+        repo.evaluateAndCompleteOrder(receipt.orderId, policy);
+      if (mode === 'cancel-first') {
+        await cancel();
+        expect(await reward()).toBeNull();
+      } else if (mode === 'reward-first') {
+        expect(await reward()).not.toBeNull();
+        await expect(cancel()).rejects.toThrow('QUEST_CANCELLATION_NOT_ACTIVE');
+      } else {
+        const results = await Promise.allSettled([cancel(), reward()]);
+        expect(results[1]?.status).toBe('fulfilled');
+      }
+      const final = await db.userQuest.findUniqueOrThrow({
+        where: { userQuestId: assignment.userQuestId },
+      });
+      const rewards = await db.pointTransaction.findMany({
+        where: { userQuestId: assignment.userQuestId },
+      });
+      const updatedUser = await db.user.findUniqueOrThrow({
+        where: { userId: owner.userId },
+      });
+      expect(['CANCELLED', 'COMPLETED']).toContain(final.status);
+      expect(rewards).toHaveLength(final.status === 'COMPLETED' ? 1 : 0);
+      expect(updatedUser.pointBalance).toBe(
+        final.status === 'COMPLETED' ? 20 : 0,
+      );
+      expect(final.nextEligibleAt).toEqual(assignment.nextEligibleAt);
+    },
+  );
+  it('preserves retirement exemptions and derives missing cycle from assignment time', async () => {
+    const owner = await user();
+    const quest = await db.quest.create({
+      data: {
+        questName: 'Legacy fixture',
+        questType: 'MIN_SPEND',
+        minSpend: '60',
+        rewardPoint: 20,
+        durationDays: 7,
+        amountBasis: 'PERSONAL_AFTER_DISCOUNT',
+        ruleVersion: policy.version,
+      },
+    });
+    const assignment = await db.userQuest.create({
+      data: {
+        userId: owner.userId,
+        questId: quest.questId,
+        assignedAt: now,
+        expiresAt: new Date(now.getTime() + 7 * day),
+      },
+    });
+    const time = new Date(now.getTime() + 5 * day);
+    const expected = new Date(now.getTime() + 7 * day).toISOString();
+    expect(
+      (
+        await repo.cancellationPreview(
+          owner.userId,
+          assignment.userQuestId,
+          time,
+          policy,
+        )
+      ).nextEligibleAt,
+    ).toBe(expected);
+    expect(
+      (await repo.cancel(owner.userId, assignment.userQuestId, time, policy))
+        .nextEligibleAt,
+    ).toBe(expected);
+    expect((await repo.proposalState(owner.userId, time, policy)).status).toBe(
+      'COOLDOWN',
+    );
+    await db.userQuest.update({
+      where: { userQuestId: assignment.userQuestId },
+      data: { cancellationReason: 'QUEST_TYPE_RETIRED_POLICY_V2' },
+    });
+    expect((await repo.proposalState(owner.userId, time, policy)).status).toBe(
+      'ELIGIBLE',
+    );
+    await expect(
+      repo.cancel(owner.userId, assignment.userQuestId, time, policy),
+    ).rejects.toThrow('QUEST_CANCELLATION_NOT_ACTIVE');
   });
   it('rejects expired sets, invalid results and changed policy snapshots', async () => {
     const u = await user();

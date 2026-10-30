@@ -1,3 +1,4 @@
+import { USER_CANCELLED_QUEST_REASON } from '@thai-please/contracts';
 import { LoadingState } from '../../../components/LoadingState';
 import {
   Award,
@@ -16,6 +17,7 @@ import { ApiError } from '../../../lib/api-client';
 import { getConsumerQuests, getOrderReceipt } from '../api/consumer.api';
 import { DigitalReceiptModal } from '../components/DigitalReceiptModal';
 import { PortalPageHeader } from '../components/PortalPageHeader';
+import { QuestCancellationDialog } from '../components/QuestCancellationDialog';
 import { QuestProposalsPanel } from '../components/QuestProposalsPanel';
 import type {
   ConsumerQuest,
@@ -83,6 +85,8 @@ function isRetiredQuestType(quest: ConsumerQuest): boolean {
 
 function getCancellationReason(quest: ConsumerQuest): string {
   const copy = th.consumerPortal.quests;
+  if (quest.cancellationReason === USER_CANCELLED_QUEST_REASON)
+    return copy.cancellationReasons.USER_CANCELLED;
   if (quest.cancellationReason === 'QUEST_TYPE_RETIRED_POLICY_V2') {
     return copy.cancellationReasons.QUEST_TYPE_RETIRED_POLICY_V2;
   }
@@ -97,6 +101,13 @@ function getQuestTitle(quest: ConsumerQuest): string {
 
 export function QuestsView() {
   const copy = th.consumerPortal.quests;
+  const [cancellingQuest, setCancellingQuest] = useState<ConsumerQuest | null>(
+    null,
+  );
+  const [cancellationMessage, setCancellationMessage] = useState<string | null>(
+    null,
+  );
+  const [proposalRevision, setProposalRevision] = useState(0);
   const [activeTab, setActiveTab] = useState<QuestTab>('active');
   const [loadState, setLoadState] = useState<ConsumerQuestLoadState>({
     status: 'loading',
@@ -303,7 +314,18 @@ export function QuestsView() {
       </div>
 
       {/* Tabs */}
-      <QuestProposalsPanel onSelected={refreshAfterSelection} />
+      <QuestProposalsPanel
+        key={proposalRevision}
+        onSelected={refreshAfterSelection}
+      />
+      {cancellationMessage && (
+        <p
+          role="status"
+          className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900"
+        >
+          {cancellationMessage}
+        </p>
+      )}
 
       <div
         className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-xs w-fit"
@@ -425,6 +447,13 @@ export function QuestsView() {
                     <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600 font-semibold">
                       {copy.defaultProgress}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setCancellingQuest(quest)}
+                      className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50"
+                    >
+                      {copy.cancellation.action}
+                    </button>
                   </div>
                 </article>
               );
@@ -564,6 +593,25 @@ export function QuestsView() {
         <p>{copy.ruleNote}</p>
       </div>
 
+      {cancellingQuest && (
+        <QuestCancellationDialog
+          key={cancellingQuest.id}
+          assignmentId={cancellingQuest.id}
+          questName={getQuestTitle(cancellingQuest)}
+          onClose={() => setCancellingQuest(null)}
+          onCancelled={async (nextEligibleAt) => {
+            setCancellingQuest(null);
+            setCancellationMessage(
+              copy.cancellation.success(
+                dateTimeFormatter.format(new Date(nextEligibleAt)),
+              ),
+            );
+            setProposalRevision((value) => value + 1);
+            setActiveTab('history');
+            await refreshAfterSelection();
+          }}
+        />
+      )}
       <DigitalReceiptModal
         receipt={selectedReceipt}
         onClose={() => setSelectedReceipt(null)}
