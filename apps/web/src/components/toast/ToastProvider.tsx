@@ -58,15 +58,12 @@ export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
     <ToastContext.Provider value={contextValue}>
       {children}
 
-      {/* Floating Stacked Viewport (blocks.so style) */}
-      <aside
-        aria-label="การแจ้งเตือนระบบ"
-        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 flex w-full max-w-sm sm:max-w-md flex-col gap-2.5 pointer-events-none px-4 sm:px-0"
-      >
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={dismissToast} />
-        ))}
-      </aside>
+      {/* Centered Modal Dialog (Thai Please Theme) */}
+      {toasts.length > 0 && (
+        <aside aria-label="การแจ้งเตือนระบบ">
+          <ToastItem toast={toasts[0]!} onDismiss={dismissToast} />
+        </aside>
+      )}
     </ToastContext.Provider>
   );
 }

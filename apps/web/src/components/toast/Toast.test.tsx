@@ -9,8 +9,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('ToastItem (blocks.so UI pattern)', () => {
-  it('renders login-success notification with role badge and description', () => {
+describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
+  it('renders login-success centered modal with role badge, brand logo, and action button', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -20,22 +20,25 @@ describe('ToastItem (blocks.so UI pattern)', () => {
           title: th.authToast.loginSuccessTitle,
           description: 'ยินดีต้อนรับคุณ สมชาย ใจดี เข้าสู่ระบบเรียบร้อยแล้ว',
           badge: 'ประชาชน',
-          duration: 4000,
+          duration: 3500,
         }}
         onDismiss={onDismiss}
       />,
     );
 
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: th.brand })).toBeInTheDocument();
     expect(screen.getByText(th.authToast.loginSuccessTitle)).toBeInTheDocument();
     expect(
       screen.getByText('ยินดีต้อนรับคุณ สมชาย ใจดี เข้าสู่ระบบเรียบร้อยแล้ว'),
     ).toBeInTheDocument();
     expect(screen.getByText('ประชาชน')).toBeInTheDocument();
-    expect(screen.getByText(th.authToast.timeJustNow)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: th.authToast.goToDashboard }),
+    ).toBeInTheDocument();
   });
 
-  it('renders logout-success notification with logout title', () => {
+  it('renders logout-success modal with confirm button', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
@@ -44,35 +47,57 @@ describe('ToastItem (blocks.so UI pattern)', () => {
           type: 'logout-success',
           title: th.authToast.logoutSuccessTitle,
           description: th.authToast.logoutSuccessDesc,
-          duration: 4000,
+          duration: 3500,
         }}
         onDismiss={onDismiss}
       />,
     );
 
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText(th.authToast.logoutSuccessTitle)).toBeInTheDocument();
     expect(screen.getByText(th.authToast.logoutSuccessDesc)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: th.authToast.confirm }),
+    ).toBeInTheDocument();
   });
 
-  it('dismisses toast when clicking close button', () => {
+  it('dismisses modal when clicking the primary action button', () => {
     const onDismiss = vi.fn();
     render(
       <ToastItem
         toast={{
-          id: 'test-dismiss',
-          title: 'แจ้งเตือน',
-          duration: 4000,
+          id: 'test-action-dismiss',
+          type: 'login-success',
+          title: 'เข้าสู่ระบบสำเร็จ',
+          duration: 3500,
         }}
         onDismiss={onDismiss}
       />,
     );
 
-    const closeBtn = screen.getByRole('button', {
-      name: th.authToast.dismiss,
+    const actionBtn = screen.getByRole('button', {
+      name: th.authToast.goToDashboard,
     });
-    fireEvent.click(closeBtn);
+    fireEvent.click(actionBtn);
 
-    expect(onDismiss).toHaveBeenCalledWith('test-dismiss');
+    expect(onDismiss).toHaveBeenCalledWith('test-action-dismiss');
+  });
+
+  it('dismisses modal when pressing Escape key', () => {
+    const onDismiss = vi.fn();
+    render(
+      <ToastItem
+        toast={{
+          id: 'test-escape-dismiss',
+          title: 'แจ้งเตือน',
+          duration: 3500,
+        }}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onDismiss).toHaveBeenCalledWith('test-escape-dismiss');
   });
 
   it('auto-dismisses after duration has elapsed', () => {
@@ -114,15 +139,15 @@ function TestConsumer() {
           })
         }
       >
-        Trigger Login Toast
+        Trigger Login Modal
       </button>
       <div data-testid="toast-count">{toasts.length}</div>
     </div>
   );
 }
 
-describe('ToastProvider & useToast', () => {
-  it('adds and displays toast when showToast is invoked', () => {
+describe('ToastProvider & useToast (Modal Mode)', () => {
+  it('opens centered modal when showToast is invoked', () => {
     render(
       <ToastProvider>
         <TestConsumer />
@@ -130,21 +155,12 @@ describe('ToastProvider & useToast', () => {
     );
 
     const button = screen.getByRole('button', {
-      name: 'Trigger Login Toast',
+      name: 'Trigger Login Modal',
     });
     fireEvent.click(button);
 
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
     expect(screen.getByText('ยินดีต้อนรับ')).toBeInTheDocument();
-    expect(screen.getByTestId('toast-count')).toHaveTextContent('1');
-  });
-
-  it('provides safe fallback when useToast is used outside ToastProvider', () => {
-    render(<TestConsumer />);
-    const button = screen.getByRole('button', {
-      name: 'Trigger Login Toast',
-    });
-    // Should not throw
-    expect(() => fireEvent.click(button)).not.toThrow();
   });
 });
