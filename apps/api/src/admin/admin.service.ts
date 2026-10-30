@@ -697,9 +697,6 @@ export class AdminService {
           ? { status: statusFilter }
           : undefined,
       include: {
-        merchant_category_assignments: {
-          include: { merchant_categories: true },
-        },
         owner: {
           select: {
             userId: true,

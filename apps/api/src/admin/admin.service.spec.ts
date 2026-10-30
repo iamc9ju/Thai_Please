@@ -179,11 +179,11 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
         merchantId: 10n,
         merchantName: 'Test merchant',
         status: 'PENDING',
-        merchant_category_assignments: [
+        categoryAssignments: [
           {
-            merchant_categories: {
-              category_code: 'FOOD_BEVERAGE',
-              category_name: 'Food',
+            category: {
+              categoryCode: 'FOOD_BEVERAGE',
+              sortOrder: 1,
             },
           },
         ],
@@ -201,15 +201,18 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
       },
     ]);
     const result = await service.listMerchants();
+    expect(
+      prismaMock.merchant.findMany.mock.calls[0]?.[0].include,
+    ).not.toHaveProperty('merchant_category_assignments');
     expect(result.items[0]).toMatchObject({
-      merchantType: 'Food',
       merchantTypes: ['FOOD_BEVERAGE'],
     });
     expect(prismaMock.merchant.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
-          merchant_category_assignments: {
-            include: { merchant_categories: true },
+          categoryAssignments: {
+            select: { category: { select: { categoryCode: true } } },
+            orderBy: { category: { sortOrder: 'asc' } },
           },
         }),
       }),
