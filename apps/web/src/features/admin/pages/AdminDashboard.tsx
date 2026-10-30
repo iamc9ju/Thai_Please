@@ -1,3 +1,4 @@
+import { AdminDirectoryList } from '../components/AdminDirectoryList';
 import { QuestLogList } from '../components/QuestLogList';
 import { RewardHistoryPages } from '../components/RewardHistoryPages';
 import { MerchantSales } from '../components/MerchantSales';
@@ -2258,70 +2259,75 @@ export function AdminDashboard({
               </div>
 
               <div className="mt-4 space-y-3">
-                {adminUsersData.admins.map((admin) => {
-                  const isActive = admin.adminRole?.status === 'ACTIVE';
-                  const isLastActiveAdmin =
-                    isActive && adminUsersData.activeAdminCount <= 1;
-                  const isBusy = processingUserId === admin.userId;
+                <AdminDirectoryList
+                  items={adminUsersData.admins}
+                  label={copy.admins.currentAdminsTitle}
+                >
+                  {(admin) => {
+                    const isActive = admin.adminRole?.status === 'ACTIVE';
+                    const isLastActiveAdmin =
+                      isActive && adminUsersData.activeAdminCount <= 1;
+                    const isBusy = processingUserId === admin.userId;
 
-                  return (
-                    <div
-                      key={admin.userId}
-                      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">
-                            {admin.fullName}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            ({admin.citizenIdMasked})
-                          </span>
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              isActive
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-red-50 text-red-700'
-                            }`}
-                          >
-                            ADMIN: {admin.adminRole?.status}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          บทบาททั้งหมด:{' '}
-                          {admin.roles
-                            .map((r) => `${r.role} (${r.status})`)
-                            .join(', ')}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={isBusy || isLastActiveAdmin}
-                        onClick={() =>
-                          void handleToggleAdminStatus(
-                            admin.userId,
-                            isActive ? 'SUSPENDED' : 'ACTIVE',
-                          )
-                        }
-                        title={
-                          isLastActiveAdmin
-                            ? 'ไม่สามารถระงับผู้ดูแลระบบคนสุดท้ายที่เปิดใช้งานอยู่ได้'
-                            : undefined
-                        }
-                        className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 ${
-                          isActive
-                            ? 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        }`}
+                    return (
+                      <div
+                        key={admin.userId}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                       >
-                        {isActive
-                          ? copy.admins.suspendAdminBtn
-                          : copy.admins.activateAdminBtn}
-                      </button>
-                    </div>
-                  );
-                })}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">
+                              {admin.fullName}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              ({admin.citizenIdMasked})
+                            </span>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                isActive
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-red-50 text-red-700'
+                              }`}
+                            >
+                              ADMIN: {admin.adminRole?.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            บทบาททั้งหมด:{' '}
+                            {admin.roles
+                              .map((r) => `${r.role} (${r.status})`)
+                              .join(', ')}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isBusy || isLastActiveAdmin}
+                          onClick={() =>
+                            void handleToggleAdminStatus(
+                              admin.userId,
+                              isActive ? 'SUSPENDED' : 'ACTIVE',
+                            )
+                          }
+                          title={
+                            isLastActiveAdmin
+                              ? 'ไม่สามารถระงับผู้ดูแลระบบคนสุดท้ายที่เปิดใช้งานอยู่ได้'
+                              : undefined
+                          }
+                          className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 ${
+                            isActive
+                              ? 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          }`}
+                        >
+                          {isActive
+                            ? copy.admins.suspendAdminBtn
+                            : copy.admins.activateAdminBtn}
+                        </button>
+                      </div>
+                    );
+                  }}
+                </AdminDirectoryList>
               </div>
             </div>
 
@@ -2330,9 +2336,11 @@ export function AdminDashboard({
                 {copy.admins.allUsersTitle}
               </h3>
               <div className="mt-4 space-y-3">
-                {adminUsersData.users
-                  .filter((u) => !u.adminRole)
-                  .map((u) => (
+                <AdminDirectoryList
+                  items={adminUsersData.users.filter((u) => !u.adminRole)}
+                  label={copy.admins.allUsersTitle}
+                >
+                  {(u) => (
                     <div
                       key={u.userId}
                       className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-xs"
@@ -2359,7 +2367,8 @@ export function AdminDashboard({
                         {copy.admins.grantAdminBtn}
                       </button>
                     </div>
-                  ))}
+                  )}
+                </AdminDirectoryList>
               </div>
             </div>
           </section>

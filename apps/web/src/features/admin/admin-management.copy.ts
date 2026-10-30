@@ -1,4 +1,10 @@
 export const adminManagementCopy = {
+  directorySearch: 'ค้นหารายชื่อ',
+  directorySearchHint: 'ค้นหาด้วยชื่อหรือเลขประจำตัวที่แสดง',
+  directoryEmpty: 'ไม่พบรายชื่อที่ตรงกับการค้นหา',
+  directoryPagination: 'เปลี่ยนหน้ารายชื่อ',
+  directoryRange: (start: number, end: number, total: number) =>
+    `แสดง ${start}–${end} จาก ${total} รายชื่อ`,
   rewardPagination: 'เปลี่ยนหน้าประวัติภารกิจ พอยต์ และคูปอง',
   previousPage: 'ก่อนหน้า',
   nextPage: 'ถัดไป',
