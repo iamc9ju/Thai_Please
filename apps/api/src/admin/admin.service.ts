@@ -1503,11 +1503,9 @@ export class AdminService {
       }
     }
 
-    const salesByMerchant = Array.from(merchantSalesMap.values())
-      .sort(
-        (a, b) => b.totalSales - a.totalSales || b.orderCount - a.orderCount,
-      )
-      .slice(0, SOCIAL_IMPACT_DEFAULTS.TOP_MERCHANTS_LIMIT);
+    const salesByMerchant = Array.from(merchantSalesMap.values()).sort(
+      (a, b) => b.totalSales - a.totalSales || b.orderCount - a.orderCount,
+    );
 
     const salesByCategory = Array.from(categorySalesMap.values())
       .map((cat) => ({

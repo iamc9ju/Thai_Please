@@ -471,6 +471,21 @@ describe('AdminService (FR-A01 through FR-A07, FR-M01, FR-S04)', () => {
   });
 
   describe('getSocialImpactDashboard (FR-A07)', () => {
+    it('returns merchants beyond the former top ten for the full list (FR-A01)', async () => {
+      prismaMock.user.count.mockResolvedValue(0);
+      prismaMock.merchant.findMany.mockResolvedValue(
+        Array.from({ length: 24 }, (_, index) => ({
+          merchantId: BigInt(index + 1),
+          merchantName: `Merchant ${index}`,
+        })),
+      );
+      prismaMock.order.findMany.mockResolvedValue([]);
+      prismaMock.userQuest.findMany.mockResolvedValue([]);
+      prismaMock.pointTransaction.findMany.mockResolvedValue([]);
+      prismaMock.userCoupon.findMany.mockResolvedValue([]);
+      const result = await service.getSocialImpactDashboard(7);
+      expect(result.salesByMerchant).toHaveLength(24);
+    });
     it('computes social impact metrics, sales by merchant/category, and daily trend', async () => {
       prismaMock.user.count.mockResolvedValue(12);
       prismaMock.merchant.findMany.mockResolvedValue([
