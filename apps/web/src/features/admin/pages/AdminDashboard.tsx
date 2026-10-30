@@ -8,18 +8,14 @@ import {
   Activity,
   AlertCircle,
   Award,
-  BarChart3,
   Building2,
   CheckCircle2,
   Clock,
   Coins,
   FileText,
   Gift,
-  Layers,
-  LogOut,
   Plus,
   RefreshCw,
-  ShieldCheck,
   Sparkles,
   Store,
   Target,
@@ -54,15 +50,8 @@ import type {
   SocialImpactDashboardResponse,
   SubsidyProgramItem,
 } from '../admin.types';
-
-type AdminTab =
-  | 'overview'
-  | 'merchants'
-  | 'programs'
-  | 'quests'
-  | 'rewards'
-  | 'socialImpact'
-  | 'admins';
+import { AdminSidebar, type AdminTab } from '../components/AdminSidebar';
+import { AdminTopBar } from '../components/AdminTopBar';
 
 const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
   overview: 'dashboard',
@@ -75,7 +64,7 @@ const loadingVariantByTab: Record<AdminTab, LoadingStateVariant> = {
 };
 
 export interface AdminDashboardProps {
-  adminName?: string;
+  adminName?: string | undefined;
   onLogout: () => void;
 }
 
@@ -129,6 +118,7 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   const copy = th.adminPortal;
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionBanner, setActionBanner] = useState<{
@@ -409,119 +399,35 @@ export function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-['Kanit',sans-serif] text-slate-900">
-      {/* Blue Theme Top Navigation Header */}
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-[#003d82] via-[#0056b3] to-[#0073e6] text-white shadow-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-              <ShieldCheck className="size-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white sm:text-lg">
-                  {adminName}
-                </h1>
-                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                  {copy.roleBadge}
-                </span>
-              </div>
-              <p className="text-xs text-blue-100">{copy.brandSubtitle}</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-50/70 flex font-sans text-slate-900">
+      {/* Left Sidebar Navigation (Unified Theme matching Consumer and Merchant Portals) */}
+      <AdminSidebar
+        activeTab={activeTab}
+        adminName={adminName}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
+        onSelectTab={(tab) => {
+          setActionBanner(null);
+          setActiveTab(tab);
+        }}
+        onLogout={onLogout}
+      />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActionBanner(null);
-                void loadActiveTabData(activeTab);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25"
-            >
-              <RefreshCw className="size-3.5" />
-              {copy.refresh}
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-blue-100 ring-1 ring-white/20 transition hover:bg-red-500/80 hover:text-white"
-            >
-              <LogOut className="size-3.5" />
-              {copy.logout}
-            </button>
-          </div>
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <AdminTopBar
+          activeTab={activeTab}
+          adminName={adminName}
+          isLoading={isLoading}
+          onOpenMobile={() => setIsMobileOpen(true)}
+          onRefresh={() => {
+            setActionBanner(null);
+            void loadActiveTabData(activeTab);
+          }}
+          onLogout={onLogout}
+        />
 
-        {/* Navigation Tabs */}
-        <div className="border-t border-white/15 bg-[#003d82]/60">
-          <div className="mx-auto flex max-w-7xl gap-1.5 overflow-x-auto px-4 py-2 sm:px-6">
-            {(
-              [
-                {
-                  key: 'overview',
-                  label: copy.nav.overview,
-                  icon: Layers,
-                },
-                {
-                  key: 'merchants',
-                  label: copy.nav.merchants,
-                  icon: Store,
-                },
-                {
-                  key: 'programs',
-                  label: copy.nav.programs,
-                  icon: Coins,
-                },
-                {
-                  key: 'quests',
-                  label: copy.nav.quests,
-                  icon: Sparkles,
-                },
-                {
-                  key: 'rewards',
-                  label: copy.nav.rewards,
-                  icon: Award,
-                },
-                {
-                  key: 'socialImpact',
-                  label: copy.nav.socialImpact,
-                  icon: BarChart3,
-                },
-                {
-                  key: 'admins',
-                  label: copy.nav.admins,
-                  icon: UserCheck,
-                },
-              ] as const
-            ).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    setActionBanner(null);
-                    setActiveTab(tab.key);
-                  }}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-white text-[#0056b3] shadow-sm'
-                      : 'text-blue-100 hover:bg-white/15 hover:text-white'
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 w-full max-w-[1800px] mx-auto space-y-6">
         {actionBanner && (
           <div
             role="status"
@@ -1963,7 +1869,8 @@ export function AdminDashboard({
             </div>
           </section>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
