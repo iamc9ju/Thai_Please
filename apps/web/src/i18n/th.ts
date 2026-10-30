@@ -16,7 +16,8 @@ const merchantBusinessTypeLabels: Record<MerchantBusinessType, string> = {
 
 export const th = {
   app: {
-    checkingSession: 'กำลังตรวจสอบข้อมูลผู้ใช้งาน...',
+    checkingSession: 'กำลังตรวจสอบการใช้งาน...',
+    checkingSessionSub: 'ระบบไทยช่วยไทยพรีส • กำลังตรวจสอบสถานะการใช้งาน',
   },
   brand: 'ไทยช่วยไทยพรีส',
   login: {

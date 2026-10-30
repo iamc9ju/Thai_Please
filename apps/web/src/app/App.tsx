@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { LoadingState } from '../components/LoadingState';
+import { BrandLoadingScreen } from '../components/BrandLoadingScreen';
 import { AuthProvider } from '../features/auth/components/AuthProvider';
 import { useAuth } from '../features/auth/use-auth';
 import { LandingPage } from '../features/landing/pages/LandingPage';
@@ -34,9 +34,10 @@ const MerchantPendingApproval = lazy(async () => {
 
 function PortalLoadingFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface p-6">
-      <LoadingState label={th.app.checkingSession} />
-    </div>
+    <BrandLoadingScreen
+      label={th.app.checkingSession}
+      sublabel={th.app.checkingSessionSub}
+    />
   );
 }
 

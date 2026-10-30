@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Building2,
 } from 'lucide-react';
+import { BrandLogoAnimation } from '../../../components/BrandLoadingScreen';
 import { th } from '../../../i18n/th';
 
 export interface MerchantPendingApprovalProps {
@@ -102,8 +103,8 @@ export function MerchantPendingApproval({
           {/* Status Icon Header */}
           <div className="text-center">
             {isPending && (
-              <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-8 ring-amber-50/50">
-                <Clock className="size-8 animate-pulse" />
+              <div className="mx-auto mb-3 flex flex-col items-center justify-center">
+                <BrandLogoAnimation size="md" />
               </div>
             )}
             {isSuspended && (
