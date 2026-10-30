@@ -307,7 +307,7 @@ export class AdminService {
       throw new BadRequestException(ADMIN_COUPON_ERRORS.invalidMoney);
     }
     const created = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${dto.idempotencyKey}))`;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${dto.idempotencyKey}))`;
       const prior = await tx.auditEvent.findFirst({
         where: {
           actorUserId,
@@ -1174,7 +1174,7 @@ export class AdminService {
     const created = await this.prisma.$transaction(async (tx) => {
       // The database trigger is authoritative. This lock makes the application
       // check deterministic too, including while the migration is rolling out.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
       const conflictingProgram = await tx.subsidyProgram.findFirst({
         where: {
           startDate: { lte: endDate },
@@ -1238,7 +1238,7 @@ export class AdminService {
     const updated = await this.prisma.$transaction(async (tx) => {
       // Acquire the global range lock before the row lock. Create takes the
       // same lock, so writers observe one consistent date-range decision.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('subsidy_program_date_ranges'))`;
       // FK reference inserts take KEY SHARE on this parent, so the usage check
       // and policy change must hold UPDATE until the transaction completes.
       await tx.$queryRaw`SELECT program_id FROM subsidy_programs WHERE program_id = ${programId} FOR UPDATE`;

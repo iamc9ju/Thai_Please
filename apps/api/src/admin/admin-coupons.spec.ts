@@ -79,6 +79,10 @@ describe('FR-A01 admin coupon catalogue', () => {
       couponId: '1',
       discountValue: 10.25,
     });
+    // PostgreSQL advisory locks return void; select a scalar so Prisma can deserialize the result.
+    expect(tx.$queryRaw.mock.calls[0]?.[0].join('')).toContain(
+      'SELECT 1 AS locked FROM pg_advisory_xact_lock(',
+    );
     const args = tx.coupon.create.mock.calls[0]?.[0];
     expect(args.data.discountValue.toString()).toBe('10.25');
     expect(tx.auditEvent.create).toHaveBeenCalledWith(

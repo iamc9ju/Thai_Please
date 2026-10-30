@@ -1,3 +1,4 @@
+import { useToast } from '../../../components/toast/ToastProvider';
 import { ProgramList } from '../components/ProgramList';
 import { AdminDirectoryList } from '../components/AdminDirectoryList';
 import { QuestLogList } from '../components/QuestLogList';
@@ -157,6 +158,7 @@ export function AdminDashboard({
   onLogout,
 }: AdminDashboardProps) {
   const copy = th.adminPortal;
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -547,10 +549,12 @@ export function AdminDashboard({
     event.preventDefault();
     if (!newProgram.programName.trim() || isSavingProgram) return;
     if (newProgram.startDate > newProgram.endDate) {
-      setActionBanner({
-        type: 'error',
-        message: adminManagementCopy.dateOrder,
+      showToast({
+        type: 'warning',
+        title: adminManagementCopy.programCreateRejected,
+        description: adminManagementCopy.dateOrder,
       });
+      setActionBanner(null);
       return;
     }
     setIsSavingProgram(true);
@@ -573,12 +577,15 @@ export function AdminDashboard({
       const refreshed = await getSubsidyPrograms();
       setPrograms(refreshed);
     } catch (err) {
-      setActionBanner({
-        type: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : 'ไม่สามารถสร้างโครงการเงินอุดหนุนได้',
+      const message =
+        err instanceof Error
+          ? err.message
+          : adminManagementCopy.programCreateFailed;
+      setActionBanner(null);
+      showToast({
+        type: 'warning',
+        title: adminManagementCopy.programCreateRejected,
+        description: message,
       });
     } finally {
       setIsSavingProgram(false);
