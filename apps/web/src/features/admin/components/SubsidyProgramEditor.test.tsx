@@ -82,10 +82,16 @@ describe('FR-A04 existing program editor', () => {
     ).toHaveValue(fixture.programName);
   });
   it('explains why economic terms cannot be edited after the policy has references', () => {
-    render(<SubsidyProgramEditor program={{ ...fixture, walletTransactionCount: 1 }} onSaved={vi.fn()} />);
-    expect(screen.getByRole('button', { name: copy.programEdit })).toBeDisabled();
+    render(
+      <SubsidyProgramEditor
+        program={{ ...fixture, walletTransactionCount: 1 }}
+        onSaved={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: copy.programEdit }),
+    ).toBeDisabled();
     expect(screen.getByText(copy.programPolicyNote)).toBeInTheDocument();
     expect(api.updateSubsidyProgram).not.toHaveBeenCalled();
   });
-
 });

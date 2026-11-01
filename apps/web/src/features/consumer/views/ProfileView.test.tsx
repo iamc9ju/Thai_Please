@@ -27,10 +27,10 @@ describe('FR-C01 persisted profile', () => {
     expect(screen.getByText(profile.address)).toBeInTheDocument();
     expect(screen.getByText(profile.maskedCitizenId)).toBeInTheDocument();
     expect(screen.queryByText('08X-XXX-4567')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: copy.changePassword }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(copy.security)).not.toBeInTheDocument();
+    for (const label of [copy.changePassword, copy.privacy, copy.terms]) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled();
+    }
+    expect(screen.getByText(copy.settingsUnavailable)).toBeInTheDocument();
   });
   it('shows missing fields honestly', async () => {
     read.mockResolvedValue({ ...profile, phone: null, address: null });

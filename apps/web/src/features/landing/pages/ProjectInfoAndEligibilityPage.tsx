@@ -84,7 +84,9 @@ export function ProjectInfoAndEligibilityPage({
               >
                 {tMeta.breadcrumbHome}
               </button>
-              <span aria-hidden="true" className="text-slate-300">/</span>
+              <span aria-hidden="true" className="text-slate-300">
+                /
+              </span>
               <span className="text-slate-900">{tMeta.breadcrumbCurrent}</span>
             </nav>
           </div>
@@ -245,7 +247,8 @@ export function ProjectInfoAndEligibilityPage({
               ยังมีข้อสงสัยหรือต้องการสอบถามข้อมูลเพิ่มเติม?
             </h3>
             <p className="text-xs sm:text-sm text-slate-600">
-              ติดต่อสายด่วนโครงการได้ทุกวันตลอด 24 ชั่วโมง หรือส่งข้อความผ่านระบบบริการช่วยเหลือ
+              ติดต่อสายด่วนโครงการได้ทุกวันตลอด 24 ชั่วโมง
+              หรือส่งข้อความผ่านระบบบริการช่วยเหลือ
             </p>
           </div>
 

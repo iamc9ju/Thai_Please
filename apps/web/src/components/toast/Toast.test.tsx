@@ -1,4 +1,10 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ToastItem } from './ToastItem';
 import { ToastProvider, useToast } from './ToastProvider';
@@ -28,7 +34,9 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: th.brand })).toBeInTheDocument();
-    expect(screen.getByText(th.authToast.loginSuccessTitle)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.authToast.loginSuccessTitle),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('ยินดีต้อนรับคุณ สมชาย ใจดี เข้าสู่ระบบเรียบร้อยแล้ว'),
     ).toBeInTheDocument();
@@ -58,8 +66,12 @@ describe('ToastItem (Centered Modal with Thai Please Theme)', () => {
     );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(th.authToast.logoutSuccessTitle)).toBeInTheDocument();
-    expect(screen.getByText(th.authToast.logoutSuccessDesc)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.authToast.logoutSuccessTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.authToast.logoutSuccessDesc),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: th.authToast.confirm }),
     ).not.toBeInTheDocument();

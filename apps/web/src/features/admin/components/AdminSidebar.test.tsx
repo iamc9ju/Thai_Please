@@ -52,7 +52,9 @@ describe('AdminSidebar', () => {
 
     // Profile card displays Admin info
     expect(screen.getByText('แอดมินทดสอบ')).toBeInTheDocument();
-    expect(screen.getAllByText(copy.roleBadge).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(copy.roleBadge).length).toBeGreaterThanOrEqual(
+      1,
+    );
 
     // Clicking a tab invokes onSelectTab
     fireEvent.click(screen.getByRole('button', { name: copy.nav.merchants }));

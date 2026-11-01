@@ -25,9 +25,12 @@ type NewsCategoryFilter = 'all' | 'project' | 'announcement' | 'measures';
 export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
   const pageCopy = th.landing.mofNewsPage;
 
-  const [selectedCategory, setSelectedCategory] = useState<NewsCategoryFilter>('all');
+  const [selectedCategory, setSelectedCategory] =
+    useState<NewsCategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
+    null,
+  );
 
   const filteredArticles = useMemo(() => {
     return pageCopy.articles.filter((article) => {
@@ -38,7 +41,9 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
         !normalizedQuery ||
         article.title.toLowerCase().includes(normalizedQuery) ||
         article.excerpt.toLowerCase().includes(normalizedQuery) ||
-        article.content.some((para) => para.toLowerCase().includes(normalizedQuery));
+        article.content.some((para) =>
+          para.toLowerCase().includes(normalizedQuery),
+        );
       return matchesCategory && matchesQuery;
     });
   }, [pageCopy.articles, selectedCategory, searchQuery]);
@@ -53,7 +58,10 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
       {/* Breadcrumb Bar */}
       <div className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-2 text-xs sm:text-sm text-slate-500"
+          >
             <button
               type="button"
               onClick={onBackToHome}
@@ -61,7 +69,10 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
             >
               {pageCopy.meta.breadcrumbHome}
             </button>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+            <ChevronRight
+              className="size-4 text-slate-400"
+              aria-hidden="true"
+            />
             <span className="font-semibold text-slate-900" aria-current="page">
               {pageCopy.meta.breadcrumbCurrent}
             </span>
@@ -93,7 +104,10 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
 
           {/* Search Box */}
           <div className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-xs focus-within:border-[#0056b3] transition-colors">
-            <Search className="ml-2.5 size-5 shrink-0 text-slate-400" aria-hidden="true" />
+            <Search
+              className="ml-2.5 size-5 shrink-0 text-slate-400"
+              aria-hidden="true"
+            />
             <input
               type="search"
               value={searchQuery}
@@ -149,7 +163,10 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
         {/* Empty Search Result */}
         {filteredArticles.length === 0 && (
           <div className="my-12 rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <Newspaper className="mx-auto size-10 text-slate-400" aria-hidden="true" />
+            <Newspaper
+              className="mx-auto size-10 text-slate-400"
+              aria-hidden="true"
+            />
             <h3 className="mt-4 text-base sm:text-lg font-bold text-slate-900">
               {pageCopy.emptyTitle}
             </h3>
@@ -172,43 +189,49 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
         )}
 
         {/* Featured Card (When on 'all' and no active search) */}
-        {selectedCategory === 'all' && !searchQuery && filteredArticles.length > 0 && (
-          <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-xs">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0056b3] px-3 py-1 text-xs font-bold text-white">
-                <Sparkles className="size-3.5" aria-hidden="true" />
-                <span>{pageCopy.featuredBadge}</span>
-              </span>
-              <span className="rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-bold text-[#0056b3]">
-                {filteredArticles[0]?.categoryLabel}
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
-                <Calendar className="size-3.5" aria-hidden="true" />
-                <span>{filteredArticles[0]?.date}</span>
-              </span>
+        {selectedCategory === 'all' &&
+          !searchQuery &&
+          filteredArticles.length > 0 && (
+            <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-xs">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0056b3] px-3 py-1 text-xs font-bold text-white">
+                  <Sparkles className="size-3.5" aria-hidden="true" />
+                  <span>{pageCopy.featuredBadge}</span>
+                </span>
+                <span className="rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-bold text-[#0056b3]">
+                  {filteredArticles[0]?.categoryLabel}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+                  <Calendar className="size-3.5" aria-hidden="true" />
+                  <span>{filteredArticles[0]?.date}</span>
+                </span>
+              </div>
+
+              <h2 className="mt-4 text-xl sm:text-3xl font-extrabold leading-snug tracking-tight text-[#0f172a] max-w-4xl">
+                {filteredArticles[0]?.title}
+              </h2>
+
+              <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed max-w-3xl">
+                {filteredArticles[0]?.excerpt}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                <span className="text-xs text-slate-500">
+                  {pageCopy.source}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedArticleId(filteredArticles[0]?.id ?? null)
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 transition-all cursor-pointer"
+                >
+                  <BookOpen className="size-4" aria-hidden="true" />
+                  <span>{pageCopy.readFullArticle}</span>
+                </button>
+              </div>
             </div>
-
-            <h2 className="mt-4 text-xl sm:text-3xl font-extrabold leading-snug tracking-tight text-[#0f172a] max-w-4xl">
-              {filteredArticles[0]?.title}
-            </h2>
-
-            <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed max-w-3xl">
-              {filteredArticles[0]?.excerpt}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
-              <span className="text-xs text-slate-500">{pageCopy.source}</span>
-              <button
-                type="button"
-                onClick={() => setSelectedArticleId(filteredArticles[0]?.id ?? null)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0056b3] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-[#004494] active:scale-98 transition-all cursor-pointer"
-              >
-                <BookOpen className="size-4" aria-hidden="true" />
-                <span>{pageCopy.readFullArticle}</span>
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
         {/* News Grid */}
         {filteredArticles.length > 0 && (
@@ -285,7 +308,10 @@ export function MofNewsPage({ onBackToHome }: MofNewsPageProps) {
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 hover:bg-slate-50 text-slate-700 hover:text-[#0056b3] transition-colors"
               >
                 <span>{pageCopy.contactBanner.website}</span>
-                <ExternalLink className="size-3.5 text-slate-400" aria-hidden="true" />
+                <ExternalLink
+                  className="size-3.5 text-slate-400"
+                  aria-hidden="true"
+                />
               </a>
             </div>
           </div>

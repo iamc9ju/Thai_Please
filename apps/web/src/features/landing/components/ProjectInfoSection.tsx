@@ -230,10 +230,7 @@ export function ProjectInfoSection({
       </section>
 
       {/* 5. Eligible vs Ineligible Goods & Merchants */}
-      <section
-        aria-labelledby="categories-heading"
-        className="space-y-6"
-      >
+      <section aria-labelledby="categories-heading" className="space-y-6">
         <div className="max-w-2xl">
           <h2
             id="categories-heading"

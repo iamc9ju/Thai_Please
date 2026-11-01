@@ -24,13 +24,13 @@ describe('MerchantPendingApproval (FR-AUTH-04, FR-M01)', () => {
     expect(
       screen.getByText('อยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ'),
     ).toBeInTheDocument();
-    expect(screen.getAllByText('ร้านส้มตำป้าณี').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('ร้านส้มตำป้าณี').length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(screen.getByText('1-1005-xxxxx-45-6')).toBeInTheDocument();
     expect(screen.getAllByText('รออนุมัติ (PENDING)')).toHaveLength(2);
     expect(screen.getAllByText('เจ้าของร้าน (OWNER)')).toHaveLength(2);
-    expect(
-      screen.getByText('2. ตรวจสอบคุณสมบัติ'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('2. ตรวจสอบคุณสมบัติ')).toBeInTheDocument();
   });
 
   it('triggers onRefresh when clicking check status button', async () => {

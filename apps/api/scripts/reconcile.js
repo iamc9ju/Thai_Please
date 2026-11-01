@@ -165,7 +165,9 @@ async function main() {
 
     if (totalDiscrepancies === 0) {
       console.log(' RESULT: 100% RECONCILED (NO DISCREPANCIES DETECTED) ');
-      console.log(' All wallet & point balances reconcile with immutable ledgers.');
+      console.log(
+        ' All wallet & point balances reconcile with immutable ledgers.',
+      );
       console.log('====================================================\n');
 
       // Record in persistent audit_events
@@ -190,13 +192,22 @@ async function main() {
     } else {
       console.error(` RESULT: DISCREPANCY DETECTED (${totalDiscrepancies}) `);
       if (walletDiscrepancies.length > 0) {
-        console.error('Wallet Discrepancies:', JSON.stringify(walletDiscrepancies, null, 2));
+        console.error(
+          'Wallet Discrepancies:',
+          JSON.stringify(walletDiscrepancies, null, 2),
+        );
       }
       if (pointDiscrepancies.length > 0) {
-        console.error('Point Discrepancies:', JSON.stringify(pointDiscrepancies, null, 2));
+        console.error(
+          'Point Discrepancies:',
+          JSON.stringify(pointDiscrepancies, null, 2),
+        );
       }
       if (orderDiscrepancies.length > 0) {
-        console.error('Order Discrepancies:', JSON.stringify(orderDiscrepancies, null, 2));
+        console.error(
+          'Order Discrepancies:',
+          JSON.stringify(orderDiscrepancies, null, 2),
+        );
       }
       console.error('====================================================\n');
       process.exitCode = 1;

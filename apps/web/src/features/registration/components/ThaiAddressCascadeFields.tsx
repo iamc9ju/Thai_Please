@@ -82,10 +82,14 @@ export function ThaiAddressCascadeFields({
             id={fieldNames.province}
             name={fieldNames.province}
             value={province}
-            onChange={(event) => handleProvinceChange(event.currentTarget.value)}
+            onChange={(event) =>
+              handleProvinceChange(event.currentTarget.value)
+            }
             className="w-full appearance-none pr-10"
           >
-            <option value="">{th.registration.placeholders.selectProvince}</option>
+            <option value="">
+              {th.registration.placeholders.selectProvince}
+            </option>
             {THAI_PROVINCES.map((provName) => (
               <option key={provName} value={provName}>
                 {provName}
@@ -111,7 +115,9 @@ export function ThaiAddressCascadeFields({
             name={fieldNames.district}
             value={district}
             disabled={!province}
-            onChange={(event) => handleDistrictChange(event.currentTarget.value)}
+            onChange={(event) =>
+              handleDistrictChange(event.currentTarget.value)
+            }
             className="w-full appearance-none pr-10 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
           >
             <option value="">

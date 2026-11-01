@@ -18,26 +18,39 @@ describe('ProjectInfoAndEligibilityPage', () => {
   };
 
   it('renders project info tab by default with metrics, objectives, and categories', () => {
-    render(<ProjectInfoAndEligibilityPage {...defaultProps} initialTab="project-info" />);
+    render(
+      <ProjectInfoAndEligibilityPage
+        {...defaultProps}
+        initialTab="project-info"
+      />,
+    );
 
     // Meta & Breadcrumbs
-    expect(screen.getByText(th.projectInfoAndEligibility.meta.backToHome)).toBeInTheDocument();
-    expect(screen.getByText(th.projectInfoAndEligibility.meta.breadcrumbCurrent)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.projectInfoAndEligibility.meta.backToHome),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.projectInfoAndEligibility.meta.breadcrumbCurrent),
+    ).toBeInTheDocument();
 
     // Tab buttons
-    expect(screen.getByRole('tab', { name: th.projectInfoAndEligibility.tabs.projectInfo })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    expect(screen.getByRole('tab', { name: th.projectInfoAndEligibility.tabs.howToJoin })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
+    expect(
+      screen.getByRole('tab', {
+        name: th.projectInfoAndEligibility.tabs.projectInfo,
+      }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      screen.getByRole('tab', {
+        name: th.projectInfoAndEligibility.tabs.howToJoin,
+      }),
+    ).toHaveAttribute('aria-selected', 'false');
 
     // Project Info Content
     const tInfo = th.projectInfoAndEligibility.projectInfo;
     expect(screen.getByText(tInfo.badge)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: tInfo.title })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: tInfo.title }),
+    ).toBeInTheDocument();
     expect(screen.getByText(tInfo.subtitle)).toBeInTheDocument();
 
     // Policy Stats
@@ -59,24 +72,38 @@ describe('ProjectInfoAndEligibilityPage', () => {
     }
 
     // Categories
-    expect(screen.getByText(tInfo.categories.eligibleTitle)).toBeInTheDocument();
-    expect(screen.getByText(tInfo.categories.ineligibleTitle)).toBeInTheDocument();
+    expect(
+      screen.getByText(tInfo.categories.eligibleTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(tInfo.categories.ineligibleTitle),
+    ).toBeInTheDocument();
 
     // FAQ Section
-    expect(screen.getByText(th.projectInfoAndEligibility.faq.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.projectInfoAndEligibility.faq.title),
+    ).toBeInTheDocument();
   });
 
   it('switches between Project Info and How to Join main tabs', () => {
-    render(<ProjectInfoAndEligibilityPage {...defaultProps} initialTab="project-info" />);
+    render(
+      <ProjectInfoAndEligibilityPage
+        {...defaultProps}
+        initialTab="project-info"
+      />,
+    );
 
-    const howToJoinTab = screen.getByRole('tab', { name: th.projectInfoAndEligibility.tabs.howToJoin });
+    const howToJoinTab = screen.getByRole('tab', {
+      name: th.projectInfoAndEligibility.tabs.howToJoin,
+    });
     fireEvent.click(howToJoinTab);
 
     expect(howToJoinTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: th.projectInfoAndEligibility.tabs.projectInfo })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
+    expect(
+      screen.getByRole('tab', {
+        name: th.projectInfoAndEligibility.tabs.projectInfo,
+      }),
+    ).toHaveAttribute('aria-selected', 'false');
 
     // Should now show How to Join content
     const tJoin = th.projectInfoAndEligibility.howToJoin;
@@ -109,12 +136,16 @@ describe('ProjectInfoAndEligibilityPage', () => {
     }
 
     // CTA: Register Consumer
-    const registerBtn = screen.getByRole('button', { name: tConsumer.ctaPrimary });
+    const registerBtn = screen.getByRole('button', {
+      name: tConsumer.ctaPrimary,
+    });
     fireEvent.click(registerBtn);
     expect(onRegisterConsumer).toHaveBeenCalledTimes(1);
 
     // CTA: Login Consumer
-    const loginBtn = screen.getByRole('button', { name: tConsumer.ctaSecondary });
+    const loginBtn = screen.getByRole('button', {
+      name: tConsumer.ctaSecondary,
+    });
     fireEvent.click(loginBtn);
     expect(onLoginConsumer).toHaveBeenCalledTimes(1);
   });
@@ -151,18 +182,27 @@ describe('ProjectInfoAndEligibilityPage', () => {
     }
 
     // CTA: Register Merchant
-    const registerBtn = screen.getByRole('button', { name: tMerchant.ctaPrimary });
+    const registerBtn = screen.getByRole('button', {
+      name: tMerchant.ctaPrimary,
+    });
     fireEvent.click(registerBtn);
     expect(onRegisterMerchant).toHaveBeenCalledTimes(1);
 
     // CTA: Login Merchant
-    const loginBtn = screen.getByRole('button', { name: tMerchant.ctaSecondary });
+    const loginBtn = screen.getByRole('button', {
+      name: tMerchant.ctaSecondary,
+    });
     fireEvent.click(loginBtn);
     expect(onLoginMerchant).toHaveBeenCalledTimes(1);
   });
 
   it('expands and collapses FAQ accordions', () => {
-    render(<ProjectInfoAndEligibilityPage {...defaultProps} initialTab="project-info" />);
+    render(
+      <ProjectInfoAndEligibilityPage
+        {...defaultProps}
+        initialTab="project-info"
+      />,
+    );
 
     const faqItems = th.projectInfoAndEligibility.faq.items;
     const firstFaq = faqItems[0];
@@ -185,9 +225,16 @@ describe('ProjectInfoAndEligibilityPage', () => {
 
   it('triggers onBackToHome when Back button is clicked', () => {
     const onBackToHome = vi.fn();
-    render(<ProjectInfoAndEligibilityPage {...defaultProps} onBackToHome={onBackToHome} />);
+    render(
+      <ProjectInfoAndEligibilityPage
+        {...defaultProps}
+        onBackToHome={onBackToHome}
+      />,
+    );
 
-    const backBtn = screen.getByRole('button', { name: th.projectInfoAndEligibility.meta.backToHome });
+    const backBtn = screen.getByRole('button', {
+      name: th.projectInfoAndEligibility.meta.backToHome,
+    });
     fireEvent.click(backBtn);
     expect(onBackToHome).toHaveBeenCalledTimes(1);
   });
@@ -210,7 +257,9 @@ describe('LandingPage Navigation with Project Info and How to Join', () => {
     ).toBeInTheDocument();
 
     // Click Back to Home
-    const backBtn = screen.getByRole('button', { name: th.projectInfoAndEligibility.meta.backToHome });
+    const backBtn = screen.getByRole('button', {
+      name: th.projectInfoAndEligibility.meta.backToHome,
+    });
     fireEvent.click(backBtn);
 
     // Should return to hero banner

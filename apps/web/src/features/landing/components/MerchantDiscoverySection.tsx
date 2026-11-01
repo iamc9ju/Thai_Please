@@ -201,7 +201,10 @@ export function MerchantDiscoverySection({
                       <Store className="size-5" aria-hidden="true" />
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-[#0056b3]">
-                      <CheckCircle2 className="size-3 text-[#0056b3]" aria-hidden="true" />
+                      <CheckCircle2
+                        className="size-3 text-[#0056b3]"
+                        aria-hidden="true"
+                      />
                       <span>{pageCopy.card.verifiedBadge}</span>
                     </span>
                   </div>

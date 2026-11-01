@@ -81,7 +81,9 @@ export function MerchantPendingApproval({
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:block text-right">
-            <div className="text-xs font-bold text-slate-900">{merchantName}</div>
+            <div className="text-xs font-bold text-slate-900">
+              {merchantName}
+            </div>
             <div className="text-[11px] text-slate-500">
               {merchantRole === 'OWNER' ? copy.ownerRole : copy.staffRole}
             </div>
@@ -138,15 +140,23 @@ export function MerchantPendingApproval({
             </h3>
             <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 text-sm">
               <div>
-                <span className="text-xs text-slate-500">{copy.merchantNameLabel}:</span>
+                <span className="text-xs text-slate-500">
+                  {copy.merchantNameLabel}:
+                </span>
                 <p className="font-semibold text-slate-900">{merchantName}</p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">{copy.citizenIdLabel}:</span>
-                <p className="font-mono font-medium text-slate-800">{maskedCitizenId}</p>
+                <span className="text-xs text-slate-500">
+                  {copy.citizenIdLabel}:
+                </span>
+                <p className="font-mono font-medium text-slate-800">
+                  {maskedCitizenId}
+                </p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">{copy.roleLabel}:</span>
+                <span className="text-xs text-slate-500">
+                  {copy.roleLabel}:
+                </span>
                 <p className="font-medium text-slate-800">
                   {merchantRole === 'OWNER' ? copy.ownerRole : copy.staffRole}
                 </p>

@@ -21,7 +21,8 @@ export interface MerchantSearchPageProps {
   onLogin?: (() => void) | undefined;
 }
 
-type MerchantCategoryFilter = 'all' | 'food' | 'general' | 'otop' | 'community' | 'transport';
+type MerchantCategoryFilter =
+  'all' | 'food' | 'general' | 'otop' | 'community' | 'transport';
 
 export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
   const pageCopy = th.landing.merchantSearchPage;
@@ -29,7 +30,8 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
 
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<MerchantCategoryFilter>('all');
+  const [selectedCategory, setSelectedCategory] =
+    useState<MerchantCategoryFilter>('all');
   const [merchants, setMerchants] = useState<PublicMerchant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,9 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
       } catch (caughtError) {
         if (requestId.current !== currentRequestId) return;
         setError(
-          caughtError instanceof Error ? caughtError.message : pageCopy.states.errorTitle,
+          caughtError instanceof Error
+            ? caughtError.message
+            : pageCopy.states.errorTitle,
         );
       } finally {
         if (requestId.current === currentRequestId) setIsLoading(false);
@@ -77,7 +81,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
   const filteredMerchants = useMemo(() => {
     if (selectedCategory === 'all') return merchants;
 
-    const categoryKeywords: Record<Exclude<MerchantCategoryFilter, 'all'>, string[]> = {
+    const categoryKeywords: Record<
+      Exclude<MerchantCategoryFilter, 'all'>,
+      string[]
+    > = {
       food: ['อาหาร', 'เครื่องดื่ม', 'food', 'beverage'],
       general: ['ทั่วไป', 'ของใช้', 'general'],
       otop: ['otop', 'โอทอป'],
@@ -103,7 +110,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
       {/* Breadcrumb Bar */}
       <div className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-2 text-xs sm:text-sm text-slate-500"
+          >
             <button
               type="button"
               onClick={onBackToHome}
@@ -111,7 +121,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
             >
               {pageCopy.meta.breadcrumbHome}
             </button>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+            <ChevronRight
+              className="size-4 text-slate-400"
+              aria-hidden="true"
+            />
             <span className="font-semibold text-slate-900" aria-current="page">
               {pageCopy.meta.breadcrumbCurrent}
             </span>
@@ -150,7 +163,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
             <label htmlFor="merchant-search-input" className="sr-only">
               {pageCopy.search.label}
             </label>
-            <Search className="ml-2.5 size-5 shrink-0 text-slate-400" aria-hidden="true" />
+            <Search
+              className="ml-2.5 size-5 shrink-0 text-slate-400"
+              aria-hidden="true"
+            />
             <input
               id="merchant-search-input"
               type="search"
@@ -220,7 +236,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-slate-900">
               {activeSearch
-                ? pageCopy.stats.resultsFound(filteredMerchants.length, activeSearch)
+                ? pageCopy.stats.resultsFound(
+                    filteredMerchants.length,
+                    activeSearch,
+                  )
                 : pageCopy.stats.recommendedHeading}
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
@@ -257,7 +276,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
             role="alert"
             className="my-10 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center"
           >
-            <AlertCircle className="mx-auto size-8 text-rose-500" aria-hidden="true" />
+            <AlertCircle
+              className="mx-auto size-8 text-rose-500"
+              aria-hidden="true"
+            />
             <h3 className="mt-2 text-base font-bold text-rose-800">
               {pageCopy.states.errorTitle}
             </h3>
@@ -316,7 +338,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-[#0056b3] border border-blue-200">
-                        <CheckCircle2 className="size-3 text-[#0056b3]" aria-hidden="true" />
+                        <CheckCircle2
+                          className="size-3 text-[#0056b3]"
+                          aria-hidden="true"
+                        />
                         <span>{pageCopy.card.verifiedBadge}</span>
                       </span>
                     </div>
@@ -350,7 +375,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
                 {/* Card Footer: Address & Benefit Pill */}
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex flex-col gap-2">
                   <div className="flex items-start gap-1.5 text-xs text-slate-500">
-                    <MapPin className="size-3.5 shrink-0 text-slate-400 mt-0.5" aria-hidden="true" />
+                    <MapPin
+                      className="size-3.5 shrink-0 text-slate-400 mt-0.5"
+                      aria-hidden="true"
+                    />
                     <span className="line-clamp-1">
                       {merchant.address || pageCopy.card.unspecifiedAddress}
                     </span>
@@ -360,7 +388,10 @@ export function MerchantSearchPage({ onBackToHome }: MerchantSearchPageProps) {
                       {pageCopy.card.acceptingQr}
                     </span>
                     <span className="inline-flex items-center gap-1 font-semibold text-[#0056b3]">
-                      <span className="size-1.5 rounded-full bg-[#0056b3]" aria-hidden="true" />
+                      <span
+                        className="size-1.5 rounded-full bg-[#0056b3]"
+                        aria-hidden="true"
+                      />
                       <span>{pageCopy.card.statusActive}</span>
                     </span>
                   </div>

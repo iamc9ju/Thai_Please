@@ -56,7 +56,10 @@ export function LogoutConfirmDialog({
         </button>
 
         {/* Warning / LogOut Icon Podium */}
-        <div className="relative mb-3 flex items-center justify-center" aria-hidden="true">
+        <div
+          className="relative mb-3 flex items-center justify-center"
+          aria-hidden="true"
+        >
           <div className="size-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/80 ring-4 ring-amber-50/70 flex items-center justify-center shadow-xs">
             <LogOut className="size-6" />
           </div>

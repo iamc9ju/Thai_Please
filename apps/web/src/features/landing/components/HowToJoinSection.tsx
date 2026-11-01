@@ -122,7 +122,9 @@ export function HowToJoinSection({
               ) : (
                 <Store className="size-3.5" aria-hidden="true" />
               )}
-              <span>{isConsumer ? 'สำหรับบุคคลทั่วไป' : 'สำหรับผู้ประกอบการ'}</span>
+              <span>
+                {isConsumer ? 'สำหรับบุคคลทั่วไป' : 'สำหรับผู้ประกอบการ'}
+              </span>
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0f172a]">
               {roleData.title}

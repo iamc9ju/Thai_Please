@@ -23,13 +23,11 @@ export interface FaqPageProps {
 
 type FaqCategoryFilter = 'all' | 'consumer' | 'merchant' | 'system';
 
-export function FaqPage({
-  onBackToHome,
-  onContactSupport,
-}: FaqPageProps) {
+export function FaqPage({ onBackToHome, onContactSupport }: FaqPageProps) {
   const pageCopy = th.landing.faqPage;
 
-  const [selectedCategory, setSelectedCategory] = useState<FaqCategoryFilter>('all');
+  const [selectedCategory, setSelectedCategory] =
+    useState<FaqCategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(['faq-c1', 'faq-c2']),
@@ -75,9 +73,13 @@ export function FaqPage({
       case 'merchant':
         return <Store className="size-3.5 text-[#0056b3]" aria-hidden="true" />;
       case 'system':
-        return <ShieldCheck className="size-3.5 text-[#0056b3]" aria-hidden="true" />;
+        return (
+          <ShieldCheck className="size-3.5 text-[#0056b3]" aria-hidden="true" />
+        );
       default:
-        return <Sparkles className="size-3.5 text-[#0056b3]" aria-hidden="true" />;
+        return (
+          <Sparkles className="size-3.5 text-[#0056b3]" aria-hidden="true" />
+        );
     }
   };
 
@@ -86,7 +88,10 @@ export function FaqPage({
       {/* Breadcrumb Bar */}
       <div className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-2 text-xs sm:text-sm text-slate-500"
+          >
             <button
               type="button"
               onClick={onBackToHome}
@@ -94,7 +99,10 @@ export function FaqPage({
             >
               {pageCopy.meta.breadcrumbHome}
             </button>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+            <ChevronRight
+              className="size-4 text-slate-400"
+              aria-hidden="true"
+            />
             <span className="font-semibold text-slate-900" aria-current="page">
               {pageCopy.meta.breadcrumbCurrent}
             </span>
@@ -126,7 +134,10 @@ export function FaqPage({
 
           {/* Search Box */}
           <div className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-xs focus-within:border-[#0056b3] transition-colors">
-            <Search className="ml-2.5 size-5 shrink-0 text-slate-400" aria-hidden="true" />
+            <Search
+              className="ml-2.5 size-5 shrink-0 text-slate-400"
+              aria-hidden="true"
+            />
             <input
               type="search"
               value={searchQuery}
@@ -206,7 +217,10 @@ export function FaqPage({
         {/* Empty Search Result */}
         {filteredFaqs.length === 0 && (
           <div className="my-12 rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <HelpCircle className="mx-auto size-10 text-slate-400" aria-hidden="true" />
+            <HelpCircle
+              className="mx-auto size-10 text-slate-400"
+              aria-hidden="true"
+            />
             <h3 className="mt-4 text-base sm:text-lg font-bold text-slate-900">
               {pageCopy.emptyTitle}
             </h3>

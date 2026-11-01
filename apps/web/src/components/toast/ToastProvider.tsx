@@ -30,7 +30,9 @@ export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   const showToast = useCallback(
     (toast: Omit<ToastMessage, 'id'> & { id?: string }) => {
-      const id = toast.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const id =
+        toast.id ??
+        `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const newToast: ToastMessage = { ...toast, id };
 
       setToasts((prev) => {

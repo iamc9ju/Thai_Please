@@ -32,7 +32,10 @@ describe('Real DB Concurrency & Race Condition Suite (NFR-DATA-01)', () => {
     configService = {
       getOrThrow: (key: string) => {
         if (key === 'JWT_SECRET') {
-          return process.env.JWT_SECRET || 'concurrency_jwt_test_secret_key_32bytes_long!';
+          return (
+            process.env.JWT_SECRET ||
+            'concurrency_jwt_test_secret_key_32bytes_long!'
+          );
         }
         return process.env[key] || '';
       },
@@ -113,7 +116,9 @@ describe('Real DB Concurrency & Race Condition Suite (NFR-DATA-01)', () => {
       data: {
         ownerUserId: merchantUserId,
         merchantName: `ร้านทดสอบ_${TEST_PREFIX}`,
-        merchantTypes: ['FOOD_BEVERAGE'],
+        categoryAssignments: {
+          create: { category: { connect: { categoryCode: 'FOOD_BEVERAGE' } } },
+        },
         status: 'ACTIVE',
         address: '123 ถนนทดสอบ',
       },
@@ -348,11 +353,17 @@ describe('Real DB Concurrency & Race Condition Suite (NFR-DATA-01)', () => {
     expect(finalUserCoupon.usedAt).not.toBeNull();
 
     // Check which order received the coupon discount
-    const dbOrder1 = await prisma.order.findUniqueOrThrow({ where: { orderId: BigInt(order1.orderId) } });
-    const dbOrder2 = await prisma.order.findUniqueOrThrow({ where: { orderId: BigInt(order2.orderId) } });
+    const dbOrder1 = await prisma.order.findUniqueOrThrow({
+      where: { orderId: BigInt(order1.orderId) },
+    });
+    const dbOrder2 = await prisma.order.findUniqueOrThrow({
+      where: { orderId: BigInt(order2.orderId) },
+    });
 
     const discountedOrders = [dbOrder1, dbOrder2].filter(
-      (o) => o.userCouponId === userCoupon.userCouponId && o.discountAmount.toNumber() === 30,
+      (o) =>
+        o.userCouponId === userCoupon.userCouponId &&
+        o.discountAmount.toNumber() === 30,
     );
 
     // Invariant: Exactly ONE order received the 30 THB coupon discount
@@ -425,7 +436,10 @@ describe('Real DB Concurrency & Race Condition Suite (NFR-DATA-01)', () => {
     // Setup consumer wallet with 150 THB
     await prisma.wallet.update({
       where: { walletId: consumerWalletId },
-      data: { personalBalance: new Prisma.Decimal(150), subsidyBalance: new Prisma.Decimal(0) },
+      data: {
+        personalBalance: new Prisma.Decimal(150),
+        subsidyBalance: new Prisma.Decimal(0),
+      },
     });
 
     // Create 2 separate orders for 100 THB each (total 200 THB > 150 THB balance)

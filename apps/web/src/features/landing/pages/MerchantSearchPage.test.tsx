@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MerchantSearchPage } from './MerchantSearchPage';
 import { th } from '../../../i18n/th';
@@ -23,7 +29,12 @@ describe('MerchantSearchPage', () => {
     const onBackToHome = vi.fn();
     render(<MerchantSearchPage onBackToHome={onBackToHome} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: th.landing.merchantSearchPage.meta.title })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: th.landing.merchantSearchPage.meta.title,
+      }),
+    ).toBeInTheDocument();
 
     const backButtons = screen.getAllByRole('button', {
       name: new RegExp(th.landing.merchantSearchPage.meta.backToHome),
@@ -72,7 +83,11 @@ describe('MerchantSearchPage', () => {
     expect(screen.queryByText('ผ้าไหมมัดหมี่ OTOP')).not.toBeInTheDocument();
 
     // Reset to all
-    fireEvent.click(screen.getByRole('button', { name: th.landing.merchantSearchPage.filters.all }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.landing.merchantSearchPage.filters.all,
+      }),
+    );
     expect(screen.getByText('ผ้าไหมมัดหมี่ OTOP')).toBeInTheDocument();
 
     // Search query submit
@@ -86,9 +101,15 @@ describe('MerchantSearchPage', () => {
       },
     ]);
 
-    const input = screen.getByLabelText(th.landing.merchantSearchPage.search.label);
+    const input = screen.getByLabelText(
+      th.landing.merchantSearchPage.search.label,
+    );
     fireEvent.change(input, { target: { value: 'อยุธยา' } });
-    fireEvent.click(screen.getByRole('button', { name: th.landing.merchantSearchPage.search.button }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.landing.merchantSearchPage.search.button,
+      }),
+    );
 
     await waitFor(() => {
       expect(mockGetPublicMerchants).toHaveBeenCalledWith('อยุธยา', 20);
@@ -103,7 +124,11 @@ describe('MerchantSearchPage', () => {
     expect(screen.getByText('Network error')).toBeInTheDocument();
 
     mockGetPublicMerchants.mockResolvedValueOnce([]);
-    fireEvent.click(screen.getByRole('button', { name: th.landing.merchantSearchPage.states.retry }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.landing.merchantSearchPage.states.retry,
+      }),
+    );
 
     await waitFor(() => {
       expect(mockGetPublicMerchants).toHaveBeenCalledTimes(2);

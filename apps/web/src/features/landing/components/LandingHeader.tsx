@@ -3,12 +3,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { th } from '../../../i18n/th';
 
 export type LandingNavSection =
-  | 'home'
-  | 'project-info'
-  | 'how-to-join'
-  | 'merchant-search'
-  | 'news'
-  | 'faq';
+  'home' | 'project-info' | 'how-to-join' | 'merchant-search' | 'news' | 'faq';
 
 export interface LandingHeaderProps {
   onLogin: () => void;

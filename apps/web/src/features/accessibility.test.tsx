@@ -22,7 +22,8 @@ function hexToLuminance(hex: string): number {
   const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
   const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
 
-  const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const toLinear = (c: number) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
@@ -77,7 +78,9 @@ describe('WCAG 2.2 AA Accessibility Audit Suite (NFR-ACC-01)', () => {
       expect(dialog).toHaveAttribute('aria-modal', 'true');
 
       // Close button has accessible label from localization key
-      const closeBtn = screen.getByRole('button', { name: th.consumerPortal.qrScanner.closeWindow });
+      const closeBtn = screen.getByRole('button', {
+        name: th.consumerPortal.qrScanner.closeWindow,
+      });
       expect(closeBtn).toBeInTheDocument();
       expect(closeBtn).toHaveAttribute('type', 'button');
     });
@@ -88,12 +91,16 @@ describe('WCAG 2.2 AA Accessibility Audit Suite (NFR-ACC-01)', () => {
       render(<LoginPage />);
 
       // Form inputs must have accessible labels
-      const citizenInput = screen.getByRole('textbox', { name: /เลขประจำตัวประชาชน/i });
+      const citizenInput = screen.getByRole('textbox', {
+        name: /เลขประจำตัวประชาชน/i,
+      });
       expect(citizenInput).toBeInTheDocument();
       expect(citizenInput).not.toHaveAttribute('tabIndex', '-1');
 
       // Submit button has accessible text
-      const submitBtn = screen.getByRole('button', { name: new RegExp(th.login.submit, 'i') });
+      const submitBtn = screen.getByRole('button', {
+        name: new RegExp(th.login.submit, 'i'),
+      });
       expect(submitBtn).toBeInTheDocument();
       expect(submitBtn).toHaveAttribute('type', 'submit');
     });

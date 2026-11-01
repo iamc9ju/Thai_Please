@@ -47,7 +47,9 @@ export function QrPaymentScanner({
       setPreview(data);
       setStep('preview');
     } catch (e) {
-      setError(e instanceof Error ? e.message : th.consumerPortal.qrScanner.loadError);
+      setError(
+        e instanceof Error ? e.message : th.consumerPortal.qrScanner.loadError,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +69,9 @@ export function QrPaymentScanner({
       setStep('success');
       onPaymentSuccess?.(paid);
     } catch (e) {
-      setError(e instanceof Error ? e.message : th.consumerPortal.qrScanner.payError);
+      setError(
+        e instanceof Error ? e.message : th.consumerPortal.qrScanner.payError,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +207,9 @@ export function QrPaymentScanner({
               </div>
             )}
             <div className="border-t border-slate-700 pt-2 flex justify-between text-sm font-bold">
-              <span className="text-white">{th.consumerPortal.qrScanner.youPay}</span>
+              <span className="text-white">
+                {th.consumerPortal.qrScanner.youPay}
+              </span>
               <span className="text-orange-400">
                 {formatCurrency(preview.userPaidAmount)}
               </span>
@@ -213,7 +219,9 @@ export function QrPaymentScanner({
           {/* Balance info */}
           <div className="rounded-xl bg-slate-800/50 p-3 space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">{th.consumerPortal.qrScanner.walletBalance}</span>
+              <span className="text-slate-400">
+                {th.consumerPortal.qrScanner.walletBalance}
+              </span>
               <span
                 className={
                   preview.canAfford ? 'text-green-400' : 'text-red-400'
@@ -248,7 +256,9 @@ export function QrPaymentScanner({
                   {th.consumerPortal.qrScanner.paying}
                 </span>
               ) : (
-                th.consumerPortal.qrScanner.confirmPay(formatCurrency(preview.userPaidAmount))
+                th.consumerPortal.qrScanner.confirmPay(
+                  formatCurrency(preview.userPaidAmount),
+                )
               )}
             </button>
           </div>
@@ -262,7 +272,9 @@ export function QrPaymentScanner({
             <span className="text-3xl">✓</span>
           </div>
           <div>
-            <p className="text-base font-bold text-white">{th.consumerPortal.qrScanner.successTitle}</p>
+            <p className="text-base font-bold text-white">
+              {th.consumerPortal.qrScanner.successTitle}
+            </p>
             <p className="text-sm text-slate-400">Order #{result.orderId}</p>
           </div>
           <div className="w-full rounded-xl bg-slate-800/50 p-3 space-y-1.5 text-left">

@@ -28,19 +28,31 @@ describe('FaqPage', () => {
     fireEvent.click(backBtns[0]!);
     expect(onBackToHome).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole('button', { name: th.landing.faqPage.categories.consumer })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: th.landing.faqPage.categories.merchant })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: th.landing.faqPage.categories.consumer,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: th.landing.faqPage.categories.merchant,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('toggles accordion items and supports expand/collapse all', () => {
     render(<FaqPage onBackToHome={vi.fn()} />);
 
     // Click collapse all
-    fireEvent.click(screen.getByRole('button', { name: th.landing.faqPage.collapseAll }));
+    fireEvent.click(
+      screen.getByRole('button', { name: th.landing.faqPage.collapseAll }),
+    );
 
     // Target the first question button
     const firstFaq = th.landing.faqPage.faqs[0]!;
-    const questionButton = screen.getByRole('button', { name: new RegExp(firstFaq.question) });
+    const questionButton = screen.getByRole('button', {
+      name: new RegExp(firstFaq.question),
+    });
     expect(questionButton).toHaveAttribute('aria-expanded', 'false');
 
     // Click to expand
@@ -49,7 +61,9 @@ describe('FaqPage', () => {
     expect(screen.getByText(firstFaq.answer)).toBeInTheDocument();
 
     // Click expand all
-    fireEvent.click(screen.getByRole('button', { name: th.landing.faqPage.expandAll }));
+    fireEvent.click(
+      screen.getByRole('button', { name: th.landing.faqPage.expandAll }),
+    );
     expect(questionButton).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -57,12 +71,20 @@ describe('FaqPage', () => {
     render(<FaqPage onBackToHome={vi.fn()} />);
 
     // Filter by category merchant
-    fireEvent.click(screen.getByRole('button', { name: th.landing.faqPage.categories.merchant }));
-    expect(screen.getByText(/ร้านค้าประเภทใดบ้างที่สามารถสมัครเข้าร่วมโครงการได้/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: th.landing.faqPage.categories.merchant,
+      }),
+    );
+    expect(
+      screen.getByText(/ร้านค้าประเภทใดบ้างที่สามารถสมัครเข้าร่วมโครงการได้/),
+    ).toBeInTheDocument();
 
     // Search input filter
     const searchInput = screen.getByLabelText(th.landing.faqPage.search.label);
-    fireEvent.change(searchInput, { target: { value: 'คำถามที่ไม่มีอยู่จริง_xyz' } });
+    fireEvent.change(searchInput, {
+      target: { value: 'คำถามที่ไม่มีอยู่จริง_xyz' },
+    });
 
     expect(screen.getByText(th.landing.faqPage.emptyTitle)).toBeInTheDocument();
   });

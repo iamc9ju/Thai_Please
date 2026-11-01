@@ -1,3 +1,4 @@
+import { CloudinaryService } from '../src/catalog/cloudinary.service.js';
 import {
   BadRequestException,
   ConflictException,
@@ -1130,6 +1131,7 @@ describe('Platform End-to-End Acceptance Flow (Consumer · Merchant · Admin)', 
         QuestsController,
       ],
       providers: [
+        CloudinaryService,
         Reflector,
         RolesGuard,
         {

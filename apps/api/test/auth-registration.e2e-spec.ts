@@ -246,7 +246,11 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
           data: {
             ownerUserId: bigint;
             merchantName: string;
-            merchantTypes: MerchantBusinessType[];
+            categoryAssignments: {
+              create: Array<{
+                category: { connect: { categoryCode: MerchantBusinessType } };
+              }>;
+            };
             status: string;
           };
         }) => {
@@ -255,7 +259,9 @@ describe('Auth & Registration HTTP E2E Flow (FR-AUTH-01..FR-AUTH-04)', () => {
             merchantId,
             ownerUserId: data.ownerUserId,
             merchantName: data.merchantName,
-            merchantTypes: data.merchantTypes,
+            merchantTypes: data.categoryAssignments.create.map(
+              (assignment) => assignment.category.connect.categoryCode,
+            ),
             status: data.status,
           };
           merchants.set(merchantId, created);

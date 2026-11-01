@@ -17,7 +17,11 @@ export function SubsidyProgramEditor({ program, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const policyInUse = (program.walletCount ?? 0) + (program.orderCount ?? 0) + (program.walletTransactionCount ?? 0) > 0;
+  const policyInUse =
+    (program.walletCount ?? 0) +
+      (program.orderCount ?? 0) +
+      (program.walletTransactionCount ?? 0) >
+    0;
   const fields = th.adminPortal.programs;
   const id = `edit-program-${program.programId}`;
 
@@ -77,7 +81,11 @@ export function SubsidyProgramEditor({ program, onSaved }: Props) {
       >
         {open ? copy.programCancel : copy.programEdit}
       </button>
-      {policyInUse && <p className="mt-3 text-xs leading-relaxed text-muted">{copy.programPolicyNote}</p>}
+      {policyInUse && (
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          {copy.programPolicyNote}
+        </p>
+      )}
       {saved && (
         <p role="status" className="mt-3 text-sm text-emerald-700">
           {copy.programSaved}

@@ -12,9 +12,15 @@ describe('MofNewsPage', () => {
     const onBackToHome = vi.fn();
     render(<MofNewsPage onBackToHome={onBackToHome} />);
 
-    expect(screen.getByText(th.landing.mofNewsPage.meta.breadcrumbCurrent)).toBeInTheDocument();
-    expect(screen.getByText(th.landing.mofNewsPage.ministryBadge)).toBeInTheDocument();
-    expect(screen.getByText(th.landing.mofNewsPage.meta.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.mofNewsPage.meta.breadcrumbCurrent),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.mofNewsPage.ministryBadge),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.mofNewsPage.meta.title),
+    ).toBeInTheDocument();
 
     // Check first article
     const firstArticle = th.landing.mofNewsPage.articles[0]!;
@@ -31,11 +37,15 @@ describe('MofNewsPage', () => {
   it('filters articles by search input and opens/closes detail modal', () => {
     render(<MofNewsPage onBackToHome={vi.fn()} />);
 
-    const searchInput = screen.getByLabelText(th.landing.mofNewsPage.search.label);
+    const searchInput = screen.getByLabelText(
+      th.landing.mofNewsPage.search.label,
+    );
     fireEvent.change(searchInput, { target: { value: 'POS' } });
 
     // Article with POS should appear, others should not
-    expect(screen.getByText(/แนวทางปฏิบัติและเงื่อนไขการรับชำระเงินผ่านระบบ POS/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/แนวทางปฏิบัติและเงื่อนไขการรับชำระเงินผ่านระบบ POS/),
+    ).toBeInTheDocument();
 
     // Click read full article button
     const readButtons = screen.getAllByRole('button', {
@@ -58,9 +68,15 @@ describe('MofNewsPage', () => {
   it('displays empty state when search finds no results', () => {
     render(<MofNewsPage onBackToHome={vi.fn()} />);
 
-    const searchInput = screen.getByLabelText(th.landing.mofNewsPage.search.label);
-    fireEvent.change(searchInput, { target: { value: 'คำที่ไม่พบแน่นอน12345678' } });
+    const searchInput = screen.getByLabelText(
+      th.landing.mofNewsPage.search.label,
+    );
+    fireEvent.change(searchInput, {
+      target: { value: 'คำที่ไม่พบแน่นอน12345678' },
+    });
 
-    expect(screen.getByText(th.landing.mofNewsPage.emptyTitle)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.mofNewsPage.emptyTitle),
+    ).toBeInTheDocument();
   });
 });

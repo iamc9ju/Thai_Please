@@ -377,7 +377,8 @@ export const th = {
       merchantLabel: 'ร้านค้าที่รับชำระ',
       paymentStatusLabel: 'สถานะรายการ',
       paymentStatusCompleted: 'ชำระเงินสำเร็จแล้ว',
-      receiptVerifiedBadge: 'ใบเสร็จอิเล็กทรอนิกส์ยืนยันแล้ว (Immutable e-Receipt)',
+      receiptVerifiedBadge:
+        'ใบเสร็จอิเล็กทรอนิกส์ยืนยันแล้ว (Immutable e-Receipt)',
       coPaySummaryTitle: 'สรุปแหล่งเงินที่ใช้ชำระ',
       orderSummaryTitle: 'รายละเอียดคำสั่งซื้อ',
       walletAfter: 'ยอดเงินส่วนตัวหลังชำระ 1,767.50 บาท',

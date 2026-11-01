@@ -15,7 +15,10 @@ describe('Localization Enforcement & i18n Completeness (NFR-I18N-01)', () => {
   it('contains non-empty localized strings across all core domain domains', () => {
     const validateNode = (node: unknown, path: string) => {
       if (typeof node === 'string') {
-        expect(node.trim().length, `Empty translation string at ${path}`).toBeGreaterThan(0);
+        expect(
+          node.trim().length,
+          `Empty translation string at ${path}`,
+        ).toBeGreaterThan(0);
       } else if (typeof node === 'function') {
         // functions like expiresIn or confirmPay should return non-empty strings
         try {
@@ -43,8 +46,12 @@ describe('Localization Enforcement & i18n Completeness (NFR-I18N-01)', () => {
 
   it('enforces Thai language formatting conventions', () => {
     expect(th.consumerPortal.qrScanner.noCoupon).toContain('ไม่ใช้คูปอง');
-    expect(th.consumerPortal.qrScanner.confirmPay('฿100.00')).toContain('100.00');
-    expect(th.consumerPortal.payment.insufficientBalanceTitle).toBe('ยอดเงินส่วนตัวไม่เพียงพอ');
+    expect(th.consumerPortal.qrScanner.confirmPay('฿100.00')).toContain(
+      '100.00',
+    );
+    expect(th.consumerPortal.payment.insufficientBalanceTitle).toBe(
+      'ยอดเงินส่วนตัวไม่เพียงพอ',
+    );
     expect(th.login.role.options.consumer).toBe('ประชาชน');
     expect(th.login.role.options.merchant).toBe('ร้านค้า');
     expect(th.login.role.options.administrator).toBe('ผู้ดูแล');

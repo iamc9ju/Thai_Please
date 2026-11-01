@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { LandingHeader, type LandingNavSection } from '../components/LandingHeader';
+import {
+  LandingHeader,
+  type LandingNavSection,
+} from '../components/LandingHeader';
 import { LandingHeroSection } from '../components/LandingHeroSection';
 import { MerchantDiscoverySection } from '../components/MerchantDiscoverySection';
 import { ProjectInfoAndEligibilityPage } from './ProjectInfoAndEligibilityPage';
@@ -28,7 +31,8 @@ export function LandingPage({
   initialRole = 'consumer',
 }: LandingPageProps) {
   const [currentNav, setCurrentNav] = useState<LandingNavSection>(initialNav);
-  const [currentRole, setCurrentRole] = useState<EligibilityRoleTab>(initialRole);
+  const [currentRole, setCurrentRole] =
+    useState<EligibilityRoleTab>(initialRole);
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
 
@@ -47,7 +51,10 @@ export function LandingPage({
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#actions-section') {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hash === '#actions-section'
+    ) {
       window.history.replaceState(
         null,
         '',
@@ -116,10 +123,7 @@ export function LandingPage({
     return (
       <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
         <LandingHeader {...sharedHeaderProps} />
-        <FaqPage
-          onBackToHome={() => navigateTo('home')}
-          onLogin={onLogin}
-        />
+        <FaqPage onBackToHome={() => navigateTo('home')} onLogin={onLogin} />
       </div>
     );
   }

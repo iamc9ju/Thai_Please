@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { th } from '../i18n/th';
@@ -194,8 +200,12 @@ describe('App', () => {
     expect(
       await screen.findByText('อยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ'),
     ).toBeInTheDocument();
-    expect(screen.getAllByText('ร้านค้าสมชาย').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('รออนุมัติ (PENDING)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('ร้านค้าสมชาย').length).toBeGreaterThanOrEqual(
+      1,
+    );
+    expect(
+      screen.getAllByText('รออนุมัติ (PENDING)').length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('shows logout confirmation dialog before logging out', async () => {

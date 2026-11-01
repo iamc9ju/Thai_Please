@@ -1,20 +1,9 @@
 import { useEffect } from 'react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  LogOut,
-  X,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, LogOut, X } from 'lucide-react';
 import { th } from '../../i18n/th';
 
 export type ToastType =
-  | 'success'
-  | 'info'
-  | 'warning'
-  | 'error'
-  | 'login-success'
-  | 'logout-success';
+  'success' | 'info' | 'warning' | 'error' | 'login-success' | 'logout-success';
 
 export interface ToastMessage {
   id: string;
@@ -31,7 +20,14 @@ interface ToastItemProps {
 }
 
 export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
-  const { id, type = 'info', title, description, badge, duration = 3500 } = toast;
+  const {
+    id,
+    type = 'info',
+    title,
+    description,
+    badge,
+    duration = 3500,
+  } = toast;
   const isAuthModal = type === 'login-success' || type === 'logout-success';
 
   // Close on Escape key
@@ -143,9 +139,7 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
       />
 
       {/* Modal Dialog Card (Centered, Thai Please Theme, Narrow & Uniform Size) */}
-      <div
-        className="relative z-10 w-full max-w-[320px] min-h-[200px] rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 flex flex-col items-center justify-center text-center select-none animate-in fade-in zoom-in-95 duration-200"
-      >
+      <div className="relative z-10 w-full max-w-[320px] min-h-[200px] rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 flex flex-col items-center justify-center text-center select-none animate-in fade-in zoom-in-95 duration-200">
         {/* Top Close Button */}
         <button
           type="button"
@@ -167,7 +161,10 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
 
         {/* Center Icon Podium with Pulsing Ripple Ring - Hidden for auth modals (login/logout) as requested */}
         {!isAuthModal && (
-          <div className="relative mb-3 flex items-center justify-center" aria-hidden="true">
+          <div
+            className="relative mb-3 flex items-center justify-center"
+            aria-hidden="true"
+          >
             <div
               className={`absolute size-16 rounded-full ${configByType.ringAura} animate-ping`}
               style={{ animationDuration: '2.5s' }}

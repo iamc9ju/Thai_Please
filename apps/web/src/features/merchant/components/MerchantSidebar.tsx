@@ -57,7 +57,12 @@ export function MerchantSidebar({
   if (isOwner) {
     baseItems.push(
       { id: 'wallet', label: navCopy.wallet, icon: Wallet, ownerOnly: true },
-      { id: 'dashboard', label: navCopy.dashboard, icon: BarChart3, ownerOnly: true },
+      {
+        id: 'dashboard',
+        label: navCopy.dashboard,
+        icon: BarChart3,
+        ownerOnly: true,
+      },
     );
   }
 
@@ -66,9 +71,7 @@ export function MerchantSidebar({
     onCloseMobile();
   };
 
-  const maskedCitizenId = citizenId
-    ? `X-XXXX-${citizenId.slice(-4)}`
-    : null;
+  const maskedCitizenId = citizenId ? `X-XXXX-${citizenId.slice(-4)}` : null;
 
   const navContent = (
     <div className="flex flex-col h-full justify-between">
@@ -96,10 +99,7 @@ export function MerchantSidebar({
         </div>
 
         {/* Navigation Items List */}
-        <nav
-          className="p-4 pt-1 space-y-1.5"
-          aria-label="เมนูหลักร้านค้า"
-        >
+        <nav className="p-4 pt-1 space-y-1.5" aria-label="เมนูหลักร้านค้า">
           {baseItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;

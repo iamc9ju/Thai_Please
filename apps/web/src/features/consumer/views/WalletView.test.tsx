@@ -122,6 +122,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('WalletView FR-C02 integration', () => {
@@ -457,6 +458,8 @@ describe('WalletView FR-C02 integration', () => {
   });
 
   it('sends current-month and all-history filters to the server', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T03:00:00.000Z'));
     await renderLoadedWallet();
 
     fireEvent.click(

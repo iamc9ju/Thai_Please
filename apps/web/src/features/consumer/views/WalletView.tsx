@@ -650,7 +650,8 @@ export function WalletView() {
                           : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-blue-200 hover:bg-blue-50/50 hover:text-[#0056b3]'
                       }`}
                     >
-                      +฿{presetAmount.toLocaleString(th.consumerDashboard.locale)}
+                      +฿
+                      {presetAmount.toLocaleString(th.consumerDashboard.locale)}
                     </button>
                   );
                 })}

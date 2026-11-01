@@ -145,9 +145,13 @@ describe('LandingPage', () => {
     render(<LandingPage onLogin={vi.fn()} />);
 
     // Click "ค้นหาร้านค้า" link in header
-    const findShopsLinks = screen.getAllByRole('link', { name: th.landing.nav.findShops });
+    const findShopsLinks = screen.getAllByRole('link', {
+      name: th.landing.nav.findShops,
+    });
     fireEvent.click(findShopsLinks[0]!);
-    expect(screen.getByText(th.landing.merchantSearchPage.meta.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.merchantSearchPage.meta.title),
+    ).toBeInTheDocument();
 
     // Click back to home
     const backHomeBtn = screen.getAllByRole('button', {
@@ -157,9 +161,13 @@ describe('LandingPage', () => {
     expect(screen.getByText(th.landing.schedule.title)).toBeInTheDocument();
 
     // Click "ข่าวจากกระทรวงการคลัง" in header
-    const newsBtns = screen.getAllByRole('button', { name: th.landing.nav.mofNews });
+    const newsBtns = screen.getAllByRole('button', {
+      name: th.landing.nav.mofNews,
+    });
     fireEvent.click(newsBtns[0]!);
-    expect(screen.getByText(th.landing.mofNewsPage.meta.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(th.landing.mofNewsPage.meta.title),
+    ).toBeInTheDocument();
 
     // Click "คำถามที่พบบ่อย" in header
     const faqBtns = screen.getAllByRole('button', { name: th.landing.nav.faq });

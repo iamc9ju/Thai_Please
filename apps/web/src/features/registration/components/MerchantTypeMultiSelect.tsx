@@ -51,7 +51,9 @@ export function MerchantTypeMultiSelect({
         >
           <span
             className={
-              selectedOptions.length > 0 ? 'text-slate-900 font-medium' : 'text-slate-400'
+              selectedOptions.length > 0
+                ? 'text-slate-900 font-medium'
+                : 'text-slate-400'
             }
           >
             {selectedOptions.length > 0
@@ -94,7 +96,10 @@ export function MerchantTypeMultiSelect({
         </div>
       </details>
       {selectedOptions.length > 0 ? (
-        <div className="registration-selected-types mt-2 flex flex-wrap gap-1.5" aria-live="polite">
+        <div
+          className="registration-selected-types mt-2 flex flex-wrap gap-1.5"
+          aria-live="polite"
+        >
           {selectedOptions.map((option) => (
             <button
               type="button"

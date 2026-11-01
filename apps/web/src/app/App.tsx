@@ -30,9 +30,8 @@ const MerchantPos = lazy(async () => {
 });
 
 const MerchantPendingApproval = lazy(async () => {
-  const mod = await import(
-    '../features/merchant/pages/MerchantPendingApproval'
-  );
+  const mod =
+    await import('../features/merchant/pages/MerchantPendingApproval');
   return { default: mod.MerchantPendingApproval };
 });
 
@@ -87,9 +86,7 @@ function MainContent() {
       if (!isApproved) {
         dashboardContent = (
           <MerchantPendingApproval
-            merchantName={
-              user.merchantName ?? user.fullName ?? 'ร้านค้าของฉัน'
-            }
+            merchantName={user.merchantName ?? user.fullName ?? 'ร้านค้าของฉัน'}
             citizenId={user.citizenId}
             status={user.merchantStatus ?? 'PENDING'}
             merchantRole={user.merchantRole ?? 'OWNER'}
