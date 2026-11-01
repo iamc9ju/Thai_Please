@@ -1,23 +1,35 @@
-import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { RequestIdMiddleware } from './common/http/request-id.middleware.js';
+import { AppController } from './app.controller.js';
+import { AuthModule } from './auth/auth.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
+import { OrderModule } from './order/order.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { UsersModule } from './users/users.module.js';
+import { WalletModule } from './wallet/wallet.module.js';
 import { validateEnvironment } from './config/environment.js';
-import { HealthModule } from './health/health.module.js';
-import { DatabaseModule } from './infrastructure/database/database.module.js';
+import { QuestsModule } from './quests/quests.module.js';
+import { RewardsModule } from './rewards/rewards.module.js';
+import { AdminModule } from './admin/admin.module.js';
+import { ReconciliationModule } from './reconciliation/reconciliation.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      cache: true,
       isGlobal: true,
       validate: validateEnvironment,
     }),
-    DatabaseModule,
-    HealthModule,
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    WalletModule,
+    CatalogModule,
+    OrderModule,
+    QuestsModule,
+    RewardsModule,
+    AdminModule,
+    ReconciliationModule,
   ],
+  controllers: [AppController],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}

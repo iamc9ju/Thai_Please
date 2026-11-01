@@ -1,39 +1,80 @@
 import { z } from 'zod';
 
-const environmentSchema = z.object({
-  API_PREFIX: z.string().trim().min(1).default('api'),
-  APP_NAME: z.string().trim().min(1).default('thai-please-api'),
-  CORS_ORIGINS: z
-    .string()
-    .trim()
-    .min(1)
-    .transform((value) => value.split(',').map((origin) => origin.trim())),
-  DATABASE_URL: z.string().url().startsWith('postgresql://'),
-  DATABASE_POOL_CONNECTION_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(100)
-    .default(5_000),
-  DATABASE_POOL_IDLE_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(100)
-    .default(10_000),
-  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-  ENABLE_SWAGGER: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((value) => value === 'true'),
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-});
+const environmentSchema = z
+  .object({
+    API_PREFIX: z.string().trim().min(1).default('api/v1'),
+    AUTH_SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(28_800),
+    CORS_ORIGINS: z.string().trim().min(1).default('http://localhost:5173'),
+    DATABASE_URL: z.string().trim().min(1),
+    JWT_SECRET: z.string().min(32),
+    GEMINI_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    GEMINI_MODEL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .trim()
+        .regex(/^[a-zA-Z0-9._-]+$/)
+        .max(100)
+        .optional(),
+    ),
+    GEMINI_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .max(30000)
+      .default(15000),
+    QUEST_GENERATION_RATE_LIMIT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true'),
+    CLOUDINARY_CLOUD_NAME: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_API_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    CLOUDINARY_ASSET_FOLDER: z
+      .string()
+      .trim()
+      .min(1)
+      .default('thai-please/products'),
+    NODE_ENV: z
+      .enum(['development', 'test', 'production'])
+      .default('development'),
+    PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+  })
+  .superRefine((env, ctx) => {
+    if (Boolean(env.GEMINI_API_KEY) !== Boolean(env.GEMINI_MODEL))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GEMINI_MODEL'],
+        message: 'Configure GEMINI_API_KEY and GEMINI_MODEL together',
+      });
+  });
 
-export type EnvironmentVariables = z.infer<typeof environmentSchema>;
+export type Environment = z.infer<typeof environmentSchema>;
 
 export function validateEnvironment(
   values: Record<string, unknown>,
-): EnvironmentVariables {
+): Environment {
   return environmentSchema.parse(values);
+}
+
+export function parseCorsOrigins(value: string): string[] {
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
 }

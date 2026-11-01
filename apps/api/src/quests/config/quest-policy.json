@@ -1,0 +1,46 @@
+{
+  "version": "quest-policy-v3",
+  "proposals": {
+    "desiredCount": 3,
+    "maximumCalls": 2,
+    "offerValidityHours": 24,
+    "retryCooldownMinutes": 15,
+    "maximumSetsPerDay": 3,
+    "historyDays": 90,
+    "recentHistoryLimit": 10,
+    "spendStepMinorUnits": 1000,
+    "distributionUpperMinorUnits": [10000, 50000, 100000],
+    "workerPollMilliseconds": 2000
+  },
+  "candidates": {
+    "types": ["MIN_SPEND", "CATEGORY_SPEND"],
+    "historyDays": 30,
+    "minimumHistoryOrders": 3,
+    "currency": "THB",
+    "minorUnitsPerMajor": 100
+  },
+  "assignment": {
+    "cycleDays": 7,
+    "maximumActivePerUser": 1,
+    "durationDays": 7,
+    "duplicateCooldownDays": 7,
+    "duplicateIdentity": "TYPE_TARGET_AND_AMOUNT",
+    "cooldownStartsAt": "COMPLETION_OR_EXPIRY",
+    "nextQuest": "NEXT_CYCLE_AFTER_SELECTION"
+  },
+  "rewards": {
+    "pointsByType": {
+      "MIN_SPEND": 20,
+      "CATEGORY_SPEND": 20
+    },
+    "pointValidityDays": 90,
+    "globalDailyReservationBudgetPoints": 2000,
+    "globalOutstandingReservationBudgetPoints": 14000,
+    "budgetExhausted": "DEFER",
+    "reserveAt": "ASSIGNMENT",
+    "releaseAt": "EXPIRY_OR_REWARD_ISSUANCE"
+  },
+  "completion": {
+    "maximumAssignmentsPerReceipt": 1
+  }
+}

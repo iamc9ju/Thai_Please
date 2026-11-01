@@ -1,0 +1,271 @@
+// Thai Chuay Thai Please - Database Schema for dbdiagram.io
+
+Table auth_sessions {
+  auth_session_id bigint [pk, increment]
+  user_id bigint [not null]
+  token_hash char(64) [unique, not null]
+  active_role varchar(20) [not null]
+  active_merchant_id bigint
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+  last_used_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table coupons {
+  coupon_id bigint [pk, increment]
+  merchant_id bigint
+  coupon_name varchar(150) [not null]
+  description text
+  discount_type varchar(20) [not null]
+  discount_value decimal(12,2) [not null]
+  point_cost int [not null]
+  min_purchase decimal(12,2) [not null]
+  validity_days int [not null]
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+}
+
+Table merchants {
+  merchant_id bigint [pk, increment]
+  owner_user_id bigint [not null]
+  merchant_name varchar(150) [not null]
+  description text
+  address text
+  phone varchar(20)
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table order_items {
+  order_item_id bigint [pk, increment]
+  order_id bigint [not null]
+  product_id bigint [not null]
+  category_id bigint [not null]
+  product_name_snapshot varchar(150) [not null]
+  unit_price decimal(12,2) [not null]
+  quantity int [not null]
+  line_total decimal(12,2) [not null]
+}
+
+Table orders {
+  order_id bigint [pk, increment]
+  user_id bigint
+  merchant_id bigint [not null]
+  wallet_id bigint
+  program_id bigint
+  user_coupon_id bigint
+  subtotal decimal(12,2) [not null]
+  discount_amount decimal(12,2) [not null]
+  final_amount decimal(12,2) [not null]
+  subsidy_amount decimal(12,2) [not null]
+  user_paid_amount decimal(12,2) [not null]
+  status varchar(20) [not null]
+  qr_token varchar(255) [unique]
+  qr_expires_at timestamp
+  created_at timestamp [not null]
+  paid_at timestamp
+}
+
+Table point_transactions {
+  point_transaction_id bigint [pk, increment]
+  user_id bigint [not null]
+  user_quest_id bigint
+  user_coupon_id bigint
+  transaction_type varchar(30) [not null]
+  points int [not null]
+  expires_at timestamp
+  created_at timestamp [not null]
+}
+
+Table product_categories {
+  category_id bigint [pk, increment]
+  category_name varchar(100) [unique, not null]
+  description text
+  status varchar(20) [not null]
+}
+
+Table products {
+  product_id bigint [pk, increment]
+  merchant_id bigint [not null]
+  category_id bigint [not null]
+  product_name varchar(150) [not null]
+  description text
+  price decimal(12,2) [not null]
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table quest_generation_logs {
+  generation_id bigint [pk, increment]
+  user_id bigint [not null]
+  input_summary json [not null]
+  generated_quest_id bigint [not null]
+  model_version varchar(100)
+  generated_at timestamp [not null]
+  prediction_score decimal(6,5)
+  candidate_scores json
+  selection_reason text
+}
+
+Table quests {
+  quest_id bigint [pk, increment]
+  quest_name varchar(150) [not null]
+  description text
+  quest_type varchar(30) [not null]
+  target_category_id bigint
+  target_product_id bigint
+  target_merchant_id bigint
+  min_spend decimal(12,2)
+  reward_point int [not null]
+  duration_days int [not null]
+  generated_by varchar(20) [not null]
+  created_at timestamp [not null]
+}
+
+Table subsidy_programs {
+  program_id bigint [pk, increment]
+  program_name varchar(150) [not null]
+  initial_grant decimal(12,2) [not null]
+  subsidy_percentage decimal(5,2) [not null]
+  user_percentage decimal(5,2) [not null]
+  daily_subsidy_limit decimal(12,2) [not null]
+  start_date date [not null]
+  end_date date [not null]
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+}
+
+Table user_coupons {
+  user_coupon_id bigint [pk, increment]
+  user_id bigint [not null]
+  coupon_id bigint [not null]
+  status varchar(20) [not null]
+  redeemed_at timestamp [not null]
+  expires_at timestamp [not null]
+  used_at timestamp
+  used_order_id bigint
+}
+
+Table user_quests {
+  user_quest_id bigint [pk, increment]
+  user_id bigint [not null]
+  quest_id bigint [not null]
+  status varchar(20) [not null]
+  assigned_at timestamp [not null]
+  expires_at timestamp [not null]
+  completed_at timestamp
+  completed_order_id bigint
+}
+
+Table user_roles {
+  user_role_id bigint [pk, increment]
+  user_id bigint [not null]
+  role varchar(20) [not null]
+  status varchar(20) [not null]
+  created_by_admin_id bigint
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table users {
+  user_id bigint [pk, increment]
+  citizen_id char(13) [unique, not null]
+  full_name varchar(150) [not null]
+  phone varchar(20)
+  role varchar(20) [not null]
+  point_balance int [not null]
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  password_hash varchar(255) [not null]
+  title varchar(30)
+  first_name varchar(100)
+  last_name varchar(100)
+  date_of_birth date
+  address_line varchar(255)
+  subdistrict varchar(120)
+  district varchar(120)
+  province varchar(120)
+  postal_code varchar(10)
+  must_change_password boolean [not null]
+  terms_accepted_at timestamptz
+  privacy_accepted_at timestamptz
+  last_login_at timestamptz
+}
+
+Table wallet_transactions {
+  wallet_transaction_id bigint [pk, increment]
+  wallet_id bigint [not null]
+  order_id bigint
+  program_id bigint
+  fund_type varchar(20) [not null]
+  transaction_type varchar(30) [not null]
+  amount decimal(12,2) [not null]
+  balance_before decimal(12,2) [not null]
+  balance_after decimal(12,2) [not null]
+  created_at timestamp [not null]
+  user_id bigint
+  initiated_by_user_id bigint
+  wallet_type_snapshot varchar(20) [not null]
+  business_ref varchar(160) [unique, not null]
+  correlation_id varchar(80) [not null]
+  transfer_reference varchar(160)
+  metadata json
+}
+
+Table wallets {
+  wallet_id bigint [pk, increment]
+  user_id bigint [unique]
+  personal_balance decimal(12,2) [not null]
+  subsidy_balance decimal(12,2) [not null]
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  wallet_type varchar(20) [not null]
+  merchant_id bigint [unique]
+  subsidy_program_id bigint
+  merchant_balance decimal(12,2) [not null]
+  version int [not null]
+}
+
+Ref: auth_sessions.active_merchant_id > merchants.merchant_id
+Ref: auth_sessions.user_id > users.user_id
+Ref: coupons.merchant_id > merchants.merchant_id
+Ref: merchants.owner_user_id > users.user_id
+Ref: order_items.category_id > product_categories.category_id
+Ref: order_items.order_id > orders.order_id
+Ref: order_items.product_id > products.product_id
+Ref: orders.merchant_id > merchants.merchant_id
+Ref: orders.program_id > subsidy_programs.program_id
+Ref: orders.user_coupon_id > user_coupons.user_coupon_id
+Ref: orders.user_id > users.user_id
+Ref: orders.wallet_id > wallets.wallet_id
+Ref: point_transactions.user_coupon_id > user_coupons.user_coupon_id
+Ref: point_transactions.user_id > users.user_id
+Ref: point_transactions.user_quest_id > user_quests.user_quest_id
+Ref: products.category_id > product_categories.category_id
+Ref: products.merchant_id > merchants.merchant_id
+Ref: quest_generation_logs.generated_quest_id > quests.quest_id
+Ref: quest_generation_logs.user_id > users.user_id
+Ref: quests.target_category_id > product_categories.category_id
+Ref: quests.target_merchant_id > merchants.merchant_id
+Ref: quests.target_product_id > products.product_id
+Ref: user_coupons.used_order_id > orders.order_id
+Ref: user_coupons.coupon_id > coupons.coupon_id
+Ref: user_coupons.user_id > users.user_id
+Ref: user_quests.completed_order_id > orders.order_id
+Ref: user_quests.quest_id > quests.quest_id
+Ref: user_quests.user_id > users.user_id
+Ref: user_roles.created_by_admin_id > users.user_id
+Ref: user_roles.user_id > users.user_id
+Ref: wallet_transactions.initiated_by_user_id > users.user_id
+Ref: wallet_transactions.order_id > orders.order_id
+Ref: wallet_transactions.program_id > subsidy_programs.program_id
+Ref: wallet_transactions.user_id > users.user_id
+Ref: wallet_transactions.wallet_id > wallets.wallet_id
+Ref: wallets.merchant_id > merchants.merchant_id
+Ref: wallets.subsidy_program_id > subsidy_programs.program_id
+Ref: wallets.user_id > users.user_id

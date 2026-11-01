@@ -1,0 +1,452 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type { PrismaService } from '../prisma/prisma.service.js';
+import { AuthService } from './auth.service.js';
+import type {
+  RegisterConsumerDto,
+  RegisterMerchantDto,
+} from './dto/register.dto.js';
+import {
+  AUTH_RATE_LIMITED_CODE,
+  LOGIN_LOCKOUT_WINDOW_MS,
+  LOGIN_MAX_FAILED_ATTEMPTS,
+  LoginRateLimiterService,
+} from './login-rate-limiter.service.js';
+
+const consumerRegistration = {
+  citizenId: '1100000000001',
+  title: 'นาย',
+  firstName: 'สมชาย',
+  lastName: 'ใจดี',
+  birthDate: '1995-05-15',
+  phone: '0812345678',
+  homeNumber: '99/1',
+  subdistrict: 'คลองเตย',
+  district: 'คลองเตย',
+  province: 'กรุงเทพมหานคร',
+  postalCode: '10110',
+  password: 'CorrectPassword1!',
+  acceptTerms: true,
+  acceptPrivacy: true,
+} satisfies RegisterConsumerDto;
+
+const merchantRegistration = {
+  ...consumerRegistration,
+  merchantName: 'ร้านสมชาย',
+  merchantTypes: ['FOOD_BEVERAGE', 'OTOP'],
+  merchantPhone: '0898765432',
+  merchantDescription: 'อาหารชุมชน',
+  merchantAddress: '99/1 ถนนพระราม 4',
+  merchantSubdistrict: 'คลองเตย',
+  merchantDistrict: 'คลองเตย',
+  merchantProvince: 'กรุงเทพมหานคร',
+  merchantPostalCode: '10110',
+  acceptMerchantTerms: true,
+} satisfies RegisterMerchantDto;
+
+describe('AuthService & LoginRateLimiterService (FR-AUTH-03, FR-AUTH-04)', () => {
+  let authService: AuthService;
+  let rateLimiter: LoginRateLimiterService;
+  let prismaMock: {
+    user: { findUnique: Mock; update: Mock };
+    merchant: { findFirst: Mock };
+    authSession: { create: Mock; update: Mock };
+  };
+  let passwordsMock: { verify: Mock };
+  let jwtServiceMock: { sign: Mock };
+
+  beforeEach(() => {
+    prismaMock = {
+      user: {
+        findUnique: vi.fn(),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      merchant: {
+        findFirst: vi.fn(),
+      },
+      authSession: {
+        create: vi.fn().mockResolvedValue({ authSessionId: 1n }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+    passwordsMock = {
+      verify: vi.fn(),
+    };
+    jwtServiceMock = {
+      sign: vi.fn().mockReturnValue('signed-jwt-token'),
+    };
+    rateLimiter = new LoginRateLimiterService();
+
+    authService = new AuthService(
+      prismaMock as unknown as PrismaService,
+      jwtServiceMock as never,
+      { getOrThrow: vi.fn().mockReturnValue(86400) } as never,
+      passwordsMock as never,
+      rateLimiter,
+    );
+  });
+
+  it('authenticates valid credentials, persists SHA-256 tokenHash in auth_sessions, and resets failure count', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ใจดี',
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'CONSUMER', status: 'ACTIVE' }],
+    });
+    passwordsMock.verify.mockResolvedValueOnce(false);
+
+    // 1st attempt fails
+    await expect(
+      authService.login(
+        { citizenId: '1100000000001', password: 'WrongPassword1!' },
+        'CONSUMER',
+        '127.0.0.1',
+      ),
+    ).rejects.toThrow(UnauthorizedException);
+
+    // 2nd attempt succeeds and clears failure bucket
+    passwordsMock.verify.mockResolvedValueOnce(true);
+    const result = await authService.login(
+      { citizenId: '1100000000001', password: 'CorrectPassword1!' },
+      'CONSUMER',
+      '127.0.0.1',
+    );
+
+    expect(result).toEqual({
+      token: 'signed-jwt-token',
+      user: {
+        fullName: 'สมชาย ใจดี',
+        role: 'CONSUMER',
+      },
+    });
+    expect(prismaMock.authSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 101n,
+          activeRole: 'CONSUMER',
+          tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['CONSUMER', 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทประชาชน'],
+    ['MERCHANT', 'บัญชีนี้ยังไม่ได้ลงทะเบียนในบทบาทร้านค้า'],
+    ['ADMIN', 'บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานระบบผู้ดูแล'],
+  ] as const)(
+    'reports ROLE_NOT_REGISTERED after valid credentials for %s without counting a failed login',
+    async (role, expectedMessage) => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        userId: 101n,
+        citizenId: '1100000000001',
+        fullName: 'สมชาย ใจดี',
+        passwordHash: 'argon2id$hash',
+        status: 'ACTIVE',
+        roles: [{ role: 'OTHER_ROLE', status: 'ACTIVE' }],
+      });
+      passwordsMock.verify.mockResolvedValue(true);
+      const recordFailure = vi.spyOn(rateLimiter, 'recordFailure');
+      const clearFailures = vi.spyOn(rateLimiter, 'clearFailures');
+
+      let caughtError: unknown;
+      try {
+        await authService.login(
+          { citizenId: '1100000000001', password: 'CorrectPassword1!' },
+          role,
+          '127.0.0.1',
+        );
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(ForbiddenException);
+      expect((caughtError as ForbiddenException).getResponse()).toEqual({
+        code: 'ROLE_NOT_REGISTERED',
+        message: expectedMessage,
+      });
+      expect(recordFailure).not.toHaveBeenCalled();
+      expect(clearFailures).toHaveBeenCalledOnce();
+      expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reports ROLE_SUSPENDED when the requested role exists but is inactive', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ใจดี',
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'MERCHANT', status: 'SUSPENDED' }],
+    });
+    passwordsMock.verify.mockResolvedValue(true);
+
+    await expect(
+      authService.login(
+        { citizenId: '1100000000001', password: 'CorrectPassword1!' },
+        'MERCHANT',
+        '127.0.0.1',
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'ROLE_SUSPENDED',
+        message: 'สิทธิ์การใช้งานบทบาทร้านค้าถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+      },
+    });
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+  });
+
+  it.each(['CONSUMER', 'MERCHANT'] as const)(
+    'FR-AUTH-04 allows inactive accounts through %s registration checks while retaining password verification',
+    async (role) => {
+      const transactionBoundary = new Error('registration transaction reached');
+      const prisma = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            ...consumerRegistration,
+            userId: 101n,
+            dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
+            passwordHash: 'fixture-hash',
+            status: 'SUSPENDED',
+            roles: [{ role: role === 'CONSUMER' ? 'MERCHANT' : 'CONSUMER' }],
+          }),
+        },
+        merchant: { findFirst: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockRejectedValue(transactionBoundary),
+      };
+      const passwords = {
+        verify: vi.fn().mockResolvedValue(true),
+        hash: vi.fn().mockResolvedValue('fixture-hash'),
+      };
+      const auth = new AuthService(
+        prisma as unknown as PrismaService,
+        jwtServiceMock as never,
+        {} as never,
+        passwords as never,
+      );
+      const register = () =>
+        role === 'CONSUMER'
+          ? auth.registerConsumer(consumerRegistration)
+          : auth.registerMerchant(merchantRegistration);
+
+      await expect(register()).rejects.toBe(transactionBoundary);
+      expect(prisma.$transaction).toHaveBeenCalledOnce();
+
+      prisma.$transaction.mockClear();
+      passwords.verify.mockResolvedValue(false);
+      await expect(register()).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects adding the consumer role when existing identity data does not match', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: consumerRegistration.citizenId,
+      title: 'นาย',
+      firstName: 'สมชาย',
+      lastName: 'ใจดี',
+      dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'MERCHANT', status: 'ACTIVE' }],
+    });
+    passwordsMock.verify.mockResolvedValue(true);
+
+    let caughtError: unknown;
+    try {
+      await authService.registerConsumer({
+        ...consumerRegistration,
+        firstName: 'สมหญิง',
+      });
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(caughtError).toBeInstanceOf(ConflictException);
+    expect((caughtError as ConflictException).getResponse()).toEqual({
+      code: 'IDENTITY_DATA_MISMATCH',
+      message:
+        'ข้อมูลส่วนบุคคลไม่ตรงกับบัญชีที่ลงทะเบียนไว้ กรุณาตรวจสอบข้อมูลหรือติดต่อผู้ดูแลระบบ',
+    });
+  });
+
+  it('rejects adding the merchant role when existing identity data does not match', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: merchantRegistration.citizenId,
+      title: 'นาย',
+      firstName: 'สมชาย',
+      lastName: 'ใจดี',
+      dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'CONSUMER', status: 'ACTIVE' }],
+    });
+    passwordsMock.verify.mockResolvedValue(true);
+
+    await expect(
+      authService.registerMerchant({
+        ...merchantRegistration,
+        birthDate: '1994-05-15',
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'IDENTITY_DATA_MISMATCH',
+      },
+    });
+    expect(prismaMock.merchant.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('blocks brute-force login after 5 consecutive failed attempts with 429 Too Many Requests (FR-AUTH-03)', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      userId: 101n,
+      citizenId: '1100000000001',
+      fullName: 'สมชาย ใจดี',
+      passwordHash: 'argon2id$hash',
+      status: 'ACTIVE',
+      roles: [{ role: 'CONSUMER', status: 'ACTIVE' }],
+    });
+    passwordsMock.verify.mockResolvedValue(false);
+
+    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
+      await expect(
+        authService.login(
+          { citizenId: '1100000000001', password: `WrongPass#${i}` },
+          'CONSUMER',
+          '203.0.113.10',
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+    }
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(
+      LOGIN_MAX_FAILED_ATTEMPTS,
+    );
+
+    // 6th attempt must be rejected by rate limiter before hitting the database
+    let rateLimitError: unknown;
+    try {
+      await authService.login(
+        { citizenId: '1100000000001', password: 'EvenCorrectPassword1!' },
+        'CONSUMER',
+        '203.0.113.10',
+      );
+    } catch (error) {
+      rateLimitError = error;
+    }
+
+    expect(rateLimitError).toBeInstanceOf(HttpException);
+    const httpError = rateLimitError as HttpException;
+    expect(httpError.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(httpError.getResponse()).toEqual(
+      expect.objectContaining({
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        code: AUTH_RATE_LIMITED_CODE,
+        retryAfterSeconds: expect.any(Number),
+      }),
+    );
+    // Database was NOT queried on the rate-limited attempt
+    expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(
+      LOGIN_MAX_FAILED_ATTEMPTS,
+    );
+  });
+
+  it('releases the lockout after LOGIN_LOCKOUT_WINDOW_MS elapses', () => {
+    const startMs = 1_700_000_000_000;
+    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
+      rateLimiter.recordFailure(
+        'ADMIN',
+        '9000000000001',
+        '10.0.0.1',
+        startMs + i * 1000,
+      );
+    }
+
+    // Still locked inside window
+    expect(() =>
+      rateLimiter.assertAllowed(
+        'ADMIN',
+        '9000000000001',
+        '10.0.0.1',
+        startMs + LOGIN_LOCKOUT_WINDOW_MS - 1,
+      ),
+    ).toThrow(HttpException);
+
+    // Unlocked once window expires
+    expect(() =>
+      rateLimiter.assertAllowed(
+        'ADMIN',
+        '9000000000001',
+        '10.0.0.1',
+        startMs + LOGIN_LOCKOUT_WINDOW_MS,
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe('FR-C07 consumer registration proposal-only lifecycle', () => {
+  it('registers an account without automatically assigning any catalogue quests', async () => {
+    const tx = {
+      user: {
+        create: vi.fn().mockResolvedValue({
+          userId: 1n,
+          citizenId: '1100000000001',
+          fullName: 'Fixture Consumer',
+        }),
+      },
+      userRole: { create: vi.fn().mockResolvedValue({}) },
+      wallet: { findUnique: vi.fn().mockResolvedValue({ walletId: 1n }) },
+      quest: {
+        findMany: vi.fn().mockResolvedValue([{ questId: 1n, durationDays: 7 }]),
+      },
+      userQuest: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+      },
+    };
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(
+        async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+      ),
+    };
+    const auth = new AuthService(
+      prisma as unknown as PrismaService,
+      {} as never,
+      {} as never,
+      { hash: vi.fn().mockResolvedValue('fixture-hash') } as never,
+    );
+    const dto: RegisterConsumerDto = {
+      citizenId: '1100000000001',
+      title: 'นาย',
+      firstName: 'Fixture',
+      lastName: 'Consumer',
+      birthDate: '2000-01-01',
+      phone: '0811111111',
+      homeNumber: '1',
+      subdistrict: 'Fixture',
+      district: 'Fixture',
+      province: 'Fixture',
+      postalCode: '10100',
+      password: 'FixturePassword1!',
+      acceptTerms: true,
+      acceptPrivacy: true,
+    };
+    await expect(auth.registerConsumer(dto)).resolves.toMatchObject({
+      success: true,
+    });
+    expect(tx.user.create).toHaveBeenCalledOnce();
+    expect(tx.userRole.create).toHaveBeenCalledOnce();
+    expect(tx.quest.findMany).not.toHaveBeenCalled();
+    expect(tx.userQuest.create).not.toHaveBeenCalled();
+  });
+});

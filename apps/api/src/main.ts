@@ -1,63 +1,55 @@
-import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
+import 'dotenv/config';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
-import { GlobalExceptionFilter } from './common/http/global-exception.filter.js';
-import { APPLICATION_METADATA } from './config/application.constants.js';
-import type { EnvironmentVariables } from './config/environment.js';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { parseCorsOrigins } from './config/environment.js';
+
+// Support JSON serialization of BigInt values
+(BigInt.prototype as unknown as { toJSON: (this: bigint) => string }).toJSON =
+  function (this: bigint) {
+    return this.toString();
+  };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  const config = app.get(ConfigService<EnvironmentVariables, true>);
-  const appName = config.get('APP_NAME', { infer: true });
-  const apiPrefix = config.get('API_PREFIX', { infer: true });
-  const corsOrigins = config.get('CORS_ORIGINS', { infer: true });
-  const enableSwagger = config.get('ENABLE_SWAGGER', { infer: true });
-  const port = config.get('PORT', { infer: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const config = app.get(ConfigService);
+  const apiPrefix = config.getOrThrow<string>('API_PREFIX');
 
-  app.useLogger(
-    new ConsoleLogger(appName, {
-      json: true,
-      colors: false,
-      timestamp: true,
-    }),
-  );
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { limit: '10mb', extended: true });
+
   app.setGlobalPrefix(apiPrefix);
-  app.use(helmet());
-  app.enableVersioning({ type: VersioningType.URI });
+
+  // Enable CORS based on CORS_ORIGINS
+  const allowedOrigins = parseCorsOrigins(
+    config.getOrThrow<string>('CORS_ORIGINS'),
+  );
   app.enableCors({
+    origin: allowedOrigins,
     credentials: true,
-    origin: corsOrigins,
   });
+
+  app.use(cookieParser());
+
+  app.useGlobalFilters(new HttpExceptionFilter());
+
   app.useGlobalPipes(
     new ValidationPipe({
+      whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      whitelist: true,
     }),
   );
-  app.useGlobalFilters(new GlobalExceptionFilter());
+
   app.enableShutdownHooks();
 
-  if (enableSwagger) {
-    const openApiConfig = new DocumentBuilder()
-      .setTitle(appName)
-      .setDescription(APPLICATION_METADATA.openApiDescription)
-      .setVersion(APPLICATION_METADATA.apiVersion)
-      .build();
-    const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
-    SwaggerModule.setup(
-      `${apiPrefix}/${APPLICATION_METADATA.openApiPath}`,
-      app,
-      openApiDocument,
-    );
-  }
-
+  const port = config.getOrThrow<number>('PORT');
   await app.listen(port);
+  Logger.log(`API listening on port ${port} with prefix /${apiPrefix}`);
 }
 
 await bootstrap();

@@ -1,0 +1,1006 @@
+import {
+  AlertCircle,
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  Clock,
+  ImageUp,
+  Images,
+  LoaderCircle,
+  ReceiptText,
+  RotateCcw,
+  ShieldCheck,
+  Store,
+  Tag,
+  Wallet,
+} from 'lucide-react';
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { th } from '../../../i18n/th';
+import { ApiError } from '../../../lib/api-client';
+import { payByQr, previewOrder } from '../api/consumer.api';
+import type {
+  ConsumerOverviewResponse,
+  ConsumerView,
+  OrderPreviewResponse,
+  PaymentResultResponse,
+  PaymentStep,
+} from '../consumer.types';
+import { PortalPageHeader } from '../components/PortalPageHeader';
+import {
+  decodeQrFromImageFile,
+  decodeQrFromVideoElement,
+} from '../utils/qr-decoder';
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatPaidAt(isoString: string): string {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+const DEMO_PREVIEW_FALLBACK: OrderPreviewResponse = {
+  orderId: 'TP-2569-001284',
+  merchantName: th.consumerPortal.payment.merchant,
+  subtotal: 185,
+  discountAmount: 20,
+  finalAmount: 165,
+  subsidyAmount: 82.5,
+  userPaidAmount: 82.5,
+  personalBalance: 1850,
+  subsidyBalance: 760,
+  canAfford: true,
+  qrExpiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+  items: [
+    {
+      productName: 'ข้าวกะเพราไก่',
+      quantity: 2,
+      unitPrice: 65,
+      lineTotal: 130,
+    },
+    {
+      productName: 'น้ำสมุนไพร',
+      quantity: 1,
+      unitPrice: 35,
+      lineTotal: 35,
+    },
+    {
+      productName: 'ไข่ดาว',
+      quantity: 1,
+      unitPrice: 20,
+      lineTotal: 20,
+    },
+  ],
+  appliedCoupon: {
+    userCouponId: 'demo-coupon-1',
+    couponName: 'ลด 20 บาท เมื่อซื้อครบ 150 บาท',
+    discountType: 'FIXED',
+    discountValue: 20,
+  },
+};
+
+type PaymentViewProps = Readonly<{
+  onNavigate: (view: ConsumerView) => void;
+  availableCoupons?: ConsumerOverviewResponse['coupons'];
+  onPaymentSuccess?: () => void;
+}>;
+
+export function PaymentView({
+  onNavigate,
+  availableCoupons = [],
+  onPaymentSuccess,
+}: PaymentViewProps) {
+  const [step, setStep] = useState<PaymentStep>('scan');
+  const [activeQrToken, setActiveQrToken] = useState('');
+  const [preview, setPreview] = useState<OrderPreviewResponse | null>(null);
+  const [paymentResult, setPaymentResult] =
+    useState<PaymentResultResponse | null>(null);
+  const [selectedCouponId, setSelectedCouponId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
+
+  // Camera & Image QR scanner states (FR-C04)
+  const [isScannerOpen, setIsScannerOpen] = useState(true);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [isDecodingImage, setIsDecodingImage] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraRequestRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const copy = th.consumerPortal.payment;
+
+  const stopCamera = useCallback(() => {
+    cameraRequestRef.current += 1;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  // Ensure camera is stopped when leaving scan step or unmounting
+  useEffect(() => {
+    if (step !== 'scan') {
+      stopCamera();
+    }
+  }, [step, stopCamera]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  // Attach the stream only after React has rendered the camera video element.
+  // A fixed timeout is unreliable on slower mobile browsers.
+  useEffect(() => {
+    if (!isCameraActive || !videoRef.current || !streamRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    const playPromise = video.play();
+    if (playPromise) {
+      void playPromise.catch(() => {
+        stopCamera();
+        setIsScannerOpen(false);
+        setErrorMessage(copy.cameraPlaybackError);
+      });
+    }
+  }, [copy.cameraPlaybackError, isCameraActive, stopCamera]);
+
+  // Countdown timer for previewed QR
+  useEffect(() => {
+    if (step !== 'review' || !preview) return;
+
+    const expiresTime = new Date(preview.qrExpiresAt).getTime();
+    const updateCountdown = () => {
+      const diffSeconds = Math.max(
+        0,
+        Math.floor((expiresTime - Date.now()) / 1000),
+      );
+      setSecondsRemaining(diffSeconds);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [step, preview]);
+
+  // Request order preview by token
+  const handleFetchPreview = useCallback(
+    async (token: string, couponId?: string): Promise<void> => {
+      if (!token.trim()) {
+        setErrorMessage(copy.invalidQrMessage);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const data = await previewOrder({
+          qrToken: token.trim(),
+          userCouponId: couponId || undefined,
+        });
+        setPreview(data);
+        setActiveQrToken(token.trim());
+        setStep('review');
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setErrorMessage(err.message || copy.invalidQrMessage);
+        } else {
+          setErrorMessage(
+            err instanceof Error ? err.message : copy.invalidQrMessage,
+          );
+        }
+      } finally {
+        setIsLoading(false);
+        setIsScannerOpen(false);
+      }
+    },
+    [copy.invalidQrMessage],
+  );
+
+  // Live camera frame scanning loop
+  useEffect(() => {
+    if (!isCameraActive || step !== 'scan') return;
+    let active = true;
+
+    const intervalId = setInterval(() => {
+      if (!active || !videoRef.current || !canvasRef.current) return;
+      void decodeQrFromVideoElement(videoRef.current, canvasRef.current).then(
+        (decodedToken) => {
+          if (!active || !decodedToken) return;
+          active = false;
+          stopCamera();
+          void handleFetchPreview(decodedToken);
+        },
+      );
+    }, 250);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [isCameraActive, step, stopCamera, handleFetchPreview]);
+
+  const handleStartCamera = useCallback(async () => {
+    setIsScannerOpen(true);
+    setErrorMessage(null);
+    if (window.isSecureContext === false) {
+      setIsScannerOpen(false);
+      setErrorMessage(copy.cameraSecureContextError);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setIsScannerOpen(false);
+      setErrorMessage(copy.cameraPermissionError);
+      return;
+    }
+    setIsStartingCamera(true);
+    const requestId = ++cameraRequestRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+      if (requestId !== cameraRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
+      setIsCameraActive(true);
+    } catch {
+      stopCamera();
+      setIsScannerOpen(false);
+      setErrorMessage(copy.cameraPermissionError);
+    } finally {
+      setIsStartingCamera(false);
+    }
+  }, [copy.cameraPermissionError, copy.cameraSecureContextError, stopCamera]);
+
+  // Entering Scan to Pay should behave like a mobile banking scanner:
+  // request the camera immediately instead of showing an intermediate form.
+  useEffect(() => {
+    if (step !== 'scan') return;
+
+    const startTimer = window.setTimeout(() => {
+      void handleStartCamera();
+    }, 0);
+    return () => window.clearTimeout(startTimer);
+  }, [handleStartCamera, step]);
+
+  const handleCloseScanner = () => {
+    stopCamera();
+    setIsScannerOpen(false);
+    onNavigate('overview');
+  };
+
+  const handleQrImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    stopCamera();
+    setIsDecodingImage(true);
+    setErrorMessage(null);
+    try {
+      const decodedToken = await decodeQrFromImageFile(file);
+      if (!decodedToken) {
+        setIsScannerOpen(false);
+        setErrorMessage(copy.qrImageReadError);
+        return;
+      }
+      await handleFetchPreview(decodedToken);
+    } catch {
+      setIsScannerOpen(false);
+      setErrorMessage(copy.qrImageReadError);
+    } finally {
+      setIsDecodingImage(false);
+    }
+  };
+
+  // Fast demo preview action
+  const handleDemoAction = () => {
+    stopCamera();
+    setPreview(DEMO_PREVIEW_FALLBACK);
+    setActiveQrToken('demo-qr-token');
+    setSelectedCouponId('demo-coupon-1');
+    setErrorMessage(null);
+    setStep('review');
+  };
+
+  // Coupon change handler
+  const handleCouponChange = async (couponId: string) => {
+    setSelectedCouponId(couponId);
+    if (activeQrToken === 'demo-qr-token') {
+      // Demo mock update
+      if (couponId) {
+        const found = availableCoupons.find((c) => c.userCouponId === couponId);
+        if (found) {
+          setPreview((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  discountAmount: found.discountValue,
+                  finalAmount: Math.max(0, prev.subtotal - found.discountValue),
+                  userPaidAmount:
+                    Math.max(0, prev.subtotal - found.discountValue) / 2,
+                  subsidyAmount:
+                    Math.max(0, prev.subtotal - found.discountValue) / 2,
+                  appliedCoupon: {
+                    userCouponId: found.userCouponId,
+                    couponName: found.couponName,
+                    discountType: found.discountType,
+                    discountValue: found.discountValue,
+                  },
+                }
+              : null,
+          );
+        }
+      } else {
+        setPreview((prev) =>
+          prev
+            ? {
+                ...prev,
+                discountAmount: 0,
+                finalAmount: prev.subtotal,
+                userPaidAmount: prev.subtotal / 2,
+                subsidyAmount: prev.subtotal / 2,
+                appliedCoupon: null,
+              }
+            : null,
+        );
+      }
+      return;
+    }
+
+    if (activeQrToken) {
+      await handleFetchPreview(activeQrToken, couponId);
+    }
+  };
+
+  // Confirm and pay
+  const handleConfirmPay = async () => {
+    if (!preview || isPaying) return;
+
+    if (activeQrToken === 'demo-qr-token') {
+      // Instant demo payment confirmation for demo tests
+      setPaymentResult({
+        success: true,
+        isIdempotentReplay: false,
+        orderId: preview.orderId,
+        status: 'PAID',
+        subtotal: preview.subtotal,
+        discountAmount: preview.discountAmount,
+        finalAmount: preview.finalAmount,
+        subsidyAmount: preview.subsidyAmount,
+        userPaidAmount: preview.userPaidAmount,
+        paidAt: new Date().toISOString(),
+      });
+      setStep('success');
+      onPaymentSuccess?.();
+      return;
+    }
+
+    setIsPaying(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await payByQr({
+        qrToken: activeQrToken,
+        userCouponId: selectedCouponId || undefined,
+      });
+      setPaymentResult(result);
+      setStep('success');
+      onPaymentSuccess?.();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMessage(err.message || 'การชำระเงินไม่สำเร็จ');
+      } else {
+        setErrorMessage(
+          err instanceof Error ? err.message : 'การชำระเงินไม่สำเร็จ',
+        );
+      }
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  const minutesLeft = Math.floor(secondsRemaining / 60);
+  const secondsLeft = secondsRemaining % 60;
+  const isExpired = secondsRemaining === 0 && preview !== null;
+
+  return (
+    <section className="consumer-view w-full py-1">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        data-testid="qr-image-input"
+        onChange={(e) => void handleQrImageFileChange(e)}
+        className="hidden"
+      />
+
+      {/* Full-screen mobile-banking style QR scanner */}
+      {step === 'scan' && isScannerOpen && (
+        <div
+          data-testid="qr-camera-overlay"
+          className="fixed inset-0 z-[100] overflow-hidden bg-black text-white"
+        >
+          {isCameraActive && (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              data-testid="qr-camera-video"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-b from-black/75 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-black/80 to-transparent" />
+
+          <header className="absolute inset-x-0 top-0 z-20 flex items-center gap-3 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
+            <button
+              type="button"
+              onClick={handleCloseScanner}
+              aria-label={copy.closeScannerAction}
+              className="pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+            >
+              <ArrowLeft className="size-6" aria-hidden="true" />
+            </button>
+            <div>
+              <h2 className="text-lg font-bold drop-shadow-sm">
+                {copy.fullScreenScannerTitle}
+              </h2>
+              <p className="text-xs text-white/75">{copy.scannerSubtitle}</p>
+            </div>
+          </header>
+
+          {isCameraActive && (
+            <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[74vw] max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
+              <span className="absolute -left-0.5 -top-0.5 size-12 rounded-tl-2xl border-l-4 border-t-4 border-white" />
+              <span className="absolute -right-0.5 -top-0.5 size-12 rounded-tr-2xl border-r-4 border-t-4 border-white" />
+              <span className="absolute -bottom-0.5 -left-0.5 size-12 rounded-bl-2xl border-b-4 border-l-4 border-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 size-12 rounded-br-2xl border-b-4 border-r-4 border-white" />
+              <span
+                data-testid="qr-scan-line"
+                className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.8)]"
+              />
+            </div>
+          )}
+
+          {(isStartingCamera || isDecodingImage || isLoading) && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/55">
+              <LoaderCircle className="size-9 animate-spin text-white" />
+              <p className="text-sm font-semibold">
+                {isDecodingImage || isLoading
+                  ? copy.scanning
+                  : copy.startingCamera}
+              </p>
+            </div>
+          )}
+
+          <p className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-1/2 z-20 w-[65%] max-w-md -translate-x-1/2 text-center text-xs font-medium leading-relaxed text-white/90 drop-shadow-sm">
+            {copy.cameraHint}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isDecodingImage || isLoading}
+            aria-label={copy.chooseQrImageAction}
+            className="absolute bottom-[max(1.35rem,env(safe-area-inset-bottom))] right-5 z-30 flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/50 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50 sm:right-8"
+          >
+            <Images className="size-6" aria-hidden="true" />
+          </button>
+
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+      )}
+
+      {(step !== 'scan' || !isScannerOpen) && (
+        <PortalPageHeader
+          eyebrow={copy.eyebrow}
+          title={copy.title}
+          description={copy.description}
+        />
+      )}
+
+      {/* ── STEP 1: SCAN QR (FR-C04) ── */}
+      {step === 'scan' && !isScannerOpen && (
+        <article className="relative w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white p-6 text-center shadow-xs sm:p-10">
+          <div className="flex justify-center mb-5">
+            <div className="size-20 rounded-xl bg-blue-50/70 p-3.5 flex items-center justify-center border border-blue-100">
+              <img
+                src="/images/scan-qr-icon.png"
+                alt=""
+                className="size-14 object-contain drop-shadow-xs"
+              />
+            </div>
+          </div>
+
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-1.5">
+            {copy.scanTitle}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto mb-6">
+            {copy.scanDescription}
+          </p>
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mx-auto max-w-lg mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium flex items-center gap-2.5 text-left"
+            >
+              <AlertCircle className="size-4 shrink-0 text-red-600" />
+              <span className="flex-1">{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="text-red-400 hover:text-red-700 cursor-pointer text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Camera & QR Image Upload Action Buttons (FR-C04) */}
+          <div className="mx-auto mb-5 grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => void handleStartCamera()}
+              disabled={isLoading || isDecodingImage || isStartingCamera}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0056b3] px-4 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-[#004494] disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Camera className="size-4 shrink-0" />
+              <span>
+                {isStartingCamera ? copy.startingCamera : copy.cameraAction}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || isDecodingImage}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <ImageUp className="size-4 shrink-0 text-[#0056b3]" />
+              <span>
+                {isDecodingImage ? copy.scanning : copy.uploadQrImageAction}
+              </span>
+            </button>
+          </div>
+
+          {/* Alternative Demo Action */}
+          <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleDemoAction}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <span>{copy.demoAction}</span>
+            </button>
+          </div>
+        </article>
+      )}
+
+      {/* ── STEP 2: REVIEW ORDER BEFORE PAYMENT ── */}
+      {step === 'review' && preview && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left: Merchant & Items details */}
+          <article className="lg:col-span-7 bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              {/* Header: Merchant + Expiry */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-lg bg-blue-50 text-[#0056b3] flex items-center justify-center shrink-0">
+                    <Store className="size-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {copy.reviewTitle}
+                    </span>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                      {preview.merchantName}
+                    </h2>
+                    <p className="text-xs font-medium text-slate-400 mt-0.5 tabular-nums">
+                      Order #{preview.orderId}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tabular-nums shrink-0 ${
+                    isExpired
+                      ? 'bg-red-50 text-red-600 border border-red-200'
+                      : secondsRemaining < 60
+                        ? 'bg-amber-50 text-amber-600 border border-amber-200 animate-pulse'
+                        : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <Clock className="size-3.5" />
+                  <span>
+                    {isExpired
+                      ? copy.qrExpiredMessage
+                      : copy.expiresIn(minutesLeft, secondsLeft)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2.5 mb-5">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {copy.itemsTitle}
+                </h3>
+                <div className="divide-y divide-slate-100 border border-slate-200/70 rounded-lg overflow-hidden">
+                  {preview.items.map((item) => (
+                    <div
+                      key={item.productName}
+                      className="p-3.5 flex items-center justify-between text-sm bg-white hover:bg-slate-50/50 transition-colors"
+                    >
+                      <div>
+                        <strong className="font-bold text-slate-800 block">
+                          {item.productName}
+                        </strong>
+                        <span className="text-xs text-slate-500 tabular-nums">
+                          {item.quantity} × ฿{formatCurrency(item.unitPrice)}
+                        </span>
+                      </div>
+                      <strong className="font-bold text-slate-900 tabular-nums">
+                        ฿{formatCurrency(item.lineTotal)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Back to Scan button */}
+            <button
+              type="button"
+              onClick={() => {
+                setStep('scan');
+                setErrorMessage(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer pt-2"
+            >
+              <RotateCcw className="size-3.5" />
+              <span>{copy.backToScan}</span>
+            </button>
+          </article>
+
+          {/* Right: Payment Calculation & Confirmation */}
+          <article className="lg:col-span-5 bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">
+                {copy.reviewTitle}
+              </h2>
+
+              {errorMessage && (
+                <div
+                  role="alert"
+                  className="mb-4 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2"
+                >
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Coupon Selector */}
+              {availableCoupons.length > 0 && (
+                <div className="mb-4 p-3.5 rounded-lg bg-amber-50/70 border border-amber-200/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 mb-1.5">
+                    <Tag className="size-3.5 text-amber-600" />
+                    <span>{copy.coupon}</span>
+                  </div>
+                  <select
+                    value={selectedCouponId}
+                    onChange={(e) => void handleCouponChange(e.target.value)}
+                    disabled={isPaying}
+                    aria-label={copy.coupon}
+                    className="w-full text-xs font-medium bg-white border border-amber-300 rounded-lg p-2.5 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20"
+                  >
+                    <option value="">{copy.noCoupon}</option>
+                    {availableCoupons.map((c) => (
+                      <option key={c.userCouponId} value={c.userCouponId}>
+                        {c.couponName} (ลด ฿{formatCurrency(c.discountValue)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Financial Calculation Breakdown */}
+              <dl className="space-y-2.5 text-sm mb-5">
+                <div className="flex justify-between text-slate-600">
+                  <dt>{copy.subtotal}</dt>
+                  <dd className="font-semibold text-slate-800 tabular-nums">
+                    ฿{formatCurrency(preview.subtotal)}
+                  </dd>
+                </div>
+
+                {preview.discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-medium">
+                    <dt className="flex items-center gap-1">
+                      <span>{copy.coupon}</span>
+                      {preview.appliedCoupon && (
+                        <small className="text-[11px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md">
+                          {preview.appliedCoupon.couponName}
+                        </small>
+                      )}
+                    </dt>
+                    <dd className="font-semibold tabular-nums">
+                      -฿{formatCurrency(preview.discountAmount)}
+                    </dd>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-baseline pt-3 border-t border-slate-100 text-slate-900">
+                  <dt className="text-base font-bold">{copy.finalAmount}</dt>
+                  <dd className="text-2xl font-extrabold text-[#0a2540] tracking-tight tabular-nums">
+                    ฿{formatCurrency(preview.finalAmount)}
+                  </dd>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70 space-y-2 mt-3">
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <dt className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-emerald-500" />
+                      <span>{copy.subsidyExpected}</span>
+                    </dt>
+                    <dd className="font-bold text-emerald-600 tabular-nums">
+                      ฿{formatCurrency(preview.subsidyAmount)}
+                    </dd>
+                  </div>
+
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <dt className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-[#0056b3]" />
+                      <span>{copy.personalExpected}</span>
+                    </dt>
+                    <dd className="font-bold text-[#0056b3] tabular-nums">
+                      ฿{formatCurrency(preview.userPaidAmount)}
+                    </dd>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 text-right pt-1 tabular-nums">
+                  {copy.walletAfterAmount(
+                    formatCurrency(
+                      Math.max(
+                        0,
+                        preview.personalBalance - preview.userPaidAmount,
+                      ),
+                    ),
+                  )}
+                </div>
+              </dl>
+
+              {/* Insufficient Balance Alert */}
+              {!preview.canAfford && (
+                <div className="mb-4 p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  <div className="font-bold flex items-center gap-1.5 mb-1">
+                    <AlertCircle className="size-4 text-amber-600" />
+                    <span>{copy.insufficientBalanceTitle}</span>
+                  </div>
+                  <p className="text-amber-700 mb-2.5">
+                    {copy.insufficientBalanceMessage(
+                      formatCurrency(
+                        preview.userPaidAmount - preview.personalBalance,
+                      ),
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('wallet')}
+                    className="w-full py-2.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Wallet className="size-3.5" />
+                    <span>{copy.topUpAction}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Confirmation & Safety Note */}
+            <div>
+              <button
+                type="button"
+                onClick={() => void handleConfirmPay()}
+                disabled={!preview.canAfford || isPaying || isExpired}
+                aria-label={copy.confirm}
+                className="w-full h-11 px-5 rounded-lg bg-[#0056b3] hover:bg-[#004494] text-white font-bold text-sm shadow-xs active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer mb-3 whitespace-nowrap"
+              >
+                {isPaying ? (
+                  <>
+                    <span className="size-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                    <span>{copy.paymentProcessing}</span>
+                  </>
+                ) : (
+                  <span>
+                    {copy.confirmPaymentWithAmount(
+                      formatCurrency(preview.finalAmount),
+                    )}
+                  </span>
+                )}
+              </button>
+
+              <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1 text-center">
+                <ShieldCheck className="size-3.5 text-slate-400 shrink-0" />
+                <span>{copy.safetyNote}</span>
+              </p>
+            </div>
+          </article>
+        </div>
+      )}
+
+      {/* ── STEP 3: PAYMENT SUCCESS & RECEIPT SUMMARY ── */}
+      {step === 'success' && paymentResult && (
+        <article className="mx-auto w-full max-w-md bg-white rounded-lg border border-slate-200 p-6 sm:p-7 shadow-xs text-slate-900">
+          {/* Paper Receipt Header with Centered Thai Please Logo */}
+          <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
+            <img
+              src="/images/brand-logo.png"
+              alt={th.brand}
+              className="h-11 sm:h-12 w-auto object-contain mx-auto mb-2"
+            />
+            <div className="inline-flex items-center gap-1.5 text-slate-900 justify-center">
+              <CheckCircle2 className="size-4 text-slate-700 shrink-0" />
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                {copy.successTitle}
+              </h2>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {copy.successDescriptionWithId(paymentResult.orderId)}
+            </p>
+          </div>
+
+          {/* Order Meta */}
+          <div className="space-y-1.5 text-xs border-b border-dashed border-slate-300 pb-3.5 mb-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">{copy.merchantLabel}</span>
+              <span className="font-bold text-slate-900">
+                {preview?.merchantName ?? copy.merchant}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">เลขอ้างอิง</span>
+              <span className="font-semibold text-slate-900 tabular-nums">
+                {copy.orderIdPrefix(paymentResult.orderId)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">{copy.paidAtLabel}</span>
+              <span className="text-slate-700 tabular-nums">
+                {formatPaidAt(paymentResult.paidAt)}
+              </span>
+            </div>
+          </div>
+
+          {/* Line Items Snapshot (if preview items exist) */}
+          {preview?.items && preview.items.length > 0 && (
+            <div className="border-b border-dashed border-slate-300 pb-3.5 mb-3.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 pb-1.5">
+                <span>{copy.itemsTitle}</span>
+                <span>จำนวนเงิน</span>
+              </div>
+              <div className="space-y-1.5 text-xs">
+                {preview.items.map((item) => (
+                  <div
+                    key={item.productName}
+                    className="flex items-start justify-between gap-2"
+                  >
+                    <span className="text-slate-800">
+                      {item.productName}{' '}
+                      <span className="text-slate-400 tabular-nums">
+                        ×{item.quantity}
+                      </span>
+                    </span>
+                    <span className="font-medium text-slate-900 tabular-nums shrink-0">
+                      ฿{formatCurrency(item.lineTotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Totals & Co-pay Breakdown */}
+          <div className="space-y-1.5 text-xs border-b border-dashed border-slate-300 pb-4 mb-4">
+            <div className="flex justify-between text-slate-600">
+              <span>{copy.subtotal}</span>
+              <span className="tabular-nums text-slate-900">
+                ฿{formatCurrency(paymentResult.subtotal)}
+              </span>
+            </div>
+
+            {paymentResult.discountAmount > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>{copy.coupon}</span>
+                <strong className="font-semibold text-slate-900 tabular-nums">
+                  -฿{formatCurrency(paymentResult.discountAmount)}
+                </strong>
+              </div>
+            )}
+
+            <div className="flex justify-between items-baseline text-sm font-extrabold text-slate-900 py-2 border-y border-slate-200 my-1">
+              <span>{copy.finalAmount}</span>
+              <span className="text-xl font-extrabold text-slate-900 tabular-nums">
+                ฿{formatCurrency(paymentResult.finalAmount)}
+              </span>
+            </div>
+
+            <div className="pt-1 space-y-1 text-slate-600">
+              <div className="flex justify-between">
+                <span>{copy.personalExpected}</span>
+                <strong className="font-semibold text-slate-900 tabular-nums">
+                  ฿{formatCurrency(paymentResult.userPaidAmount)}
+                </strong>
+              </div>
+              <div className="flex justify-between">
+                <span>{copy.subsidyExpected}</span>
+                <strong className="font-semibold text-slate-900 tabular-nums">
+                  ฿{formatCurrency(paymentResult.subsidyAmount)}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400 text-center mb-4">
+            {copy.receiptVerifiedBadge}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => onNavigate('orders')}
+              className="h-10 px-4 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+            >
+              <ReceiptText className="size-3.5 shrink-0" />
+              <span>{copy.receiptAction}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('overview')}
+              className="h-10 px-4 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer inline-flex items-center justify-center whitespace-nowrap"
+            >
+              <span>{copy.homeAction}</span>
+            </button>
+          </div>
+        </article>
+      )}
+    </section>
+  );
+}

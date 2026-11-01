@@ -1,0 +1,392 @@
+# Requirements Delivery Checklist
+
+เอกสารนี้เป็น progress tracker ของการพัฒนา โดยอ้างอิงข้อกำหนดจาก
+[`docs/REQUIREMENTS.md`](./REQUIREMENTS.md) เป็นหลัก หากรายละเอียดในสองเอกสารไม่ตรงกัน
+ให้ถือ `REQUIREMENTS.md` เป็นข้อกำหนด และแก้ checklist นี้ให้ตรงกับหลักฐานล่าสุด
+
+ตรวจล่าสุด: 2026-10-17
+
+## กติกาการอัปเดตสถานะ
+
+- `[x] Complete` ใช้ได้เมื่อ implementation, authorization, frontend integration (ถ้ามี),
+  error/empty/loading states ที่เกี่ยวข้อง และ tests ตามระดับความเสี่ยงผ่านจริงแล้วเท่านั้น
+- `[ ] Partial` หมายถึงมีบางชั้นแล้ว แต่ยังมี API, UI, integration, security หรือ test gap
+- `[ ] Not started` หมายถึงยังไม่มี behavior ที่ใช้งานได้จริง แม้อาจมี schema หรือ UI mock
+- ห้ามนับ mock UI, schema อย่างเดียว, happy path อย่างเดียว หรือ unit test บางส่วนเป็น Complete
+- ทุกครั้งที่ปิดงาน ให้เพิ่มหลักฐานเป็นชื่อ endpoint, source file และ test suite ที่ผ่าน
+- หาก regression หรือ contract ไม่ตรงกัน ให้เปิด checkbox กลับทันที
+
+## Workflow เมื่อสร้างหรือเปลี่ยน API
+
+ห้ามติ๊ก requirement ที่เกี่ยวข้องเป็น Complete จนกว่าจะทำครบทุกข้อ:
+
+1. อัปเดต controller/route, authorization, validation และ stable error contract
+2. อัปเดต response/request contract และ frontend API client/types ที่ใช้งานจริง
+3. เพิ่มหรือแก้ unit, integration/contract และ E2E tests ตามความเสี่ยง
+4. อัปเดต Postman collection พร้อม environment/example request และ success/error examples
+5. อัปเดต `README.md` ให้มี endpoint, วิธีรัน, authentication และตัวอย่างใช้งานล่าสุด
+6. รัน tests, typecheck, lint, format check และ build ที่เกี่ยวข้อง
+7. บันทึก evidence และ gap ที่เหลือในเอกสารนี้ก่อนติ๊ก `[x]`
+
+> สถานะปัจจุบัน: มี Postman Collection v2.1 สำหรับ API ที่ implement จริง 31 requests ที่
+> `postman/Thai-Please.postman_collection.json` พร้อม Local environment และคู่มือใช้งาน
+> และมีชุดทดสอบ End-to-End ครบวงจร `apps/api/test/platform-lifecycle.e2e-spec.ts`
+> ที่จำลอง Full Platform Lifecycle (4 Stages) ตั้งแต่ Admin/Merchant Approval → POS/Payment → Quest/Points/Coupon Reuse → Merchant Withdrawal & Analytics
+
+## Authentication and Registration
+
+- [ ] **FR-AUTH-01 — Customer Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - มี: API/UI ลงทะเบียน (`POST /api/v1/auth/register/customer`), Citizen ID และวันเกิด validation, password hashing (`scrypt`), ตรวจข้อมูลยืนยันตัวตนเดิมก่อนเพิ่มบทบาท, สร้าง `CONSUMER` role, `CONSUMER` wallet พร้อม `SUBSIDY_GRANT` ledger และมอบหมายภารกิจเริ่มต้นอัตโนมัติ
+  - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
+  - Gap API/Data: database integration ร่วมกับฐานข้อมูลสดสำหรับ rollback
+
+- [ ] **FR-AUTH-02 — Merchant Registration — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - มี: API/UI ลงทะเบียนร้าน (`POST /api/v1/auth/register/merchant`) รองรับทั้งผู้ใช้ใหม่และเพิ่มบทบาท `MERCHANT` ให้บัญชี `CONSUMER` เดิมโดยไม่สร้าง User ซ้ำ, ตรวจคำนำหน้าชื่อ ชื่อ นามสกุล และวันเกิดก่อนเพิ่มบทบาท, เลือกและบันทึกประเภทธุรกิจได้หลายประเภท, สถานะเริ่มต้น `PENDING` และสร้าง `MERCHANT` wallet แยกต่างหาก
+  - Evidence: `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/registration/registration.validation.test.ts`
+  - Gap API/Data: database integration ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-AUTH-03 — Password Policy & Brute-Force Protection — Partial (Rate Limiter Integrated + HTTP E2E)**
+  - มี: password validation, hash service, `LoginRateLimiterService` (จำกัดการล็อกอินผิดพลาดสูงสุด 5 ครั้งใน 15 นาทีต่อ `(role, citizenId, clientIp)` พร้อมคืน `429 Too Many Requests / AUTH_RATE_LIMITED`) และ unit + HTTP E2E tests
+  - Evidence: `apps/api/src/auth/login-rate-limiter.service.ts`, `apps/api/src/auth/auth.service.spec.ts`, `apps/api/src/auth/password/password.service.spec.ts`, `apps/api/test/auth-registration.e2e-spec.ts`
+  - Gap Security: distributed rate limit store (เช่น Redis) เมื่อขยายหลาย instance และ log-redaction audit suite
+
+- [x] **FR-AUTH-04 — Login — Complete (Pending Merchant Approval UI + Multi-Portal Cookie Auth)**
+  - มี: แยก customer/merchant/admin login routes, HTTP-only session cookie (`access_token`), SHA-256 `tokenHash` ใน `auth_sessions`, role guards, หน้า Login และระบบจดจำข้อมูลเข้าสู่ระบบแยกตามบทบาท
+  - Pending Merchant Tracking Flow: บัญชีร้านค้าที่มีสถานะ `PENDING` (หรือยังไม่ได้รับการอนุมัติ) เมื่อล็อกอินเข้าสู่ระบบจะแสดงหน้าจอเฉพาะ `MerchantPendingApproval` สำหรับติดตามสถานะการอนุมัติ ("อยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ") พร้อมปุ่มตรวจสอบสถานะอีกครั้ง (Re-check status) และปุ่มออกจากระบบ โดยไม่อนุญาตให้เปิดใช้งาน POS จนกว่าจะได้รับการอนุมัติ
+  - Evidence: `apps/api/src/auth/auth.service.spec.ts`, `apps/api/test/auth-registration.e2e-spec.ts`, `apps/web/src/features/auth/pages/LoginPage.test.tsx`, `apps/web/src/features/merchant/pages/MerchantPendingApproval.test.tsx`, `apps/web/src/app/App.test.tsx`
+
+- [ ] **FR-AUTH-05 — Admin Creation — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/users/admins`, `POST /api/v1/admin/users/:userId/roles/admin`, `PATCH /api/v1/admin/users/:userId/roles/admin` พร้อมระบบป้องกันการระงับผู้ดูแลคนสุดท้าย (Last-Active-Admin Protection) และเพิกถอน Session อัตโนมัติเมื่อถูกระงับ
+  - UI: `AdminDashboard.tsx` (แท็บจัดการผู้ดูแล) รองรับการมอบสิทธิ์ `ADMIN` ให้ผู้ใช้งานที่มีอยู่ และระงับ/คืนสิทธิ์พร้อมบันทึก Audit Event
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-AUTH-06 — Initial Admin — Partial (Seed & Trigger Verified)**
+  - มี idempotent provisioning ใน `apps/api/prisma/seed.js` ร่วมกับ PostgreSQL trigger ตรวจสอบ `created_by_admin_id`
+  - Gap Test: forced password change E2E
+
+## Consumer Requirements
+
+- [x] **FR-C01 — Consumer Overview — Complete**
+  - API: authenticated consumer-only `GET /api/v1/wallet/overview`, scope ด้วย session user,
+    aggregate wallet/program/quest/coupon และ bounded latest paid orders
+  - UI: `ConsumerDashboard` เรียก API จริง; แสดงชื่อและ Citizen ID แบบ mask, integer-baht
+    balances, daily subsidy, program, points, quests, coupons และ recent orders โดยไม่ fallback เป็น mock
+  - States: loading, success, empty collections, generic error/retry, permission denied และ
+    accessible live feedback
+  - Evidence: `apps/api/src/wallet/wallet.service.spec.ts`,
+    `apps/api/src/wallet/wallet.controller.spec.ts`,
+    `apps/web/src/features/consumer/pages/ConsumerDashboard.test.tsx`, และ
+    `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Verified: Web tests 17/17, API tests 26/26, API E2E 1/1, typecheck/lint/build ทั้งสอง
+    workspace และ changed-file Prettier ผ่านในรอบส่งมอบ FR-C01
+  - Postman: `Consumer Wallet / Get Wallet Overview` พร้อม role, status checks และคำอธิบาย
+
+- [ ] **FR-C02 — Personal Top-up — Partial (deploy migration แล้ว รอทดสอบ runtime)**
+  - API: authenticated consumer-only `POST /api/v1/wallet/topup`; integer baht 1–50,000,
+    idempotency key 8–128 ตัวอักษร, atomic Personal Balance credit และ ledger
+    `PERSONAL/PERSONAL_TOPUP` โดยไม่เปลี่ยน Subsidy Balance หรือสร้าง Wallet/สิทธิ์โดยผลข้างเคียง
+  - Idempotency: key+amount เดิมคืนผล ledger เดิม, key เดิมแต่ amount/owner/wallet/fund ต่างกันได้
+    `409`; รองรับ replay ของ ledger เก่า `TOPUP` ที่ข้อมูลตรงกันโดยไม่เขียนข้อมูลย้อนหลังใหม่
+  - History API: `GET /api/v1/wallet/transactions` scope ด้วย session user, กรองวันแบบ inclusive
+    ตาม `Asia/Bangkok`, stable cursor pagination, default 20/max 100
+  - UI: หน้า Wallet ใช้ overview/top-up/history API จริง; refresh ยอดและประวัติหลังสำเร็จ,
+    stable retry key, double-submit guard, date filters, load more และ stale-response protection
+  - States: loading, success, empty, validation, permission denied, conflict, network/refresh/history error
+    พร้อม retry และ accessible live feedback
+  - Evidence: `apps/api/src/wallet/wallet.service.spec.ts`,
+    `apps/api/src/wallet/wallet.controller.spec.ts`, DTO specs,
+    `apps/api/test/wallet-topup.e2e-spec.ts`,
+    `apps/api/test/platform-lifecycle.e2e-spec.ts`,
+    `apps/web/src/features/consumer/api/consumer.api.test.ts`
+  - Database migration: เพิ่ม
+    `apps/api/prisma/migrations/20261015090000_allow_personal_topup_transaction_type/migration.sql`
+    เพื่อให้ constraint รองรับ `PERSONAL_TOPUP` และคง legacy `TOPUP`; regression spec ผ่าน 3/3
+    และ `apps/web/src/features/consumer/views/WalletView.test.tsx`
+  - Verified: API unit 73/73, API E2E 3/3, Web 39/39 และ typecheck/lint/build ทั้งสอง workspace
+    รวมถึง changed-file Prettier และ Postman JSON ผ่านในรอบส่งมอบ FR-C02
+  - Runtime verification: deploy migration ไปยังฐานข้อมูล development แล้วเมื่อ 2026-10-15 และตรวจพบว่า
+    constraint ถูก validate พร้อมรองรับ `PERSONAL_TOPUP`/legacy `TOPUP`; ต้องยิง top-up จริงสำเร็จ
+    และตรวจยอด/ประวัติก่อนจึงทำเครื่องหมาย Complete
+  - Migration-history maintenance: migration เก่า `20261013150000_neon_baseline` และ
+    `20261013160000_neon_multi_role_wallets` ไม่มี `migration.sql` ใน working copy ทำให้
+    `prisma migrate status` ตอบ `P3015`; ไม่กระทบ constraint ที่ deploy แล้ว แต่ต้องกู้ไฟล์ต้นฉบับ
+    แทนการสร้าง SQL เดาหรือลบประวัติ
+  - Postman: overview/history, positive top-up, replay, reused-key conflict, zero, negative,
+    fractional และ over-limit พร้อม assertions/คำอธิบาย
+  - Residual NFR evidence: repository ยังไม่มี PostgreSQL wallet integration harness จึงยังไม่ถือว่า
+    พิสูจน์ concurrent retry กับฐานข้อมูลจริง; ติดตามต่อภายใต้ `NFR-DATA-01`
+
+- [ ] **FR-C03 — Daily Subsidy Status — Partial**
+  - มี API/UI จริงบน Overview และ Wallet: balance, cap, used, remaining, percentage และ program
+  - Evidence: `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: ต้องเพิ่ม Bangkok boundary/database integration กับฐานข้อมูลสด
+
+- [ ] **FR-C04 — Scan and Review QR — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - มี backend preview/order context (`POST /api/v1/consumer/orders/preview`)
+  - UI: `PaymentView.tsx` และ `qr-decoder.ts` เชื่อมต่อ API จริง รองรับทั้งการเปิดกล้องสแกน QR จริง (`getUserMedia` + `BarcodeDetector`/`jsQR`), การอัปโหลดไฟล์รูปภาพ QR Code, การวางรหัส QR Token, demo preview, ตรวจสอบรายการสินค้า, นับถอยหลังวันหมดอายุ (Expiry Countdown), ส่วนลดคูปอง และคำนวณสัดส่วนเงินสนับสนุน/เงินส่วนตัว Authoritative จาก Server
+  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/web/src/features/consumer/utils/qr-decoder.ts`, `apps/web/src/features/consumer/api/consumer.api.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-C05 — Payment — Partial (Frontend Integrated with API + HTTP E2E)**
+  - มี backend atomic payment (`POST /api/v1/consumer/orders/pay`), wallet debit, merchant credit, coupon checks, quest completion evaluation และ unit tests
+  - UI: `PaymentView.tsx` รองรับการยืนยันชำระเงินจริง ป้องกัน Double-submission ด้วย loading state, ตรวจสอบยอดเงินส่วนตัว (`canAfford`) และแสดงหน้าใบเสร็จรับเงินสำเร็จ (Success Receipt)
+  - Evidence: `apps/web/src/features/consumer/views/PaymentView.test.tsx`, `apps/api/src/order/order.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: database integration สำหรับ duplicate/concurrent/rollback บน environment จริง
+
+- [ ] **FR-C06 — Order History and Receipt — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/consumer/orders` (รองรับกรอง `dateFrom`/`dateTo`) และ `GET /api/v1/consumer/orders/:id/receipt` (ตรวจสอบสิทธิ์เจ้าของ order และคืน snapshot ใบเสร็จพร้อม masked citizenId)
+  - UI: `OrdersView.tsx` และ `DigitalReceiptModal.tsx` เชื่อมต่อ API จริง แสดงประวัติคำสั่งซื้อ ค้นหา/กรองตามสถานะและวันที่ และเปิดดูใบเสร็จรับเงินดิจิทัลฉบับเต็ม
+  - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/consumer/views/OrdersView.test.tsx`, `apps/web/src/features/consumer/pages/ConsumerDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ตรวจสอบ immutability ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-C07 — Personalized Quest — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/consumer/quests` (และ `/api/v1/quests`) คืนรายการภารกิจที่กำลังทำ ประวัติภารกิจที่สำเร็จ/หมดอายุ วันหมดอายุ แต้มที่ได้รับ และเลขอ้างอิงใบเสร็จ (`completedOrderId`/`receiptNumber`)
+  - UI: `QuestsView.tsx` (Blue Theme) แสดง KPI ภารกิจ แท็บกำลังทำ/ประวัติภารกิจ และปุ่มกดดูใบเสร็จดิจิทัลของบิลที่ทำภารกิจสำเร็จ
+  - Evidence: `apps/api/src/quests/quests.controller.spec.ts`, `apps/api/src/quests/quests.service.spec.ts`, `apps/web/src/features/consumer/views/QuestsView.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [x] **FR-C08 — Point — Complete (BR-POINT-02 Expiration & Sweeper Implemented)**
+  - API: `GET /api/v1/consumer/points` (และ `/api/v1/points`) คืนยอด `pointBalance`, พอยต์ที่ใกล้หมดอายุใน 30 วัน และประวัติ `point_transactions` พร้อมแหล่งที่มา (ภารกิจ/คูปอง) และวันหมดอายุ
+  - BR-POINT-02 Expiry System:
+    - ตัดแต้มที่อายุเกิน 365 วันโดยอัตโนมัติด้วยหลักการ FIFO by Expiry (หักแต้มจาก Lot ที่หมดอายุก่อนตามลำดับ)
+    - คำนวณหักลบการใช้แต้มแลกคูปองในอดีต (`COUPON_REDEEM`) และแต้มที่เคยตัดหมดอายุไปแล้ว (`EXPIRED`)
+    - สร้าง Ledger Transaction ประเภท `EXPIRED` (ติดลบ) และลด `pointBalance` ของผู้ใช้อย่าง Atomic ใน Transaction เดียวกัน ป้องกันยอดติดลบ (`Math.min(user.point_balance, expiredUnconsumed)`)
+    - Real-time Expiration: ตัดแต้มหมดอายุทันทีก่อนตรวจยอดเมื่อเรียกดู `getConsumerPoints` และก่อนทำการแลกคูปอง `redeemCoupon`
+    - Background Sweeper Job: มี Background Interval Timer (`sweepExpiredPoints`) ใน `RewardsService` คอยกวาดตัดแต้มหมดอายุของผู้ใช้ทุกคนอย่างสม่ำเสมอ
+    - Admin Endpoint: รองรับ `POST /api/v1/admin/rewards/sweep-expired-points` สำหรับสั่งรันกวาดแต้มหมดอายุ
+  - UI: `CouponsView.tsx` (Blue Theme) แสดงยอดพอยต์ แจ้งเตือนพอยต์ใกล้หมดอายุ และรายการประวัติพอยต์จริงจาก API
+  - Evidence: `apps/api/src/rewards/rewards.service.spec.ts` (9 unit tests ครอบคลุม FIFO expiration, sweeper, balance lock), `apps/web/src/features/consumer/views/CouponsView.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+
+- [ ] **FR-C09 — Coupon — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/consumer/coupons` (รายการคูปองที่เปิดให้แลก + คูปองของฉัน) และ `POST /api/v1/consumer/coupons/:id/redeem` แลกพอยต์เป็นคูปองแบบ Atomic Transaction (Row Lock ผู้ใช้, ตรวจพอยต์, หักพอยต์, สร้าง `point_transactions` และ `user_coupons`)
+  - UI: `CouponsView.tsx` (Blue Theme) แสดงคูปองของฉันพร้อมสถานะ (`AVAILABLE`/`USED`/`EXPIRED`), แค็ตตาล็อกแลกคูปอง, ปุ่มกดแลกคูปองพร้อมอัปเดตยอดทันที และปุ่มนำไปใช้สแกนจ่ายเงินใน `PaymentView.tsx`
+  - Evidence: `apps/api/src/rewards/rewards.service.spec.ts`, `apps/web/src/features/consumer/views/CouponsView.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E แลกพอยต์และใช้คูปองลดราคาบนฐานข้อมูลจริง
+
+## Merchant Requirements
+
+- [ ] **FR-M01 — Merchant Approval & Membership (BR-MERCHANT-01) — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/admin/merchants` และ `POST /api/v1/admin/merchants/:id/approve|reject|suspend|activate` พร้อมการเปิดใช้งาน `MERCHANT` role และ `MERCHANT` wallet อัตโนมัติเมื่ออนุมัติ และบังคับตรวจสถานะ `ACTIVE` ก่อนสร้าง Order บน POS
+  - BR-MERCHANT-01 Merchant Membership Model:
+    - ตาราง `merchant_members` รองรับความสัมพันธ์ระหว่างร้านค้าและสมาชิกหลายคน (`OWNER` และ `STAFF`)
+    - สร้าง Membership ระดับ `OWNER` อัตโนมัติใน Database Transaction เดียวกันเมื่อลงทะเบียนร้านค้า
+    - สมาชิกบทบาท `STAFF` สามารถเข้าดูภาพรวมกระเป๋าเงินและแดชบอร์ดหน้าร้านได้ แต่การถอนเงินจำกัดสิทธิ์ให้เฉพาะ `OWNER` เท่านั้น (`WITHDRAWAL_OWNER_ONLY`)
+    - รัน Database Migration `20261030040000_merchant_members` บน Neon PostgreSQL สำเร็จพร้อม backfill ร้านค้าเดิม
+  - UI: `AdminDashboard.tsx` (แท็บอนุมัติร้านค้า) แสดงรายการร้านค้า ตัวกรองสถานะ และปุ่มอนุมัติ/ปฏิเสธ/ระงับพร้อม Audit Event; `MerchantPendingApproval.tsx` แสดงหน้าจอรออนุมัติสำหรับร้านค้าสถานะ `PENDING`
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/src/wallet/merchant-wallet.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`, Migration `20261030040000_merchant_members`
+  - Gap Test: E2E approval flow ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-M02 — Product Management — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/merchant/products?includeInactive=true`, `POST /api/v1/merchant/products`, `PUT /api/v1/merchant/products/:productId`, `PATCH /api/v1/merchant/products/:productId/status`, และ `DELETE /api/v1/merchant/products/:productId` ตรวจสอบสิทธิ์เจ้าของร้านและหมวดหมู่ พร้อมคง Immutable Snapshot บน `order_items` ย้อนหลัง
+  - UI: `MerchantPos.tsx` (Blue Theme) รองรับการเพิ่มสินค้า แก้ไขชื่อ/ราคา/หมวดหมู่/รายละเอียด เปิด-ปิดการขายสินค้า (`ACTIVE`/`INACTIVE`) กรองตามสถานะ และซิงก์ตะกร้าสินค้าอัตโนมัติ
+  - Evidence: `apps/api/src/catalog/catalog.service.spec.ts`, `apps/web/src/features/merchant/pages/MerchantPos.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-M03 — POS — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `POST /api/v1/merchant/orders` ตรวจสอบสถานะร้านค้า `ACTIVE` และคำนวณราคาสินค้า (`unitPrice`, `lineTotal`, `subtotal`, `finalAmount`) จากฐานข้อมูลพร้อมบันทึก `productNameSnapshot`
+  - UI: `MerchantPos.tsx` รองรับเลือกสินค้าหลายรายการ ปรับจำนวน คำนวณยอดรวม และสร้าง QR ชำระเงิน
+  - Evidence: `apps/api/src/order/order.service.spec.ts`, `apps/web/src/features/merchant/pages/MerchantPos.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-M04 — QR Generation — Partial (SHA-256 Hash Storage + Frontend & Backend Integrated + HTTP E2E)**
+  - มี cryptographic random QR token (`randomBytes(32)`), บันทึกเฉพาะค่า SHA-256 hash (`sha256:<hex>`) ลงคอลัมน์ `orders.qr_token` ในฐานข้อมูลโดยคืนค่า raw token ให้ฝั่ง POS แสดงเป็น QR Code, ป้องกันการนำค่า hash จากฐานข้อมูลมายิงซ้ำโดยตรง (`Anti-Hash-Replay`), มีวันหมดอายุ 10 นาที พร้อมปุ่มคัดลอกรหัส Token และปุ่มดาวน์โหลดรูปภาพ QR Code ใน `MerchantPos.tsx`
+  - Evidence: `apps/api/src/order/order.service.ts`, `apps/api/src/order/order.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: database integration บนฐานข้อมูลสดสำหรับ expiry และ concurrent one-order/one-payment
+
+- [x] **FR-M05 — Payment Status — Complete**
+  - มี order status lifecycle ครบถ้วน: `DRAFT`, `CHECKED_OUT`, `PENDING`, `PAID`, `FAILED`, `EXPIRED`
+  - รองรับการปรับสถานะเป็น `EXPIRED` ทันทีเมื่อ QR Code หมดอายุ (ทั้งใน `previewOrder` และ `payByQr` transaction)
+  - มี Background Sweeper Job (`sweepExpiredOrders`) รันอัตโนมัติเป็นระยะใน `OrderService` คอยกวาดเปลี่ยนสถานะบิลที่ค้างชำระเกินเวลาหมดอายุเป็น `EXPIRED` ในฐานข้อมูลจริง
+  - มี API `POST /api/v1/merchant/orders/sweep-expired` สำหรับสั่งกวาดล้างคำสั่งซื้อที่หมดอายุ
+  - หน้า POS และ OrdersView สะท้อนสถานะ `EXPIRED` และ `PAID` ทันทีหลังจาก commit ธุรกรรมสำเร็จ
+  - Evidence: `apps/api/src/order/order.service.spec.ts` (18 unit tests), `apps/api/test/platform-lifecycle.e2e-spec.ts` (E2E), Database Migration `20261030030000_order_lifecycle_statuses` บน Neon PostgreSQL
+
+- [ ] **FR-M06 — Merchant Wallet — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/merchant/wallet` (และ `/api/v1/merchants/:id/wallet`), `GET /api/v1/merchant/wallet/transactions`, และ `POST /api/v1/merchant/wallet/withdrawals` โอนเงินเสมือนจาก `Merchant Wallet` เข้าสู่ `Consumer Wallet.personal_balance` ของเจ้าของร้านแบบ Atomic Transaction พร้อม Row Lock, Idempotency Key และบันทึก `MERCHANT_WITHDRAWAL` / `MERCHANT_WITHDRAWAL_CREDIT`
+  - UI: `MerchantWalletView.tsx` (Blue Theme) แสดงยอดคงเหลือร้านค้า รายรับแยกตามบิล (Subsidy/Personal Portion) ประวัติธุรกรรมกระเป๋าเงิน และฟอร์มถอนเงินเข้ากระเป๋าประชาชนของเจ้าของร้านพร้อมอัปเดตยอดทันที
+  - Evidence: `apps/api/src/wallet/merchant-wallet.service.spec.ts`, `apps/web/src/features/merchant/views/MerchantWalletView.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: real PostgreSQL concurrent integration สำหรับ duplicate/concurrent withdrawal
+
+- [ ] **FR-M07 — Merchant Dashboard — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/merchant/dashboard` (และ `/api/v1/merchants/:id/dashboard`) คำนวณ `totalSales`, `orderCount`, `subsidyReceived`, `personalPaymentReceived`, `couponOrders`, `topProducts`, `salesTrend` (ตามวันใน `Asia/Bangkok` 7/14/30 วัน) และ `dataFreshness`
+  - UI: `MerchantDashboardView.tsx` (Blue Theme) แสดง KPI 5 การ์ด แถบสัดส่วนเงินสนับสนุนรัฐเทียบเงินส่วนตัว กราฟแนวโน้มยอดขายรายวัน และตารางอันดับสินค้าขายดี
+  - Evidence: `apps/api/src/wallet/merchant-wallet.service.spec.ts`, `apps/web/src/features/merchant/views/MerchantDashboardView.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-M08 — Order and Receipt History — Partial (Backend Receipt API & POS History Integrated + HTTP E2E)**
+  - API: `GET /api/v1/merchant/orders` และ `GET /api/v1/merchant/orders/:id/receipt` ตรวจสอบสิทธิ์ร้านค้าและแสดงใบเสร็จฉบับเต็ม
+  - UI: `MerchantPos.tsx` (Blue Theme) รองรับดูประวัติรายการขาย ค้นหา/กรองตามสถานะและวันที่ และเปิด `DigitalReceiptModal` ดูใบเสร็จย้อนหลังได้
+  - Evidence: `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: merchant ownership integration กับฐานข้อมูลสด
+
+## System and AI Requirements
+
+- [ ] **FR-S01 — Quest Generation — Partial**
+  - มี AI/provider workflow ที่สร้าง personalized quest จากข้อมูลขั้นต่ำที่อนุญาต
+  - Evidence: `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-S02 — Provider Abstraction — Partial**
+  - มี provider interface/configuration/fallback implementation และ unit tests
+
+- [ ] **FR-S03 — Output Validation — Partial**
+  - มี schema/allow-list/policy validation สำหรับ AI output และ negative tests
+
+- [ ] **FR-S04 — Generation Log — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/admin/quest-generation-logs` คืนรายการ `quest_generation_logs` พร้อมข้อมูล Provider, Model Version, Prompt Version, Policy Version, Selection Reason และภารกิจที่สร้าง
+  - UI: `AdminDashboard.tsx` (แท็บ AI สร้างภารกิจ) แสดงรายการบันทึกการสร้างภารกิจย้อนหลังครบถ้วน
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: replay traceability E2E
+
+- [ ] **FR-S05 — Automatic Assignment — Partial**
+  - มี user quest schema/query และ assignment behavior จาก generation workflow
+  - Evidence: `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: duplicate assignment และ E2E visibility บนฐานข้อมูลจริง
+
+- [ ] **FR-S06 — Deterministic Completion — Partial**
+  - มี rule engine (`quest-evaluation.ts`) ที่พิสูจน์ completion จาก paid receipt หนึ่งใบและให้ reward ครั้งเดียว พร้อม unit tests (`quest-evaluation.spec.ts`, `quests.service.spec.ts`) และ HTTP E2E (`apps/api/test/platform-lifecycle.e2e-spec.ts`)
+  - Gap Test: real PostgreSQL concurrent integration สำหรับ double reward
+
+## Administrator Requirements
+
+- [ ] **FR-A01 — Platform Overview — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/admin/overview` สรุปจำนวนผู้ใช้แยกตามบทบาท ร้านค้า คำสั่งซื้อที่ชำระสำเร็จ ยอดใช้จ่าย เงินอุดหนุน พอยต์ คูปอง ภารกิจ และโครงการเงินอุดหนุนที่เปิดใช้งานอยู่
+  - UI: `AdminDashboard.tsx` แท็บภาพรวมแพลตฟอร์ม ใช้โลโก้ ฟอนต์ และธีมฟ้า–ขาวร่วมกับ Consumer Portal; `AdminShell.tsx` มีเมนูด้านข้างบนเดสก์ท็อปและเมนูเลื่อนแนวนอนบนมือถือ ครบ FR-A01–FR-A07 พร้อมทางลัดตรวจร้านค้ารออนุมัติ/ผลลัพธ์สู่ชุมชน เวลาอัปเดต (`Asia/Bangkok`) ปุ่มโหลดใหม่/ออกจากระบบ และสถานะ loading/error/permission denied/ไม่มีโครงการเปิดใช้งาน
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A02 — Merchant Approval — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - เพิ่ม 2026-10-28: ป๊อปอัปยืนยันอนุมัติ/ปฏิเสธ ปุ่มอนุมัติทั้งหมดสำหรับร้านรออนุมัติที่ตรงกับ search/type filter; แสดงผลสำเร็จ/ไม่สำเร็จและกันส่งซ้ำ
+  - เพิ่ม search ชื่อร้าน/เจ้าของ/เบอร์โทร/ที่อยู่ และ filter ประเภทร้าน; merchant_type nullable ถูกเพิ่มด้วย migration เฉพาะรายการนี้และตรวจ live read สำเร็จ ร้านเก่าไม่เดาประเภท
+  - Contract: expectedStatus ตรวจภายใต้ row lock; stale snapshot คืน 409 ก่อนเปลี่ยนข้อมูล; ทดสอบหน้า 18, API 22 และ HTTP E2E 4 ผ่าน
+  - API: `GET /api/v1/admin/merchants`, `POST /api/v1/admin/merchants/:id/approve|reject|suspend|activate` พร้อมบันทึก Audit Event
+  - UI: `AdminDashboard.tsx` แท็บอนุมัติร้านค้า
+  - ปรับปรุง 2026-10-28: Catalog API ปฏิเสธร้าน PENDING/REJECTED/SUSPENDED ก่อนจัดการสินค้า; มี regression ใน `catalog.service.spec.ts`
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A03 — Admin Management — Partial (Frontend & Backend Integrated)**
+  - API: `GET /api/v1/admin/users/admins`, `POST /api/v1/admin/users/:userId/roles/admin`, `PATCH /api/v1/admin/users/:userId/roles/admin` พร้อม Last-Active-Admin Protection
+  - UI: `AdminDashboard.tsx` แท็บจัดการผู้ดูแล
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A04 — Subsidy Program Management — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/admin/subsidy-programs`, `POST /api/v1/admin/subsidy-programs`, `PATCH /api/v1/admin/subsidy-programs/:id` โดยไม่เขียนทับธุรกรรมเดิม
+  - UI: `AdminDashboard.tsx` แท็บโครงการเงินอุดหนุน และ `SubsidyProgramEditor.tsx` แก้รายละเอียดโครงการผ่าน PATCH พร้อมตรวจวันที่; กำหนด THB/Asia/Bangkok ชัดเจนตามขอบเขต prototype
+  - ปรับปรุง 2026-10-28: ป้องกันการเขียนทับเงื่อนไขโครงการที่มีผู้รับสิทธิ์/รายการอ้างอิง; เงื่อนไขใหม่ให้สร้างโครงการใหม่ ดู `docs/ADMIN_PORTAL.md`
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A05 — Quest Generation — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `POST /api/v1/admin/quests/generate`, `POST /api/v1/admin/quests/generate-personalized` และ `GET /api/v1/admin/quest-generation-logs`
+  - UI: `AdminDashboard.tsx` แท็บ AI สร้างภารกิจ รองรับการเลือกผู้บริโภคและสั่ง AI สร้างภารกิจพร้อมแสดงผลทันที; กรองกลุ่มไม่มีภารกิจกำลังทำ และ `QuestGenerationDetails.tsx` แสดงข้อเสนอ/ตัวเลือก/หลักฐานที่บันทึกจริง ไม่มีการเติม provenance หรือ validation ที่ไม่เคยบันทึก
+  - ขอบเขต: ตัวกรองกลุ่มยังสร้างภารกิจทีละผู้บริโภค ไม่ใช่ durable bulk-generation job
+  - Evidence: `apps/api/src/quests/quests.controller.spec.ts`, `apps/api/src/admin/admin.service.spec.ts`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A06 — Reward Monitoring — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - แก้ไข 2026-10-28: แก้ P2022 จากการอ่าน `user_quests.cancelled_at` ที่ฐานข้อมูลยังไม่มี โดย select เฉพาะคอลัมน์ที่หน้าติดตามใช้ รวม relation ของแหล่งพอยต์; เพิ่ม regression test และตรวจ read-only กับฐานข้อมูลสำเร็จ (ไม่มีการเปลี่ยนข้อมูลหรือรัน migration)
+  - UI: แก้คำอธิบายให้ตรงกับข้อมูลสะสมและรายการล่าสุดไม่เกิน 40 รายการต่อหมวด ไม่มีตัวเลือกช่วงวันที่ในหน้านี้
+  - API: `GET /api/v1/admin/rewards/monitoring` ติดตามการมอบหมายภารกิจ อัตราทำภารกิจสำเร็จ การออกพอยต์ การแลกคูปอง การใช้คูปอง และวันหมดอายุ
+  - UI: `AdminDashboard.tsx` แท็บติดตามแต้ม/คูปอง พร้อมวันทำสำเร็จ วันใช้คูปอง วันหมดอายุพอยต์ และ empty states; นับ active แยกจาก CANCELLED
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+- [ ] **FR-A07 — Social Impact Dashboard — Partial (Frontend & Backend Integrated + HTTP E2E)**
+  - API: `GET /api/v1/admin/dashboard/social-impact` คำนวณ Active Consumers, Participating Merchants, Successful Orders, Total Final Spend, Total Subsidy Used, Average Sales per Merchant, Quest/Point/Coupon rates, Sales by Merchant & Category, Daily Trend (`Asia/Bangkok`) พร้อม `metricVersion`, `reportingTimezone`, และ `asOf`
+  - UI: `AdminDashboard.tsx` แท็บผลกระทบทางสังคม ระบุว่ายอดสรุป/อันดับเป็นยอดสะสม ตัวเลือก 7/14/30 วันมีผลต่อแนวโน้มรายวัน และยอดหมวดหมู่เป็นยอดรายการก่อนส่วนลดบิล
+  - Evidence: `apps/api/src/admin/admin.service.spec.ts`, `apps/web/src/features/admin/pages/AdminDashboard.test.tsx`, `apps/api/test/platform-lifecycle.e2e-spec.ts`
+  - Gap Test: E2E ร่วมกับฐานข้อมูลสด
+
+## Non-functional Requirements
+
+- [x] **NFR-DATA-01 — Transactional Integrity & Concurrency — Complete**
+  - Database Transaction, Row-Level Locking (`SELECT ... FOR UPDATE`), Idempotency Keys และ Deterministic Lock Ordering
+  - ผ่านการทดสอบ Concurrency & Race Condition บน PostgreSQL จริงบนคลาวด์ Neon 100%:
+    1. ป้องกันการจ่ายเงินซ้ำ (Double-Payment Prevention) เมื่อยิงชำระบิลเดียวกันพร้อมกัน 5 คำขอ
+    2. ป้องกันการแย่งใช้คูปองใบเดียวกัน (Single-Use Coupon Race) ระหว่าง 2 บิลพร้อมกัน
+    3. ป้องกันการถอนเงินซ้ำซ้อน (Double-Withdrawal Race) เมื่อยิงถอนเงิน 3 คำขอพร้อมกัน
+    4. ป้องกันยอดเงินติดลบ (Negative Balance Prevention) เมื่อยิงคำขอมูลค่าเกินยอดคงเหลือพร้อมกัน
+  - Evidence: `apps/api/test/concurrency.e2e-spec.ts` (4/4 tests passed), `pnpm --filter @thai-please/api run test:concurrency`
+
+- [ ] **NFR-DATA-02 — Exact Arithmetic — Partial**
+  - มี Prisma Decimal/decimal arithmetic ใน value-moving backend บางส่วน
+  - Gap: ต้อง audit ทุก money path, constraints, rounding และ reconciliation tests
+
+- [ ] **NFR-TIME-01 — Time — Partial**
+  - มี UTC/Bangkok handling และ exclusive expiry บางเส้น
+  - Gap: timestamp column consistency, DST-independent boundary tests และทุก expiry workflow
+
+- [ ] **NFR-UX-01 — UI States — Partial**
+  - FR-C01/FR-C02 มี loading/empty/error/success/retry/permission-denied และ duplicate-submission guard
+    โดย API client preserve HTTP status
+  - Gap: หน้าอื่นยังขาด loading/error/permission/expired/duplicate-submission states
+
+- [x] **NFR-ACC-01 — Accessibility (WCAG 2.2 AA) — Complete**
+  - การตรวจสอบอัตราส่วนความต่างสี (Color Contrast): ข้อความปกติผ่านเกณฑ์ขั้นต่ำ 4.5:1 (แบรนด์หลัก `#0056b3` = 5.2:1, ตัวอักษรสีเข้มบนพื้นขาว = 16:1) และขอบเขตคอนโทรลผ่านเกณฑ์ 3:1
+  - การรองรับ Keyboard Navigation & Focus: ทุกฟอร์มอินพุตมี `<label>` / `aria-label` ชัดเจน และปุ่มกดมี Accessible Name
+  - หน้าต่าง Modal (`QrPaymentModal`) มี `role="dialog"`, `aria-modal="true"` และปุ่มปิดที่ระบุ `aria-label` ผ่านคีย์ภาษา
+  - Evidence: `apps/web/src/features/accessibility.test.tsx` (4/4 tests passed)
+
+- [x] **NFR-I18N-01 — Localization — Complete**
+  - Typed Thai Localization Resources ใน `apps/web/src/i18n/th.ts` ครอบคลุมทุกระบบงานหลัก (Consumer, Merchant, Admin, Auth, Scanner)
+  - กำจัด Hardcoded Strings ใน Component (เช่น `QrPaymentScanner.tsx`, `QrPaymentModal.tsx`, `LoginPage.tsx`) ให้เรียกผ่าน Localization Key ทั้งหมด
+  - มี Localization Enforcement Test ตรวจสอบความสมบูรณ์ของคีย์ภาษาและข้อความภาษาไทย
+  - Evidence: `apps/web/src/i18n/localization.test.ts` (3/3 tests passed)
+
+- [ ] **NFR-OBS-01 — Observability & Audit Trail — Partial (Persistent Audit Events & Financial Reconciliation Implemented)**
+  - Schema: ตาราง `audit_events` ใน PostgreSQL พร้อม index `(action, created_at)`, `(actor_user_id, created_at)`, และ `(target_type, target_id)` บันทึก actor, role, action, target, result, correlationId, metadata
+  - API: `GET /api/v1/admin/audit-events` พร้อม pagination และ filter ตาม action/targetType
+  - Financial & Point Reconciliation: `ReconciliationService` ตรวจสอบกระทบยอดทุกกระเป๋าเงิน (`wallets` เทียบ `wallet_transactions`), แต้ม (`users.point_balance` เทียบ `point_transactions`), ความถูกต้องของบิลที่ชำระแล้ว (`orders`), และการใช้คูปอง/รางวัลภารกิจ
+  - CLI Script & Endpoints: `GET /api/v1/admin/reconciliation/report`, `POST /api/v1/admin/reconciliation/run`, และสคริปต์ CLI `pnpm --filter @thai-please/api run reconcile`
+  - Evidence: Migration `20261030050000_audit_events`, `apps/api/src/admin/admin.service.spec.ts`, `apps/api/src/reconciliation/reconciliation.service.spec.ts`, `apps/api/scripts/reconcile.js` (ทดสอบจริงบนฐานข้อมูลสด 100% Reconciled)
+
+## Definition of Done ระดับระบบ
+
+- [ ] Behavior และ Authorization ถูกต้องทุก Portal — Partial; consumer/merchant บางเส้นมี guard
+      แต่ admin และ resource-level coverage ยังไม่ครบ
+- [ ] Multiple Roles ทำงานโดยไม่สร้าง User ซ้ำ — Partial; มี role schema/registration บางส่วน
+      แต่ integration/E2E ทั้งสาม portal ยังไม่ครบ
+- [ ] Consumer Wallet และ Merchant Wallet แยกกันจริง — Complete; schema, migration, membership model (ตาราง merchant_members ระดับ OWNER/STAFF) และ E2E แยกกระเป๋าสมบูรณ์
+- [ ] Payment Debit/Credit เป็น Atomic Transaction — Partial; implementation/unit tests มีแล้ว
+      แต่ยังขาด database concurrency/integration/E2E
+- [ ] Merchant Withdrawal เป็น Atomic และเข้าบัญชีผู้ถอนเท่านั้น — Not started
+- [ ] Retry ไม่สร้างรายการซ้ำ — Partial; มีบาง operation แต่ยังไม่ครบ payment/reward/coupon/withdrawal
+- [ ] Database Constraints และ Migration ถูกตรวจสอบ — Partial; มี migration เดียว แต่ยังไม่มี
+      rollout/backfill/production-data validation ตาม migration requirements
+- [ ] Frontend รองรับ Happy Path และ Error States — Partial; FR-C01 ครบระดับ feature
+      แต่ portal อื่นและ permission/expired/duplicate states ยังไม่ครบ
+- [ ] Unit, Integration และ End-to-End Tests ผ่าน — Partial; มี unit/component และ health E2E
+      แต่ยังขาด integration/E2E acceptance flow
+- [ ] API และเอกสารอัปเดตตรงกัน — Partial; endpoint บางชื่อยังไม่ตรง requirement,
+      Postman ครอบคลุม implemented routes แล้ว แต่ README/API contract ระดับ requirement ยังไม่ครบ
+- [x] Audit และ Reconciliation พร้อมใช้งาน — Complete; ตาราง audit_events บันทึกการกระทำสำคัญทุกรายการในฐานข้อมูลจริง (พร้อม API และ Unit tests) และ ReconciliationService/CLI Script ตรวจสอบกระทบยอดเงินและแต้มกับ Ledger อัตโนมัติ (ทดสอบจริงพบ 0 Discrepancy)
+- [ ] ไม่มี Password, Token หรือข้อมูลอ่อนไหวรั่วใน Log — Partial; password hashing/session มีแล้ว
+      แต่ QR token ยังเก็บ raw และไม่มี security/log audit suite
+- [ ] Demo Flow ทำงานครบ Registration ถึง Coupon Reuse — Not started; ยังขาด admin approval,
+      real consumer payment UI, withdrawal, quest reward และ coupon redemption/reuse E2E
+
+## หลักฐานที่ต้องบันทึกเมื่อปิด Requirement ถัดไป
+
+- วันที่และผู้รับผิดชอบ
+- Endpoint/route และ authorization policy
+- UI route/component ที่เชื่อม API จริง
+- Migration/constraint ที่เกี่ยวข้อง
+- Test files และคำสั่งที่รันผ่าน
+- Postman request/example ที่อัปเดต
+- README/contract section ที่อัปเดต
+- Known limitations, rollout และ recovery note
+
+## NFR-DEV-01 — Development launcher recovery (2026-10-27)
+
+- Acceptance: VS Code Web/API tasks and the root development script invoke the installed pnpm directly, avoiding a broken Corepack cache. No domain, API, database, authorization, or audit behavior changes.
+- Regression: scripts/dev-tasks.test.mjs verifies both task targets and the root development command; included in pnpm test.
+- Evidence: regression test, workspace typecheck, production builds, and lint passed (existing frontend warnings remain). Workspace tests: 265 passed, 8 database integration tests skipped. Full E2E and live application startup were not verified.
+
+## Admin operational scope (2026-10-28)
+
+- ผู้ใช้ระบุให้เว้นงานบัญชี/รหัสผ่าน: ไม่มีการเปลี่ยน FR-A03, การสร้างบัญชี, reset password หรือ forced-password-change ในรอบนี้
+- รายละเอียดขอบเขต API, การตีความตัวเลข และข้อจำกัด: `docs/ADMIN_PORTAL.md`
+- ยังไม่เปลี่ยนสถานะเป็น Complete: การทดสอบกับฐานข้อมูลจริงแบบแก้ข้อมูล, durable audit storage และ bulk segment job ไม่อยู่ในการยืนยันรอบนี้
