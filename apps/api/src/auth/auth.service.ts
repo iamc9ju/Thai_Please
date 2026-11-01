@@ -233,7 +233,6 @@ export class AuthService {
       }
 
       if (
-        existingUser.status !== 'ACTIVE' ||
         !(await this.passwords.verify(dto.password, existingUser.passwordHash))
       ) {
         throw new UnauthorizedException(
@@ -369,7 +368,6 @@ export class AuthService {
       }
 
       if (
-        existingUser.status !== 'ACTIVE' ||
         !(await this.passwords.verify(dto.password, existingUser.passwordHash))
       ) {
         throw new UnauthorizedException(

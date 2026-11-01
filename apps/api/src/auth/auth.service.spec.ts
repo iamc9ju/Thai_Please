@@ -205,6 +205,49 @@ describe('AuthService & LoginRateLimiterService (FR-AUTH-03, FR-AUTH-04)', () =>
     expect(prismaMock.authSession.create).not.toHaveBeenCalled();
   });
 
+  it.each(['CONSUMER', 'MERCHANT'] as const)(
+    'FR-AUTH-04 allows inactive accounts through %s registration checks while retaining password verification',
+    async (role) => {
+      const transactionBoundary = new Error('registration transaction reached');
+      const prisma = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            ...consumerRegistration,
+            userId: 101n,
+            dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
+            passwordHash: 'fixture-hash',
+            status: 'SUSPENDED',
+            roles: [{ role: role === 'CONSUMER' ? 'MERCHANT' : 'CONSUMER' }],
+          }),
+        },
+        merchant: { findFirst: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockRejectedValue(transactionBoundary),
+      };
+      const passwords = {
+        verify: vi.fn().mockResolvedValue(true),
+        hash: vi.fn().mockResolvedValue('fixture-hash'),
+      };
+      const auth = new AuthService(
+        prisma as unknown as PrismaService,
+        jwtServiceMock as never,
+        {} as never,
+        passwords as never,
+      );
+      const register = () =>
+        role === 'CONSUMER'
+          ? auth.registerConsumer(consumerRegistration)
+          : auth.registerMerchant(merchantRegistration);
+
+      await expect(register()).rejects.toBe(transactionBoundary);
+      expect(prisma.$transaction).toHaveBeenCalledOnce();
+
+      prisma.$transaction.mockClear();
+      passwords.verify.mockResolvedValue(false);
+      await expect(register()).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects adding the consumer role when existing identity data does not match', async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       userId: 101n,
