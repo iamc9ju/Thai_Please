@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { QuestsController } from './quests.controller.js';
@@ -67,7 +68,8 @@ describe('quest HTTP authorization and contracts', () => {
         },
       })
       .compile();
-    app = module.createNestApplication();
+    // Import the HTTP adapter before test execution so cold loading does not consume the request deadline.
+    app = module.createNestApplication(new ExpressAdapter());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,

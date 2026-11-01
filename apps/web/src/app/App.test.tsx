@@ -5,7 +5,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { th } from '../i18n/th';
 
@@ -28,6 +28,11 @@ vi.mock('../features/auth/api/auth.api', () => ({
 vi.mock('../features/landing/landing.api', () => ({
   getPublicMerchants: vi.fn().mockResolvedValue([]),
 }));
+
+// Load the real login module outside query deadlines; App still uses React.lazy.
+beforeAll(async () => {
+  await import('../features/auth/pages/LoginPage');
+});
 
 afterEach(() => {
   cleanup();
